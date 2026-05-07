@@ -64,6 +64,26 @@ return [
             ]) : [],
         ],
 
+        'mysql_snp' => [
+            'driver' => env('DB_SNP_CONNECTION', 'mysql'),
+            'url' => env('DB_SNP_URL'),
+            'host' => env('DB_SNP_HOST', '127.0.0.1'),
+            'port' => env('DB_SNP_PORT', '3306'),
+            'database' => env('DB_SNP_DATABASE', 'forge'),
+            'username' => env('DB_SNP_USERNAME', 'forge'),
+            'password' => env('DB_SNP_PASSWORD', ''),
+            'unix_socket' => env('DB_SNP_SOCKET', ''),
+            'charset' => env('DB_SNP_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_SNP_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
@@ -149,7 +169,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
+            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')) . '-database-'),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 
