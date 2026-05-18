@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Direktorat extends Model
 {
+    protected $connection = 'mysql';
+
     protected $table = 'tb_direktorat';
 
     protected $fillable = [

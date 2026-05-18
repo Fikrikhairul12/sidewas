@@ -11,6 +11,13 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                sidewas: {
+                    blue: '#2377b9',
+                    yellow: '#c8e079',
+                    green: '#6bb17e',
+                },
+            },
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },

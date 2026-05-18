@@ -11,6 +11,7 @@ class SnpButirPic extends Model
     use TracksUser;
 
     protected $connection = 'mysql_snp';
+
     protected $table = 'tb_butir_pic';
 
     protected $fillable = [
@@ -25,13 +26,20 @@ class SnpButirPic extends Model
     protected static function booted(): void
     {
         static::saving(function ($pic) {
-            $hasUnitKerja = ! empty($pic->unit_kerja_id);
-            $hasKomite = ! empty($pic->komite_id);
+            if (in_array($pic->jenis_pic, ['utama', 'pendukung'])) {
+                if (empty($pic->unit_kerja_id) || !empty($pic->komite_id)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'pic' => 'PIC utama/pendukung wajib menggunakan unit kerja.',
+                    ]);
+                }
+            }
 
-            if ($hasUnitKerja === $hasKomite) {
-                throw ValidationException::withMessages([
-                    'pic' => 'PIC harus memilih salah satu: unit kerja atau komite.',
-                ]);
+            if ($pic->jenis_pic === 'komite') {
+                if (empty($pic->komite_id) || !empty($pic->unit_kerja_id)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'komite' => 'PIC komite wajib menggunakan komite.',
+                    ]);
+                }
             }
         });
     }

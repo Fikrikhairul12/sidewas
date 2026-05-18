@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class LogActivity extends Model
 {
+    protected $connection = 'mysql';
     protected $table = 'tb_log_activity';
 
     protected $fillable = [

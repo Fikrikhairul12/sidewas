@@ -4,6 +4,12 @@ namespace App\Models;
 
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\SnpButirPic;
+use App\Models\SnpTindakLanjut;
+use App\Models\SnpTanggapan;
+use App\Models\SnpReview;
+use App\Models\SnpRecord;
+use App\Models\User;
 
 class SnpButir extends Model
 {
@@ -51,15 +57,15 @@ class SnpButir extends Model
 
     public function tanggapan()
     {
-        return $this->hasMany(SnpTanggapan::class, 'id_butir_snp', 'id_butir_snp');
+        return $this->hasOne(SnpTanggapan::class, 'id_butir_snp', 'id_butir_snp');
     }
 
-    public function tindakLanjut()
+    public function tindakLanjuts()
     {
         return $this->hasMany(SnpTindakLanjut::class, 'id_butir_snp', 'id_butir_snp');
     }
 
-    public function review()
+    public function reviews()
     {
         return $this->hasMany(SnpReview::class, 'id_butir_snp', 'id_butir_snp');
     }

@@ -33,7 +33,7 @@
             <header class="sticky top-0 z-30 border-b border-gray-200 bg-white">
                 <div class="flex h-20 items-center justify-between px-8">
                     <button type="button" @click="sidebarOpen = !sidebarOpen"
-                        class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                        class="inline-flex items-center gap-2 rounded-md bg-sidewas-blue px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
@@ -44,12 +44,13 @@
                         <button type="button" @click="openUserMenu = !openUserMenu"
                             @click.outside="openUserMenu = false"
                             class="inline-flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100">
-                            <svg class="h-6 w-6 text-gray-500" fill="none" stroke="currentColor" stroke-width="1.8"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a8.25 8.25 0 0 1 15 0" />
-                            </svg>
-
+                            <div class="flex h-10 w-10 items-center justify-center rounded-full text-white shadow bg-sidewas-blue">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor"
+                                    stroke-width="1.8" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a8.25 8.25 0 0 1 15 0" />
+                                </svg>
+                            </div>
                             <span>
                                 {{ Auth::user()->email ?? Auth::user()->name }}
                             </span>
@@ -74,7 +75,7 @@
 
                                 <button type="submit"
                                     class="block w-full px-4 py-3 text-left text-sm text-red-600 transition hover:bg-red-50">
-                                    Logout
+                                    Keluar
                                 </button>
                             </form>
                         </div>

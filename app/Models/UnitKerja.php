@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class UnitKerja extends Model
 {
+    protected $connection = 'mysql';
+
     protected $table = 'tb_unit_kerja';
 
     protected $fillable = [

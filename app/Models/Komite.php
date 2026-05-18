@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Komite extends Model
 {
+    protected $connection = 'mysql';
     protected $table = 'tb_komite';
 
     protected $fillable = [
