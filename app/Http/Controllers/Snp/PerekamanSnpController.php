@@ -16,6 +16,7 @@ use App\Models\DeleteRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class PerekamanSnpController extends Controller
 {
@@ -98,10 +99,13 @@ class PerekamanSnpController extends Controller
         |--------------------------------------------------------------------------
         */
         if ($request->filled('direktorat_id')) {
-            $direktoratId = $request->direktorat_id;
+            $unitKerjaIds = UnitKerja::where('direktorat_id', $request->direktorat_id)
+                ->pluck('id')
+                ->toArray();
 
-            $recordsQuery->whereHas('butirSnp.butirPics.unitKerja', function ($query) use ($direktoratId) {
-                $query->where('direktorat_id', $direktoratId);
+            $recordsQuery->whereHas('butirSnp.butirPics', function ($query) use ($unitKerjaIds) {
+                $query->where('jenis_pic', 'utama')
+                    ->whereIn('unit_kerja_id', $unitKerjaIds);
             });
         }
 
@@ -197,15 +201,23 @@ class PerekamanSnpController extends Controller
             'perihal_surat' => ['required', 'string'],
             'cluster_id' => ['required', 'integer'],
             'sub_cluster_id' => ['required', 'integer'],
+            'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
         ]);
 
         DB::connection('mysql_snp')->transaction(function () use ($request, $validated) {
+            $dokumenPath = null;
+
+            if ($request->hasFile('dokumen')) {
+                $dokumenPath = $request->file('dokumen')->store('dokumen/record-snp', 'public');
+            }
+
             $record = SnpRecord::create([
                 'cluster_id' => $validated['cluster_id'],
                 'sub_cluster_id' => $validated['sub_cluster_id'],
                 'nomor_surat' => $validated['nomor_surat'],
                 'tanggal_surat' => $validated['tanggal_surat'],
                 'perihal_surat' => $validated['perihal_surat'],
+                'dokumen' => $dokumenPath,
                 'status' => 'draft',
             ]);
 
@@ -279,6 +291,12 @@ class PerekamanSnpController extends Controller
                 'jenis_pic' => 'komite',
             ]);
 
+            if ($record->status === 'draft') {
+                $record->update([
+                    'status' => 'terbit',
+                ]);
+            }
+
             LogActivity::create([
                 'user_id' => Auth::id(),
                 'type_code' => 'snp',
@@ -289,7 +307,7 @@ class PerekamanSnpController extends Controller
                 'description' => 'User menambahkan butir SNP pada surat ' . $record->id_snp . '.',
                 'old_values' => null,
                 'new_values' => [
-                    'record' => $record->toArray(),
+                    'record' => $record->fresh()->toArray(),
                     'butir' => $butir->toArray(),
                     'input' => $request->except('_token'),
                 ],
@@ -307,7 +325,7 @@ class PerekamanSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if ( !$user || !$user->canRequestDeleteSnpPerekaman()) {
+        if (!$user || !$user->canRequestDeleteSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menghapus perekaman SNP.');
         }
 
@@ -321,6 +339,10 @@ class PerekamanSnpController extends Controller
                 ])->toArray();
 
                 $recordKey = $record->id_snp;
+
+                if ($record->dokumen && Storage::disk('public')->exists($record->dokumen)) {
+                    Storage::disk('public')->delete($record->dokumen);
+                }
 
                 $record->delete();
 
@@ -395,5 +417,26 @@ class PerekamanSnpController extends Controller
         return redirect()
             ->route('snp.perekaman')
             ->with('success', 'Pengajuan hapus berhasil dikirim.');
+    }
+
+    public function downloadDokumen(SnpRecord $record)
+    {
+        $user = User::find(Auth::id());
+
+        if (!$user || !$user->canAccessSnpPerekaman()) {
+            abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen.');
+        }
+
+        if (!$record->dokumen) {
+            abort(404, 'Dokumen tidak ditemukan.');
+        }
+
+        $filePath = storage_path('app/public/' . $record->dokumen);
+
+        if (!file_exists($filePath)) {
+            abort(404, 'File tidak ditemukan di storage.');
+        }
+
+        return response()->download($filePath);
     }
 }

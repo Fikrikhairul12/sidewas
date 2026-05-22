@@ -33,51 +33,14 @@
         @endif
 
         {{-- FILTER --}}
-        <div class="rounded-2xl border border-blue-100 bg-white shadow-sm">
-            <div class="border-b border-blue-50 px-6 py-5">
-                <form method="GET" action="{{ route('snp.tanggapan.index') }}">
-                    <div class="grid gap-4 md:grid-cols-3">
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">
-                                Status Tanggapan
-                            </label>
-                            <select name="status_tanggapan"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Semua</option>
-                                <option value="belum" @selected(request('status_tanggapan') === 'belum')>
-                                    Belum Ditanggapi
-                                </option>
-                                <option value="sudah" @selected(request('status_tanggapan') === 'sudah')>
-                                    Sudah Ditanggapi
-                                </option>
-                            </select>
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <label class="mb-2 block text-sm font-medium text-slate-700">
-                                Kata Kunci
-                            </label>
-                            <input type="text" name="keyword" value="{{ request('keyword') }}"
-                                placeholder="Cari ID SNP, ID butir, nomor surat, perihal, isi butir..."
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <div class="mt-4 flex justify-end gap-3">
-                        <a href="{{ route('snp.tanggapan.index') }}"
-                            class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                            Reset
-                        </a>
-
-                        <button type="submit"
-                            class="rounded-xl px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-                            style="background-color: #2377b9;">
-                            Terapkan Filter
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        @include('layouts.snp.partials.filter-lanjutan', [
+            'action' => route('snp.tanggapan.index'),
+            'statusOptions' => [
+                'belum' => 'Belum Ditanggapi',
+                'sudah' => 'Sudah Ditanggapi',
+            ],
+            'keywordPlaceholder' => 'Cari ID SNP, ID butir, nomor surat, perihal, isi butir, atau tanggapan...',
+        ])
 
         {{-- TABLE --}}
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -200,12 +163,12 @@
 
                                 <td class="px-6 py-6 align-top">
                                     @if ($butir->tanggapan)
-                                        <span class="rounded-full px-3 py-1 text-xs font-bold text-white"
+                                        <span class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
                                             style="background-color: #6bb17e;">
                                             Sudah Ditanggapi
                                         </span>
 
-                                        <p class="mt-3 text-xs text-slate-700">
+                                        <p class="whitespace-pre-line mt-3 text-xs text-slate-700">
                                             {{ $butir->tanggapan->tanggapan }}
                                         </p>
 
@@ -214,7 +177,7 @@
                                         </p>
                                     @else
                                         <span
-                                            class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                                            class="inline-flex text-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
                                             Belum Ditanggapi
                                         </span>
                                     @endif
@@ -326,7 +289,7 @@
                             </label>
                             <textarea name="tanggapan" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan tanggapan...">{{ old('tanggapan') }}</textarea>
+                                placeholder="Nomor tanggapan&#10;Tanggal&#10;&#10;Isi tanggapan...">{{ old('tanggapan') }}</textarea>
                         </div>
 
                         <div>

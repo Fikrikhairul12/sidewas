@@ -88,6 +88,12 @@
                     {{ request()->routeIs('snp.reviu.*') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Reviu SNP
                 </a>
+
+                <a href="{{ route('snp.report.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('snp.report.*') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
+                    Cetak Laporan SNP
+                </a>
             </div>
         </div>
 

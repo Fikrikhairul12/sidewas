@@ -8,6 +8,7 @@ use App\Http\Controllers\Administrasi\PengajuanController;
 use App\Http\Controllers\Snp\TanggapanSnpController;
 use App\Http\Controllers\Snp\ReviuSnpController;
 use App\Http\Controllers\Snp\TindakLanjutSnpController;
+use App\Http\Controllers\Snp\ReportSnpController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -50,10 +51,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/snp/perekaman/{record}/butir', [PerekamanSnpController::class, 'storeButir'])
         ->name('snp.perekaman.butir.store');
-});
 
-Route::delete('/snp/perekaman/{record}/request-delete', [PerekamanSnpController::class, 'requestDelete'])
-    ->name('snp.perekaman.destroy.request');
+    Route::get('/snp/perekaman/{record}/dokumen', [PerekamanSnpController::class, 'downloadDokumen'])
+        ->name('snp.perekaman.dokumen');
+
+    Route::delete('/snp/perekaman/{record}/request-delete', [PerekamanSnpController::class, 'requestDelete'])
+        ->name('snp.perekaman.destroy.request');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/administrasi/pengajuan', [PengajuanController::class, 'index'])
@@ -94,4 +98,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/snp/tindak-lanjut', [TindakLanjutSnpController::class, 'store'])
         ->name('snp.tindak-lanjut.store');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/snp/report', [ReportSnpController::class, 'index'])
+        ->name('snp.report.index');
+
+    Route::post('/snp/report/cetak', [ReportSnpController::class, 'cetak'])
+        ->name('snp.report.cetak');
 });

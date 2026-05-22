@@ -228,6 +228,10 @@ class User extends Authenticatable
 
     public function canCreateSnpTanggapanForButir(SnpButir $butir): bool
     {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
         $hasAllowedRole = $this->hasRoleType('pic_snp')
             || $this->hasRoleType('moderator_snp');
 
@@ -268,12 +272,18 @@ class User extends Authenticatable
 
     public function canAccessSnpReview(): bool
     {
-        return ($this->hasRoleType('pic_snp') || $this->hasRoleType('moderator_snp'))
-            && count($this->komiteIds()) > 0;
+        return $this->hasRoleType('pic_snp')
+            || $this->hasRoleType('moderator_snp')
+            || $this->hasRoleType('admin_snp')
+            || $this->isSuperAdmin();
     }
 
     public function canReviewSnpByKomite(?int $komiteId): bool
     {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
         if (!$this->hasRoleType('pic_snp') && !$this->hasRoleType('moderator_snp')) {
             return false;
         }
@@ -287,6 +297,10 @@ class User extends Authenticatable
 
     public function canCreateSnpTindakLanjutForButir(SnpButir $butir): bool
     {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
         $hasAllowedRole = $this->hasRoleType('pic_snp')
             || $this->hasRoleType('moderator_snp');
 

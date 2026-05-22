@@ -66,7 +66,7 @@
                         @forelse ($pengajuan as $item)
                             <tr class="hover:bg-blue-50/40">
                                 <td class="px-6 py-5 align-top">
-                                    <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-600">
+                                    <span class="inline-flex text-center rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-600">
                                         Hapus Perekaman
                                     </span>
 
@@ -118,7 +118,7 @@
                                             ][$item->status] ?? $item->status;
                                     @endphp
 
-                                    <span class="rounded-full px-3 py-1 text-xs font-bold text-white"
+                                    <span class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
                                         style="background-color: #2377b9;">
                                         {{ $statusLabel }}
                                     </span>

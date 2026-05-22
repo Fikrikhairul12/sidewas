@@ -10,6 +10,7 @@ class SnpTanggapan extends Model
     use TracksUser;
 
     protected $connection = 'mysql_snp';
+
     protected $table = 'tb_tanggapan';
 
     protected $fillable = [
@@ -23,18 +24,14 @@ class SnpTanggapan extends Model
         'updated_by',
     ];
 
-    protected $casts = [
-        'ubah_tgl' => 'date',
-    ];
-
     public function butir()
     {
         return $this->belongsTo(SnpButir::class, 'id_butir_snp', 'id_butir_snp');
     }
 
-    public function reviews()
+    public function review()
     {
-        return $this->hasMany(SnpReview::class, 'id_tanggapan', 'id');
+        return $this->hasOne(SnpReview::class, 'id_tanggapan', 'id');
     }
 
     public function creator()

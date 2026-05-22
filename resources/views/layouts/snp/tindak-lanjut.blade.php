@@ -87,35 +87,17 @@
             </div>
         @endif
 
-        <div class="rounded-2xl border border-blue-100 bg-white shadow-sm">
-            <div class="border-b border-blue-50 px-6 py-5">
-                <form method="GET" action="{{ route('snp.tindak-lanjut.index') }}">
-                    <div class="grid gap-4 md:grid-cols-3">
-                        <div class="md:col-span-2">
-                            <label class="mb-2 block text-sm font-medium text-slate-700">
-                                Kata Kunci
-                            </label>
-                            <input type="text" name="keyword" value="{{ request('keyword') }}"
-                                placeholder="Cari ID SNP, ID butir, isi tindak lanjut, deliverables..."
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-
-                        <div class="flex items-end gap-3">
-                            <a href="{{ route('snp.tindak-lanjut.index') }}"
-                                class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                                Reset
-                            </a>
-
-                            <button type="submit"
-                                class="rounded-xl px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-                                style="background-color: #2377b9;">
-                                Cari
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+        @include('layouts.snp.partials.filter-lanjutan', [
+            'action' => route('snp.tindak-lanjut.index'),
+            'statusOptions' => [
+                'belum_ditanggapi' => 'Belum Ditanggapi',
+                'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
+                'dalam_proses_tindak_lanjut_direksi' => 'Dalam Proses Tindak Lanjut Direksi',
+                'selesai_tuntas' => 'Selesai Tuntas',
+            ],
+            'keywordPlaceholder' =>
+                'Cari ID SNP, ID butir, nomor surat, perihal, tindak lanjut, atau deliverables...',
+        ])
 
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div class="border-b border-blue-50 px-6 py-5">
@@ -180,7 +162,7 @@
                                         Tindak Lanjut
                                     </p>
 
-                                    <p class="mt-2 max-w-lg text-xs text-slate-800">
+                                    <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
                                         {{ $item->tindak_lanjut }}
                                     </p>
 
@@ -209,7 +191,8 @@
 
                                 <td class="px-6 py-6 align-top">
                                     @if ($reviewTerakhir)
-                                        <span class="inline-flex rounded-xl px-3 py-1 text-xs font-bold text-center text-white"
+                                        <span
+                                            class="inline-flex rounded-xl px-3 py-1 text-xs font-bold text-center text-white"
                                             style="background-color: #2377b9;">
                                             {{ ucwords(str_replace('_', ' ', $reviewTerakhir->status)) }}
                                         </span>
@@ -405,7 +388,7 @@
 
                             <textarea name="tindak_lanjut" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan tindak lanjut...">{{ old('tindak_lanjut') }}</textarea>
+                                placeholder="Nomor tindak lanjut&#10;Tanggal&#10;&#10;Isi tindak lanjut...">{{ old('tindak_lanjut') }}</textarea>
                         </div>
 
                         <div>

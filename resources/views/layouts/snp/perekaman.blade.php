@@ -18,16 +18,6 @@
                 </div>
 
                 <div class="flex flex-wrap gap-3">
-                    <button type="button"
-                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M7.5 12 12 16.5m0 0 4.5-4.5M12 16.5V3" />
-                        </svg>
-                        Ekspor
-                    </button>
-
                     @if (auth()->user()->canCreateSnpPerekaman())
                         <button type="button" @click="openCreateModal = true"
                             class="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
@@ -175,7 +165,8 @@
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">Semua Status</option>
                                 <option value="draft" @selected(request('status') === 'draft')>Draft</option>
-                                <option value="proses" @selected(request('status') === 'proses')>Dalam Proses</option>
+                                <option value="terbit" @selected(request('status') === 'terbit')>Terbit</option>
+                                <option value="dalam_proses" @selected(request('status') === 'dalam_proses')>Dalam Proses</option>
                                 <option value="selesai" @selected(request('status') === 'selesai')>Selesai</option>
                             </select>
                         </div>
@@ -381,6 +372,24 @@
                                             {{ $record->perihal_surat }}
                                         </p>
 
+                                        <div class="mt-3">
+                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                Dokumen Surat
+                                            </p>
+
+                                            @if ($record->dokumen)
+                                                <a href="{{ route('snp.perekaman.dokumen', $record->id) }}"
+                                                    class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                    style="background-color: #2377b9;">
+                                                    Download Dokumen
+                                                </a>
+                                            @else
+                                                <p class="mt-1 text-xs text-slate-400">
+                                                    -
+                                                </p>
+                                            @endif
+                                        </div>
+
                                         <div class="mt-4 rounded-xl bg-slate-50 p-4">
                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                                 Jatuh Tempo
@@ -518,12 +527,38 @@
 
                                 {{-- Status --}}
                                 <td class="px-6 py-6 align-top">
-                                    <span class="inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
-                                        style="background-color: #2377b9;">
-                                        {{ ucwords(str_replace('_', ' ', $record->status)) }}
+                                    @php
+                                        $statusLabel =
+                                            [
+                                                'draft' => 'Draft',
+                                                'terbit' => 'Terbit',
+                                                'dalam_proses' => 'Proses',
+                                                'selesai' => 'Selesai',
+                                            ][$record->status] ?? ucwords(str_replace('_', ' ', $record->status));
+
+                                        $statusColor =
+                                            [
+                                                'draft' => '#64748b',
+                                                'terbit' => '#2377b9',
+                                                'dalam_proses' => '#c8e079',
+                                                'selesai' => '#6bb17e',
+                                            ][$record->status] ?? '#64748b';
+
+                                        $teksColor =
+                                            [
+                                                'draft' => 'text-white',
+                                                'terbit' => 'text-white',
+                                                'dalam_proses' => 'text-black',
+                                                'selesai' => 'text-white',
+                                            ][$record->status] ?? 'text-white';
+                                    @endphp
+
+                                    <span class="inline-flex text-center rounded-full px-4 py-1.5 text-xs font-bold {{ $teksColor }}"
+                                        style="background-color: {{ $statusColor }};">
+                                        {{ $statusLabel }}
                                     </span>
 
-                                    <p class="mt-3 text-sm text-slate-500"> 
+                                    <p class="mt-3 text-sm text-slate-500">
                                         {{ $record->butir_snp_count ?? $record->butirSnp->count() }} butir
                                     </p>
                                 </td>
@@ -677,7 +712,8 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('snp.perekaman.store') }}" class="px-6 py-6">
+                <form method="POST" action="{{ route('snp.perekaman.store') }}" enctype="multipart/form-data"
+                    class="px-6 py-6">
                     @csrf
 
                     @if ($errors->any())
@@ -718,6 +754,19 @@
                             </label>
                             <textarea name="perihal_surat" rows="3" required placeholder="Masukkan perihal surat..."
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ old('perihal_surat') }}</textarea>
+                        </div>
+
+                        <div class="lg:col-span-2">
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Dokumen Surat
+                            </label>
+
+                            <input type="file" name="dokumen"
+                                class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Opsional. Format: PDF, Word, Excel, JPG, PNG. Maksimal 5 MB.
+                            </p>
                         </div>
 
                         <div>

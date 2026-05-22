@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class PengajuanController extends Controller
 {
@@ -106,6 +107,10 @@ class PengajuanController extends Controller
             $oldRequest = $deleteRequest->toArray();
 
             $recordKey = $record->id_snp;
+
+            if ($record->dokumen && Storage::disk('public')->exists($record->dokumen)) {
+                Storage::disk('public')->delete($record->dokumen);
+            }
 
             $record->delete();
 

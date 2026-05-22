@@ -20,6 +20,7 @@ class SnpRecord extends Model
         'nomor_surat',
         'tanggal_surat',
         'perihal_surat',
+        'dokumen',
         'jth_tempo',
         'status',
         'created_by',
