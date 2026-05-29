@@ -137,7 +137,7 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('snp.report.cetak') }}" target="_blank">
+        <form method="POST" id="reportForm">
             @csrf
 
             <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -151,11 +151,19 @@
                         </p>
                     </div>
 
-                    <button type="submit"
-                        class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
-                        style="background-color: #2377b9;">
-                        Cetak PDF
-                    </button>
+                    <div class="flex flex-wrap gap-3">
+                        <button type="button" id="openReportFormatModalBtn"
+                            class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
+                            style="background-color: #2377b9;">
+                            Cetak Report
+                        </button>
+
+                        <button type="button" id="openCustomReportModalBtn"
+                            class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
+                            style="background-color: #6bb17e;">
+                            Cetak Report Custom
+                        </button>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -189,7 +197,24 @@
                             @forelse ($records as $record)
                                 <tr class="hover:bg-blue-50/40">
                                     <td class="px-6 py-5 text-center align-top">
+                                        @php
+                                            $butirsForReport = $record->butirSnp
+                                                ->map(function ($butir) {
+                                                    return [
+                                                        'id' => $butir->id,
+                                                        'id_butir_snp' => $butir->id_butir_snp,
+                                                        'butir_snp' => \Illuminate\Support\Str::limit(
+                                                            $butir->butir_snp,
+                                                            120,
+                                                        ),
+                                                    ];
+                                                })
+                                                ->values();
+                                        @endphp
+
                                         <input type="checkbox" name="record_ids[]" value="{{ $record->id }}"
+                                            data-record-label="{{ $record->nomor_surat }}"
+                                            data-butirs='@json($butirsForReport)'
                                             class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
                                     </td>
 
@@ -216,7 +241,8 @@
                                     </td>
 
                                     <td class="px-6 py-5 align-top">
-                                        <span class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
+                                        <span
+                                            class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
                                             style="background-color: #2377b9;">
                                             {{ ucwords(str_replace('_', ' ', $record->status)) }}
                                         </span>
@@ -238,5 +264,166 @@
                 </div>
             </div>
         </form>
+
+        <div id="customReportModal"
+            class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+
+            <div class="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">
+                            Cetak Report Custom
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            Pilih butir SNP dan kolom yang ingin ditampilkan di report.
+                        </p>
+                    </div>
+
+                    <button type="button" id="closeCustomReportModalBtn"
+                        class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        ✕
+                    </button>
+                </div>
+
+                <form method="POST" id="customReportForm" target="_blank">
+                    @csrf
+
+                    <div id="customReportRecordIds"></div>
+
+                    <div class="space-y-6 px-6 py-5">
+                        <div>
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">
+                                        Pilih Butir SNP
+                                    </h3>
+                                    <p class="mt-1 text-sm text-slate-500">
+                                        Pilih butir dari surat SNP yang sudah dicentang.
+                                    </p>
+                                </div>
+
+                                <button type="button" id="selectAllCustomButirBtn"
+                                    class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
+                                    Pilih Semua Butir
+                                </button>
+                            </div>
+
+                            <div id="customReportButirList"
+                                class="mt-4 grid max-h-72 gap-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <p class="text-sm text-slate-400">
+                                    Pilih surat SNP terlebih dahulu.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">
+                                        Pilih Kolom Report
+                                    </h3>
+                                    <p class="mt-1 text-sm text-slate-500">
+                                        Kolom yang dicentang akan muncul di PDF/Excel.
+                                    </p>
+                                </div>
+
+                                <button type="button" id="selectAllCustomFieldsBtn"
+                                    class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
+                                    Pilih Semua Kolom
+                                </button>
+                            </div>
+
+                            @php
+                                $reportFields = [
+                                    'surat' => 'Nomor, Tanggal & Perihal Surat',
+                                    'id_butir' => 'ID Butir SNP',
+                                    'isi_butir' => 'Isi Butir SNP',
+                                    'pic_utama' => 'PIC Unit Kerja Utama',
+                                    'pic_pendukung' => 'PIC Unit Kerja Pendukung',
+                                    'tanggapan' => 'Tanggapan Direksi',
+                                    'tindak_lanjut' => 'Tindak Lanjut Direksi',
+                                    'deliverable' => 'Deliverable',
+                                    'dokumen' => 'Dokumen Pendukung',
+                                    'jatuh_tempo' => 'Tanggal Jatuh Tempo',
+                                    'komite' => 'PIC Komite Dewan Pengawas',
+                                    'hasil_reviu' => 'Hasil Reviu Dewan Pengawas',
+                                    'status' => 'Status Tindak Lanjut',
+                                ];
+                            @endphp
+
+                            <div class="mt-4 grid gap-3 md:grid-cols-2">
+                                @foreach ($reportFields as $fieldKey => $fieldLabel)
+                                    <label
+                                        class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 hover:bg-blue-50">
+                                        <input type="checkbox" name="fields[]" value="{{ $fieldKey }}" checked
+                                            class="custom-field-checkbox rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                        <span>{{ $fieldLabel }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                        <button type="button" id="cancelCustomReportModalBtn"
+                            class="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
+                            Batal
+                        </button>
+
+                        <button type="submit" formaction="{{ route('snp.report.cetak-custom') }}" formmethod="POST"
+                            formtarget="_blank"
+                            class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
+                            style="background-color: #2377b9;">
+                            Cetak PDF Custom
+                        </button>
+
+                        <button type="submit" formaction="{{ route('snp.report.cetak-excel-custom') }}"
+                            formmethod="POST"
+                            class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
+                            style="background-color: #6bb17e;">
+                            Cetak Excel Custom
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="reportFormatModal"
+            class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 px-4">
+
+            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">
+                            Pilih Format Report
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            Pilih format file yang ingin dicetak.
+                        </p>
+                    </div>
+
+                    <button type="button" id="closeReportFormatModalBtn"
+                        class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        ✕
+                    </button>
+                </div>
+
+                <div class="grid gap-3 px-6 py-5">
+                    <button type="submit" form="reportForm" formaction="{{ route('snp.report.cetak') }}"
+                        formmethod="POST" formtarget="_blank"
+                        class="rounded-xl px-5 py-4 text-sm font-bold text-white shadow-sm hover:opacity-90"
+                        style="background-color: #2377b9;">
+                        Cetak PDF
+                    </button>
+
+                    <button type="submit" form="reportForm" formaction="{{ route('snp.report.cetak-excel') }}"
+                        formmethod="POST"
+                        class="rounded-xl px-5 py-4 text-sm font-bold text-white shadow-sm hover:opacity-90"
+                        style="background-color: #6bb17e;">
+                        Cetak Excel
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </x-app-layout>

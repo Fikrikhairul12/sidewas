@@ -13,7 +13,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-// use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Storage;
 
 class ReviuSnpController extends Controller
 {
@@ -111,19 +111,27 @@ class ReviuSnpController extends Controller
 
             $query->where(function ($q) use ($keyword) {
                 $q->where('id_butir_snp', 'like', "%{$keyword}%")
+                    ->orWhere('hasil_review', 'like', "%{$keyword}%")
+                    ->orWhere('deliverables', 'like', "%{$keyword}%")
+                    ->orWhere('status', 'like', "%{$keyword}%")
+                    ->orWhere('tahap_review', 'like', "%{$keyword}%")
+
                     ->orWhereHas('butir', function ($butirQuery) use ($keyword) {
-                        $butirQuery->where('butir_snp', 'like', "%{$keyword}%")
-                            ->orWhere('id_butir_snp', 'like', "%{$keyword}%")
+                        $butirQuery->where('id_butir_snp', 'like', "%{$keyword}%")
+                            ->orWhere('butir_snp', 'like', "%{$keyword}%")
                             ->orWhereHas('record', function ($recordQuery) use ($keyword) {
                                 $recordQuery->where('id_snp', 'like', "%{$keyword}%")
                                     ->orWhere('nomor_surat', 'like', "%{$keyword}%")
                                     ->orWhere('perihal_surat', 'like', "%{$keyword}%");
                             });
                     })
+
                     ->orWhereHas('tanggapan', function ($tanggapanQuery) use ($keyword) {
                         $tanggapanQuery->where('tanggapan', 'like', "%{$keyword}%")
-                            ->orWhere('deliverables', 'like', "%{$keyword}%");
+                            ->orWhere('deliverables', 'like', "%{$keyword}%")
+                            ->orWhere('status_pengajuan_tgl', 'like', "%{$keyword}%");
                     })
+
                     ->orWhereHas('tindakLanjut', function ($tlQuery) use ($keyword) {
                         $tlQuery->where('tindak_lanjut', 'like', "%{$keyword}%")
                             ->orWhere('deliverables', 'like', "%{$keyword}%");
@@ -196,6 +204,7 @@ class ReviuSnpController extends Controller
         $validated = $request->validate([
             'hasil_review' => ['required', 'string'],
             'deliverables' => ['nullable', 'string'],
+            'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
             'status' => [
                 'required',
                 'in:belum_ditanggapi,dalam_proses_reviu_dewan_pengawas,dalam_proses_tindak_lanjut_direksi,selesai_tuntas',
@@ -208,14 +217,26 @@ class ReviuSnpController extends Controller
             $oldTanggapan = $review->tanggapan?->toArray();
             $oldRecord = $review->butir?->record?->toArray();
 
+            $dokumenPath = $review->dokumen;
+
+            if ($request->hasFile('dokumen')) {
+                if ($review->dokumen && Storage::disk('public')->exists($review->dokumen)) {
+                    Storage::disk('public')->delete($review->dokumen);
+                }
+
+                $dokumenPath = $request->file('dokumen')->store('dokumen/reviu-snp', 'public');
+            }
+
             $review->update([
                 'hasil_review' => $validated['hasil_review'],
                 'deliverables' => $validated['deliverables'] ?? null,
+                'dokumen' => $dokumenPath,
                 'status' => $validated['status'],
             ]);
 
             if (
-                $validated['status'] === 'dalam_proses_tindak_lanjut_direksi'
+                $review->tahap_review === 'tanggapan'
+                && $validated['status'] === 'dalam_proses_tindak_lanjut_direksi'
                 && $review->butir
                 && $review->butir->record
             ) {
@@ -258,8 +279,12 @@ class ReviuSnpController extends Controller
                 'database_name' => 'sidewas_snp',
                 'table_name' => 'tb_review',
                 'record_key' => $review->id_butir_snp,
-                'action' => 'update_review_tanggapan',
-                'description' => 'User melakukan reviu tanggapan SNP.',
+                'action' => $review->tahap_review === 'tindak_lanjut'
+                    ? 'update_review_tindak_lanjut'
+                    : 'update_review_tanggapan',
+                'description' => $review->tahap_review === 'tindak_lanjut'
+                    ? 'User melakukan reviu tindak lanjut SNP.'
+                    : 'User melakukan reviu tanggapan SNP.',
                 'old_values' => [
                     'review' => $oldReview,
                     'tanggapan' => $oldTanggapan,
@@ -277,7 +302,7 @@ class ReviuSnpController extends Controller
 
         return redirect()
             ->route('snp.reviu.index')
-            ->with('success', 'Reviu tanggapan SNP berhasil disimpan.');
+            ->with('success', 'Reviu SNP berhasil disimpan.');
     }
 
     public function downloadDokumen(SnpReview $review)

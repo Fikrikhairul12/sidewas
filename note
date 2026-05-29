@@ -1,0 +1,5 @@
+user Models
+isAllowedEmailDomain
+
+Controller/Auth/GoogleAuthController
+isAllowedEmailDomain($googleUser->getEmail())

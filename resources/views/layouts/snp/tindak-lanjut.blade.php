@@ -121,7 +121,7 @@
                                 Tindak Lanjut
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Review
+                                Reviu
                             </th>
                             <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Aksi
@@ -130,11 +130,22 @@
                     </thead>
 
                     <tbody class="divide-y divide-slate-200 bg-white">
-                        @forelse ($tindakLanjuts as $item)
+                        @forelse ($butirsTindakLanjut as $butir)
                             @php
-                                $butir = $item->butir;
-                                $record = $butir?->record;
-                                $reviewTerakhir = $item->reviews->sortByDesc('id')->first();
+                                $record = $butir->record;
+
+                                $item = $butir->tindakLanjuts->sortByDesc('id')->first();
+
+                                $reviewTerakhir = $item?->reviews
+                                    ?->where('tahap_review', 'tindak_lanjut')
+                                    ->sortByDesc('id')
+                                    ->first();
+
+                                $reviewTanggapan = $butir->reviews
+                                    ->where('tahap_review', 'tanggapan')
+                                    ->where('status', 'dalam_proses_tindak_lanjut_direksi')
+                                    ->sortByDesc('id')
+                                    ->first();
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -148,51 +159,98 @@
                                     </p>
 
                                     <p class="mt-1 text-xs text-slate-700">
-                                        Butir: {{ $butir?->id_butir_snp ?? '-' }}
+                                        Tanggal:
+                                        {{ $record?->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d/m/Y') : '-' }}
+                                    </p>
+
+                                    <p class="mt-1 text-xs text-slate-700">
+                                        Butir: {{ $butir->id_butir_snp ?? '-' }}
                                     </p>
 
                                     <p
-                                        class="mt-3 max-w-md text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $butir?->butir_snp ?? '-' }}
+                                        class="mt-3 max-w-md whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
+                                        {{ $butir->butir_snp ?? '-' }}
                                     </p>
+
+                                    <div class="mt-4">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Dokumen Reviu Tanggapan
+                                        </p>
+
+                                        @if ($reviewTanggapan?->dokumen)
+                                            <a href="{{ route('snp.reviu.dokumen', $reviewTanggapan->id) }}"
+                                                class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                style="background-color: #2377b9;">
+                                                Download Dokumen
+                                            </a>
+                                        @else
+                                            <p class="mt-1 text-xs text-slate-400">
+                                                -
+                                            </p>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        Tindak Lanjut
-                                    </p>
-
-                                    <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
-                                        {{ $item->tindak_lanjut }}
-                                    </p>
-
-                                    <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        Deliverables
-                                    </p>
-
-                                    <p class="mt-2 max-w-lg text-xs text-slate-800">
-                                        {{ $item->deliverables ?? '-' }}
-                                    </p>
-
-                                    <p class="mt-4 text-xs text-slate-500">
-                                        Jatuh Tempo:
-                                        <span class="font-bold text-slate-700">
-                                            {{ $item->jth_tempo ? $item->jth_tempo->format('d/m/Y') : '-' }}
+                                    @if ($item)
+                                        <span class="rounded-full px-3 py-1 text-xs font-bold text-white"
+                                            style="background-color: #6bb17e;">
+                                            Sudah Ditindaklanjuti
                                         </span>
-                                    </p>
 
-                                    <p class="mt-2 text-xs text-slate-500">
-                                        Diinput oleh:
-                                        <span class="font-bold text-slate-700">
-                                            {{ $item->creator?->name ?? '-' }}
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Tindak Lanjut
+                                        </p>
+
+                                        <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
+                                            {{ $item->tindak_lanjut }}
+                                        </p>
+
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Deliverables
+                                        </p>
+
+                                        <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
+                                            {{ $item->deliverables ?? '-' }}
+                                        </p>
+
+                                        <p class="mt-4 text-xs text-slate-500">
+                                            Jatuh Tempo:
+                                            <span class="font-bold text-slate-700">
+                                                {{ $item->jth_tempo ? \Carbon\Carbon::parse($item->jth_tempo)->format('d/m/Y') : '-' }}
+                                            </span>
+                                        </p>
+
+                                        <p class="mt-2 text-xs text-slate-500">
+                                            Diinput oleh:
+                                            <span class="font-bold text-slate-700">
+                                                {{ $item->creator?->name ?? '-' }}
+                                            </span>
+                                        </p>
+                                    @else
+                                        <span
+                                            class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                                            Belum Ditindaklanjuti
                                         </span>
-                                    </p>
+
+                                        <p class="mt-4 text-xs text-slate-500">
+                                            Surat/butir ini sudah masuk tahap tindak lanjut direksi, tetapi tindak
+                                            lanjut belum diinput.
+                                        </p>
+
+                                        <p class="mt-4 text-xs text-slate-500">
+                                            Jatuh Tempo:
+                                            <span class="font-bold text-slate-700">
+                                                {{ $record?->jth_tempo ? \Carbon\Carbon::parse($record->jth_tempo)->format('d/m/Y') : '-' }}
+                                            </span>
+                                        </p>
+                                    @endif
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
                                     @if ($reviewTerakhir)
                                         <span
-                                            class="inline-flex rounded-xl px-3 py-1 text-xs font-bold text-center text-white"
+                                            class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
                                             style="background-color: #2377b9;">
                                             {{ ucwords(str_replace('_', ' ', $reviewTerakhir->status)) }}
                                         </span>
@@ -203,11 +261,40 @@
                                                 {{ $reviewTerakhir->komite?->kode_komite ?? '-' }}
                                             </span>
                                         </p>
+
+                                        @if ($reviewTerakhir->hasil_review)
+                                            <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                Hasil Reviu
+                                            </p>
+
+                                            <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
+                                                {{ $reviewTerakhir->hasil_review }}
+                                            </p>
+                                        @endif
+
+                                        @if ($reviewTerakhir->deliverables)
+                                            <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                Deliverables Reviu
+                                            </p>
+
+                                            <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
+                                                {{ $reviewTerakhir->deliverables }}
+                                            </p>
+                                        @endif
                                     @else
-                                        <span
-                                            class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
-                                            Belum Ada Review
-                                        </span>
+                                        @if ($item)
+                                            <span
+                                                class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
+                                                style="background-color: #2377b9;">
+                                                Belum Ditanggapi
+                                            </span>
+                                        @else
+                                            <span
+                                                class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
+                                                style="background-color: #64748b;">
+                                                Belum Ditindaklanjuti
+                                            </span>
+                                        @endif
                                     @endif
                                 </td>
 
@@ -220,16 +307,18 @@
                                         </a>
                                     </div>
                                 </td>
+                                </td>
                             </tr>
                         @empty
                             <tr>
                                 <td colspan="4" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada data tindak lanjut.
+                                        Belum ada surat/butir yang harus ditindaklanjuti.
                                     </p>
+
                                     <p class="mt-1 text-xs text-slate-400">
-                                        Klik Tambah Tindak Lanjut untuk memilih butir SNP yang sudah siap
-                                        ditindaklanjuti.
+                                        Data akan muncul setelah reviu tanggapan berstatus Dalam Proses Tindak Lanjut
+                                        Direksi.
                                     </p>
                                 </td>
                             </tr>
@@ -242,16 +331,16 @@
                 class="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-sm text-slate-500">
                     Menampilkan
-                    <span class="font-semibold text-slate-700">{{ $tindakLanjuts->firstItem() ?? 0 }}</span>
+                    <span class="font-semibold text-slate-700">{{ $butirsTindakLanjut->firstItem() ?? 0 }}</span>
                     -
-                    <span class="font-semibold text-slate-700">{{ $tindakLanjuts->lastItem() ?? 0 }}</span>
+                    <span class="font-semibold text-slate-700">{{ $butirsTindakLanjut->lastItem() ?? 0 }}</span>
                     dari
-                    <span class="font-semibold text-slate-700">{{ $tindakLanjuts->total() }}</span>
+                    <span class="font-semibold text-slate-700">{{ $butirsTindakLanjut->total() }}</span>
                     entri
                 </p>
 
                 <div>
-                    {{ $tindakLanjuts->links() }}
+                    {{ $butirsTindakLanjut->links() }}
                 </div>
             </div>
         </div>
@@ -388,7 +477,7 @@
 
                             <textarea name="tindak_lanjut" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor tindak lanjut&#10;Tanggal&#10;&#10;Isi tindak lanjut...">{{ old('tindak_lanjut') }}</textarea>
+                                placeholder="Nomor surat tindak lanjut (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tindak lanjut...">{{ old('tindak_lanjut') }}</textarea>
                         </div>
 
                         <div>

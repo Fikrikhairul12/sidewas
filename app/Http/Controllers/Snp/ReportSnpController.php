@@ -8,9 +8,11 @@ use App\Models\User;
 use App\Models\UnitKerja;
 use App\Models\Direktorat;
 use App\Models\Komite;
+use App\Exports\SnpReportExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportSnpController extends Controller
 {
@@ -25,6 +27,7 @@ class ReportSnpController extends Controller
         $recordsQuery = SnpRecord::with([
             'cluster',
             'subCluster',
+            'butirSnp',
         ])
             ->withCount('butirSnp');
 
@@ -134,9 +137,285 @@ class ReportSnpController extends Controller
             ->orderBy('id_snp')
             ->get();
 
-        $pdf = Pdf::loadView('layouts.snp.report.pdf', compact('records'))
+        $printedBy = $user->name ?? $user->email ?? 'User';
+        $printedAt = now()->format('d/m/Y H:i');
+
+        $pdf = Pdf::loadView('layouts.snp.report.pdf', compact(
+            'records',
+            'printedBy',
+            'printedAt'
+        ))
             ->setPaper('legal', 'landscape');
 
         return $pdf->stream('report-snp-dewas.pdf');
+    }
+
+    public function cetakCustom(Request $request)
+    {
+        $user = User::find(Auth::id());
+
+        if (!$user || !$user->canAccessSnpPerekaman()) {
+            abort(403, 'Anda tidak memiliki akses untuk mencetak report SNP.');
+        }
+
+        $validated = $request->validate([
+            'record_ids' => ['required', 'array', 'min:1'],
+            'record_ids.*' => ['integer'],
+            'butir_ids' => ['required', 'array', 'min:1'],
+            'butir_ids.*' => ['integer'],
+            'fields' => ['required', 'array', 'min:1'],
+            'fields.*' => ['string'],
+        ], [
+            'record_ids.required' => 'Pilih minimal satu surat SNP untuk dicetak.',
+            'butir_ids.required' => 'Pilih minimal satu butir SNP untuk dicetak.',
+            'fields.required' => 'Pilih minimal satu field report.',
+        ]);
+
+        $allowedFields = [
+            'surat',
+            'id_butir',
+            'isi_butir',
+            'pic_unit',
+            'pic_utama',
+            'pic_pendukung',
+            'tanggapan_tl',
+            'tanggapan',
+            'tindak_lanjut',
+            'deliverable',
+            'dokumen',
+            'jatuh_tempo',
+            'komite',
+            'hasil_reviu',
+            'status',
+        ];
+
+        $selectedFields = array_values(array_intersect($validated['fields'], $allowedFields));
+        $selectedFields = $this->mapFieldsForPdf($selectedFields);
+
+        if (empty($selectedFields)) {
+            return back()->with('error', 'Pilih minimal satu field report.');
+        }
+
+        $butirIds = $validated['butir_ids'];
+
+        $records = SnpRecord::with([
+            'cluster',
+            'subCluster',
+            'butirSnp' => function ($query) use ($butirIds) {
+                $query->whereIn('id', $butirIds)
+                    ->orderBy('id');
+            },
+            'butirSnp.butirPics.unitKerja',
+            'butirSnp.butirPics.komite',
+            'butirSnp.tanggapan.review',
+            'butirSnp.tindakLanjuts.reviews',
+        ])
+            ->whereIn('id', $validated['record_ids'])
+            ->whereHas('butirSnp', function ($query) use ($butirIds) {
+                $query->whereIn('id', $butirIds);
+            })
+            ->orderBy('id_snp')
+            ->get();
+
+        $fieldLabels = [
+            'surat' => 'NOMOR, TANGGAL & PERIHAL SURAT',
+            'id_butir' => 'ID BUTIR SNP',
+            'isi_butir' => 'ISI BUTIR SNP',
+            'pic_unit' => 'PIC UNIT KERJA',
+            'tanggapan_tl' => 'TANGGAPAN & TINDAK LANJUT DIREKSI',
+            'deliverable' => 'DELIVERABLE',
+            'dokumen' => 'DOKUMEN PENDUKUNG',
+            'jatuh_tempo' => 'TGL. JATUH TEMPO',
+            'komite' => 'PIC KOMITE DEWAN PENGAWAS',
+            'hasil_reviu' => 'HASIL REVIU DEWAN PENGAWAS',
+            'status' => 'STATUS TINDAK LANJUT',
+        ];
+
+        $printedBy = $user->name ?? $user->email ?? 'User';
+        $printedAt = now()->format('d/m/Y H:i');
+
+        $pdf = Pdf::loadView('layouts.snp.report.pdf-custom', compact(
+            'records',
+            'selectedFields',
+            'fieldLabels',
+            'printedBy',
+            'printedAt'
+        ))
+            ->setPaper('legal', 'landscape');
+
+        return $pdf->stream('report-snp-dewas-custom.pdf');
+    }
+
+    private function reportFieldLabels(): array
+    {
+        return [
+            'surat' => 'NOMOR, TANGGAL & PERIHAL SURAT',
+            'id_butir' => 'ID BUTIR SNP',
+            'isi_butir' => 'ISI BUTIR SNP',
+            'pic_utama' => 'PIC UNIT KERJA UTAMA',
+            'pic_pendukung' => 'PIC UNIT KERJA PENDUKUNG',
+            'tanggapan' => 'TANGGAPAN DIREKSI',
+            'tindak_lanjut' => 'TINDAK LANJUT DIREKSI',
+            'deliverable' => 'DELIVERABLE',
+            'dokumen' => 'DOKUMEN PENDUKUNG',
+            'jatuh_tempo' => 'TGL. JATUH TEMPO',
+            'komite' => 'PIC KOMITE DEWAN PENGAWAS',
+            'hasil_reviu' => 'HASIL REVIU DEWAN PENGAWAS',
+            'status' => 'STATUS TINDAK LANJUT',
+
+            // Optional, kalau PDF custom masih pakai gabungan
+            'pic_unit' => 'PIC UNIT KERJA',
+            'tanggapan_tl' => 'TANGGAPAN & TINDAK LANJUT DIREKSI',
+        ];
+    }
+
+    private function mapFieldsForPdf(array $fields): array
+    {
+        $mapped = [];
+
+        foreach ($fields as $field) {
+            if ($field === 'pic_utama' || $field === 'pic_pendukung') {
+                if (!in_array('pic_unit', $mapped, true)) {
+                    $mapped[] = 'pic_unit';
+                }
+
+                continue;
+            }
+
+            if ($field === 'tanggapan' || $field === 'tindak_lanjut') {
+                if (!in_array('tanggapan_tl', $mapped, true)) {
+                    $mapped[] = 'tanggapan_tl';
+                }
+
+                continue;
+            }
+
+            $mapped[] = $field;
+        }
+
+        return array_values(array_unique($mapped));
+    }
+
+    public function cetakExcel(Request $request)
+    {
+        $user = User::find(Auth::id());
+
+        if (!$user || !$user->canAccessSnpPerekaman()) {
+            abort(403, 'Anda tidak memiliki akses untuk mencetak report SNP.');
+        }
+
+        $validated = $request->validate([
+            'record_ids' => ['required', 'array', 'min:1'],
+            'record_ids.*' => ['integer'],
+        ], [
+            'record_ids.required' => 'Pilih minimal satu surat SNP untuk dicetak.',
+        ]);
+
+        $records = SnpRecord::with([
+            'cluster',
+            'subCluster',
+            'butirSnp.butirPics.unitKerja',
+            'butirSnp.butirPics.komite',
+            'butirSnp.tanggapan.review',
+            'butirSnp.tindakLanjuts.reviews',
+        ])
+            ->whereIn('id', $validated['record_ids'])
+            ->orderBy('id_snp')
+            ->get();
+
+        $selectedFields = [
+            'surat',
+            'id_butir',
+            'isi_butir',
+            'pic_utama',
+            'pic_pendukung',
+            'tanggapan',
+            'tindak_lanjut',
+            'deliverable',
+            'dokumen',
+            'jatuh_tempo',
+            'komite',
+            'hasil_reviu',
+            'status',
+        ];
+
+        $fieldLabels = $this->reportFieldLabels();
+
+        return Excel::download(
+            new SnpReportExport($records, $selectedFields, $fieldLabels),
+            'report-snp-dewas.xlsx'
+        );
+    }
+
+    public function cetakExcelCustom(Request $request)
+    {
+        $user = User::find(Auth::id());
+
+        if (!$user || !$user->canAccessSnpPerekaman()) {
+            abort(403, 'Anda tidak memiliki akses untuk mencetak report SNP.');
+        }
+
+        $validated = $request->validate([
+            'record_ids' => ['required', 'array', 'min:1'],
+            'record_ids.*' => ['integer'],
+            'butir_ids' => ['required', 'array', 'min:1'],
+            'butir_ids.*' => ['integer'],
+            'fields' => ['required', 'array', 'min:1'],
+            'fields.*' => ['string'],
+        ], [
+            'record_ids.required' => 'Pilih minimal satu surat SNP untuk dicetak.',
+            'butir_ids.required' => 'Pilih minimal satu butir SNP untuk dicetak.',
+            'fields.required' => 'Pilih minimal satu field report.',
+        ]);
+
+        $allowedFields = [
+            'surat',
+            'id_butir',
+            'isi_butir',
+            'pic_utama',
+            'pic_pendukung',
+            'tanggapan',
+            'tindak_lanjut',
+            'deliverable',
+            'dokumen',
+            'jatuh_tempo',
+            'komite',
+            'hasil_reviu',
+            'status',
+        ];
+
+        $selectedFields = array_values(array_intersect($validated['fields'], $allowedFields));
+
+        if (empty($selectedFields)) {
+            return back()->with('error', 'Pilih minimal satu field report.');
+        }
+
+        $butirIds = $validated['butir_ids'];
+
+        $records = SnpRecord::with([
+            'cluster',
+            'subCluster',
+            'butirSnp' => function ($query) use ($butirIds) {
+                $query->whereIn('id', $butirIds)
+                    ->orderBy('id');
+            },
+            'butirSnp.butirPics.unitKerja',
+            'butirSnp.butirPics.komite',
+            'butirSnp.tanggapan.review',
+            'butirSnp.tindakLanjuts.reviews',
+        ])
+            ->whereIn('id', $validated['record_ids'])
+            ->whereHas('butirSnp', function ($query) use ($butirIds) {
+                $query->whereIn('id', $butirIds);
+            })
+            ->orderBy('id_snp')
+            ->get();
+
+        $fieldLabels = $this->reportFieldLabels();
+
+        return Excel::download(
+            new SnpReportExport($records, $selectedFields, $fieldLabels),
+            'report-snp-dewas-custom.xlsx'
+        );
     }
 }

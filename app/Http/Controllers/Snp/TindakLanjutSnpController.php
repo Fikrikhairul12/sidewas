@@ -26,31 +26,43 @@ class TindakLanjutSnpController extends Controller
             abort(403, 'Anda tidak memiliki akses ke halaman tindak lanjut SNP.');
         }
 
-        $tindakLanjutsQuery = SnpTindakLanjut::with([
-            'butir.record.cluster',
-            'butir.record.subCluster',
-            'butir.butirPics.unitKerja.direktorat',
-            'butir.butirPics.komite',
-            'creator',
-            'reviews.komite',
-        ]);
+        $butirsTindakLanjutQuery = SnpButir::with([
+            'record.cluster',
+            'record.subCluster',
+            'record.creator',
+            'butirPics.unitKerja.direktorat',
+            'butirPics.komite',
+            'tanggapan',
+            'reviews',
+            'tindakLanjuts.creator',
+            'tindakLanjuts.reviews.komite',
+        ])
+            ->whereHas('reviews', function ($reviewQuery) {
+                $reviewQuery->where('tahap_review', 'tanggapan')
+                    ->where('status', 'dalam_proses_tindak_lanjut_direksi');
+            })
+            ->whereHas('record');
 
         if ($request->filled('tanggal_mulai')) {
-            $tindakLanjutsQuery->whereDate('created_at', '>=', $request->tanggal_mulai);
+            $butirsTindakLanjutQuery->whereHas('tindakLanjuts', function ($tlQuery) use ($request) {
+                $tlQuery->whereDate('created_at', '>=', $request->tanggal_mulai);
+            });
         }
 
         if ($request->filled('tanggal_selesai')) {
-            $tindakLanjutsQuery->whereDate('created_at', '<=', $request->tanggal_selesai);
+            $butirsTindakLanjutQuery->whereHas('tindakLanjuts', function ($tlQuery) use ($request) {
+                $tlQuery->whereDate('created_at', '<=', $request->tanggal_selesai);
+            });
         }
 
         if ($request->filled('cluster_id')) {
-            $tindakLanjutsQuery->whereHas('butir.record', function ($recordQuery) use ($request) {
+            $butirsTindakLanjutQuery->whereHas('record', function ($recordQuery) use ($request) {
                 $recordQuery->where('cluster_id', $request->cluster_id);
             });
         }
 
         if ($request->filled('sub_cluster_id')) {
-            $tindakLanjutsQuery->whereHas('butir.record', function ($recordQuery) use ($request) {
+            $butirsTindakLanjutQuery->whereHas('record', function ($recordQuery) use ($request) {
                 $recordQuery->where('sub_cluster_id', $request->sub_cluster_id);
             });
         }
@@ -60,35 +72,35 @@ class TindakLanjutSnpController extends Controller
                 ->pluck('id')
                 ->toArray();
 
-            $tindakLanjutsQuery->whereHas('butir.butirPics', function ($picQuery) use ($unitKerjaIds) {
+            $butirsTindakLanjutQuery->whereHas('butirPics', function ($picQuery) use ($unitKerjaIds) {
                 $picQuery->where('jenis_pic', 'utama')
                     ->whereIn('unit_kerja_id', $unitKerjaIds);
             });
         }
 
         if ($request->filled('unit_kerja_utama_id')) {
-            $tindakLanjutsQuery->whereHas('butir.butirPics', function ($picQuery) use ($request) {
+            $butirsTindakLanjutQuery->whereHas('butirPics', function ($picQuery) use ($request) {
                 $picQuery->where('jenis_pic', 'utama')
                     ->where('unit_kerja_id', $request->unit_kerja_utama_id);
             });
         }
 
         if ($request->filled('unit_kerja_pendukung_id')) {
-            $tindakLanjutsQuery->whereHas('butir.butirPics', function ($picQuery) use ($request) {
+            $butirsTindakLanjutQuery->whereHas('butirPics', function ($picQuery) use ($request) {
                 $picQuery->where('jenis_pic', 'pendukung')
                     ->where('unit_kerja_id', $request->unit_kerja_pendukung_id);
             });
         }
 
         if ($request->filled('komite_id')) {
-            $tindakLanjutsQuery->whereHas('butir.butirPics', function ($picQuery) use ($request) {
+            $butirsTindakLanjutQuery->whereHas('butirPics', function ($picQuery) use ($request) {
                 $picQuery->where('jenis_pic', 'komite')
                     ->where('komite_id', $request->komite_id);
             });
         }
 
         if ($request->filled('status')) {
-            $tindakLanjutsQuery->whereHas('reviews', function ($reviewQuery) use ($request) {
+            $butirsTindakLanjutQuery->whereHas('tindakLanjuts.reviews', function ($reviewQuery) use ($request) {
                 $reviewQuery->where('tahap_review', 'tindak_lanjut')
                     ->where('status', $request->status);
             });
@@ -97,7 +109,7 @@ class TindakLanjutSnpController extends Controller
         if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_snp')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
-            $tindakLanjutsQuery->whereHas('butir.butirPics', function ($picQuery) use ($userUnitKerjaIds) {
+            $butirsTindakLanjutQuery->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
                 $picQuery->whereIn('jenis_pic', ['utama', 'pendukung'])
                     ->whereIn('unit_kerja_id', $userUnitKerjaIds);
             });
@@ -106,23 +118,27 @@ class TindakLanjutSnpController extends Controller
         if ($request->filled('keyword')) {
             $keyword = $request->keyword;
 
-            $tindakLanjutsQuery->where(function ($q) use ($keyword) {
-                $q->where('tindak_lanjut', 'like', "%{$keyword}%")
-                    ->orWhere('deliverables', 'like', "%{$keyword}%")
-                    ->orWhereHas('butir', function ($butirQuery) use ($keyword) {
-                        $butirQuery->where('id_butir_snp', 'like', "%{$keyword}%")
-                            ->orWhere('butir_snp', 'like', "%{$keyword}%")
-                            ->orWhereHas('record', function ($recordQuery) use ($keyword) {
-                                $recordQuery->where('id_snp', 'like', "%{$keyword}%")
-                                    ->orWhere('nomor_surat', 'like', "%{$keyword}%")
-                                    ->orWhere('perihal_surat', 'like', "%{$keyword}%");
-                            });
+            $butirsTindakLanjutQuery->where(function ($q) use ($keyword) {
+                $q->where('id_butir_snp', 'like', "%{$keyword}%")
+                    ->orWhere('butir_snp', 'like', "%{$keyword}%")
+                    ->orWhereHas('record', function ($recordQuery) use ($keyword) {
+                        $recordQuery->where('id_snp', 'like', "%{$keyword}%")
+                            ->orWhere('nomor_surat', 'like', "%{$keyword}%")
+                            ->orWhere('perihal_surat', 'like', "%{$keyword}%");
+                    })
+                    ->orWhereHas('tanggapan', function ($tanggapanQuery) use ($keyword) {
+                        $tanggapanQuery->where('tanggapan', 'like', "%{$keyword}%")
+                            ->orWhere('deliverables', 'like', "%{$keyword}%");
+                    })
+                    ->orWhereHas('tindakLanjuts', function ($tlQuery) use ($keyword) {
+                        $tlQuery->where('tindak_lanjut', 'like', "%{$keyword}%")
+                            ->orWhere('deliverables', 'like', "%{$keyword}%");
                     });
             });
         }
 
-        $tindakLanjuts = $tindakLanjutsQuery
-            ->latest()
+        $butirsTindakLanjut = $butirsTindakLanjutQuery
+            ->orderByDesc('id')
             ->paginate(2)
             ->withQueryString();
 
@@ -135,7 +151,8 @@ class TindakLanjutSnpController extends Controller
             ->whereHas('reviews', function ($reviewQuery) {
                 $reviewQuery->where('tahap_review', 'tanggapan')
                     ->where('status', 'dalam_proses_tindak_lanjut_direksi');
-            });
+            })
+            ->whereDoesntHave('tindakLanjuts');
 
         if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_snp')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
@@ -163,11 +180,12 @@ class TindakLanjutSnpController extends Controller
         $statusOptions = [
             'belum_ditanggapi' => 'Belum Ditanggapi',
             'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
+            'dalam_proses_tindak_lanjut_direksi' => 'Dalam Proses Tindak Lanjut Direksi',
             'selesai_tuntas' => 'Selesai Tuntas',
         ];
 
         return view('layouts.snp.tindak-lanjut', compact(
-            'tindakLanjuts',
+            'butirsTindakLanjut',
             'butirSiapTindakLanjut',
             'clusters',
             'direktorats',
@@ -175,11 +193,6 @@ class TindakLanjutSnpController extends Controller
             'komites',
             'statusOptions'
         ));
-
-        // return view('layouts.snp.tindak-lanjut', compact(
-        //     'tindakLanjuts',
-        //     'butirSiapTindakLanjut'
-        // ));
     }
 
     public function store(Request $request)

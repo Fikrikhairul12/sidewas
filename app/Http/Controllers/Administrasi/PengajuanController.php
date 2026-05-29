@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
+
 class PengajuanController extends Controller
 {
     public function index()
@@ -42,7 +43,7 @@ class PengajuanController extends Controller
         return view('layouts.administrasi.pengajuan', compact('pengajuan'));
     }
 
-    public function verify(DeleteRequest $deleteRequest)
+    public function verify(Request $request, DeleteRequest $deleteRequest)
     {
         $user = User::find(Auth::id());
 
@@ -72,8 +73,8 @@ class PengajuanController extends Controller
             'description' => 'Admin memverifikasi pengajuan hapus.',
             'old_values' => $oldValues,
             'new_values' => $deleteRequest->fresh()->toArray(),
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
 
         return back()->with('success', 'Pengajuan berhasil diverifikasi dan diteruskan ke Super Admin.');

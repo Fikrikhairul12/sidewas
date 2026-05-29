@@ -3,18 +3,19 @@
 namespace App\Models;
 
 use App\Models\Concerns\TracksUser;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 
-class SnpRecord extends Model
+class RagabRecord extends Model
 {
     use TracksUser;
 
-    protected $connection = 'mysql_snp';
+    protected $connection = 'mysql_ragab';
+
     protected $table = 'tb_record';
 
     protected $fillable = [
-        'id_snp',
+        'id_ragab',
         'cluster_id',
         'sub_cluster_id',
         'nomor_surat',
@@ -35,11 +36,15 @@ class SnpRecord extends Model
     protected static function booted(): void
     {
         static::creating(function ($record) {
-            if (empty($record->id_snp)) {
-                $record->id_snp = static::generateIdSnp($record->nomor_surat);
+            if (empty($record->id_ragab)) {
+                $year = now()->format('Y');
+
+                $lastNumber = static::whereYear('created_at', $year)->count() + 1;
+
+                $record->id_ragab = $year . '-RAGAB.' . str_pad($lastNumber, 2, '0', STR_PAD_LEFT);
             }
 
-            if (!empty($record->tanggal_surat) && empty($record->jth_tempo)) {
+            if (! empty($record->tanggal_surat) && empty($record->jth_tempo)) {
                 $record->jth_tempo = Carbon::parse($record->tanggal_surat)->addDays(30);
             }
 
@@ -49,26 +54,19 @@ class SnpRecord extends Model
         });
     }
 
-    public static function generateIdSnp(string $nomorSurat): string
-    {
-        $nomorSurat = trim($nomorSurat);
-
-        return $nomorSurat . '-SNP';
-    }
-
     public function cluster()
     {
-        return $this->belongsTo(SnpCluster::class, 'cluster_id', 'id');
+        return $this->belongsTo(RagabCluster::class, 'cluster_id', 'id');
     }
 
     public function subCluster()
     {
-        return $this->belongsTo(SnpSubCluster::class, 'sub_cluster_id', 'id');
+        return $this->belongsTo(RagabSubCluster::class, 'sub_cluster_id', 'id');
     }
 
-    public function butirSnp()
+    public function butirRagab()
     {
-        return $this->hasMany(SnpButir::class, 'id_snp', 'id_snp');
+        return $this->hasMany(RagabButir::class, 'id_ragab', 'id_ragab');
     }
 
     public function creator()

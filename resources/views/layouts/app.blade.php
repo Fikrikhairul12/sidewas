@@ -27,7 +27,8 @@
         </div>
 
         {{-- Main Content --}}
-        <div class="min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:pl-72' : 'lg:pl-0'">
+        <div class="flex min-h-screen flex-col transition-all duration-300"
+            :class="sidebarOpen ? 'lg:pl-72' : 'lg:pl-0'">
 
             {{-- Top Header --}}
             <header class="sticky top-0 z-30 border-b border-gray-200 bg-white">
@@ -44,9 +45,10 @@
                         <button type="button" @click="openUserMenu = !openUserMenu"
                             @click.outside="openUserMenu = false"
                             class="inline-flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100">
-                            <div class="flex h-10 w-10 items-center justify-center rounded-full text-white shadow bg-sidewas-blue">
-                                <svg class="h-6 w-6" fill="none" stroke="currentColor"
-                                    stroke-width="1.8" viewBox="0 0 24 24">
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-full text-white shadow bg-sidewas-blue">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
+                                    viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round"
                                         d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a8.25 8.25 0 0 1 15 0" />
                                 </svg>
@@ -93,9 +95,23 @@
             @endisset
 
             {{-- Page Content --}}
-            <main class="p-8">
+            <main class="flex-1 p-8">
                 {{ $slot }}
             </main>
+
+            {{-- Footer --}}
+            <footer class="border-t border-gray-200 bg-white px-8 py-4">
+                <div class="flex flex-col gap-2 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
+                    <p>
+                        &copy; {{ date('Y') }} Sekretariat Dewan Pengawas. Seluruh hak cipta dilindungi.
+                    </p>
+
+                    <a href="https://mail.google.com/mail/?view=cm&fs=1&to=pepd.sekdewas@bpjsketenagakerjaan.go.id"
+                        class="font-semibold text-sidewas-blue transition hover:text-blue-700 hover:underline" target="_blank">
+                        Hubungi Kami
+                    </a>
+                </div>
+            </footer>
         </div>
     </div>
 </body>

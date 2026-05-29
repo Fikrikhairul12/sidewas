@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Http\Request;
 
 class GoogleAuthController extends Controller
 {
@@ -15,9 +16,9 @@ class GoogleAuthController extends Controller
         return Socialite::driver('google')->redirect();
     }
 
-    public function callback()
+    public function callback(Request $request)
     {
-        if (request()->has('error')) {
+        if ($request->has('error')) {
             return redirect()
                 ->route('login')
                 ->with('error', 'Login dengan Google dibatalkan.');

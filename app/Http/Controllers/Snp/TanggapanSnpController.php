@@ -117,6 +117,10 @@ class TanggapanSnpController extends Controller
                         $recordQuery->where('id_snp', 'like', "%{$keyword}%")
                             ->orWhere('nomor_surat', 'like', "%{$keyword}%")
                             ->orWhere('perihal_surat', 'like', "%{$keyword}%");
+                    })
+                    ->orWhereHas('tanggapan', function ($tanggapanQuery) use ($keyword) {
+                        $tanggapanQuery->where('tanggapan', 'like', "%{$keyword}%")
+                            ->orWhere('deliverables', 'like', "%{$keyword}%");
                     });
             });
         }

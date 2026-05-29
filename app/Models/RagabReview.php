@@ -5,19 +5,17 @@ namespace App\Models;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
 
-class SnpReview extends Model
+class RagabReview extends Model
 {
     use TracksUser;
 
-    protected $connection = 'mysql_snp';
+    protected $connection = 'mysql_ragab';
 
     protected $table = 'tb_review';
 
     protected $fillable = [
-        'id_butir_snp',
-        'id_tanggapan',
+        'id_butir_ragab',
         'id_tindak_lanjut',
-        'tahap_review',
         'komite_id',
         'hasil_review',
         'deliverables',
@@ -29,17 +27,12 @@ class SnpReview extends Model
 
     public function butir()
     {
-        return $this->belongsTo(SnpButir::class, 'id_butir_snp', 'id_butir_snp');
-    }
-
-    public function tanggapan()
-    {
-        return $this->belongsTo(SnpTanggapan::class, 'id_tanggapan', 'id');
+        return $this->belongsTo(RagabButir::class, 'id_butir_ragab', 'id_butir_ragab');
     }
 
     public function tindakLanjut()
     {
-        return $this->belongsTo(SnpTindakLanjut::class, 'id_tindak_lanjut', 'id');
+        return $this->belongsTo(RagabTindakLanjut::class, 'id_tindak_lanjut', 'id');
     }
 
     public function komite()

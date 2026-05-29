@@ -107,6 +107,24 @@
                                         class="mt-3 max-w-sm text-xs font-medium uppercase leading-relaxed text-slate-800">
                                         {{ $butir->record?->perihal_surat ?? '-' }}
                                     </p>
+
+                                    <div class="mt-4">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Dokumen Surat
+                                        </p>
+
+                                        @if ($butir->record?->dokumen)
+                                            <a href="{{ route('snp.perekaman.dokumen', $butir->record->id) }}"
+                                                class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                style="background-color: #2377b9;">
+                                                Download Dokumen
+                                            </a>
+                                        @else
+                                            <p class="mt-1 text-xs text-slate-400">
+                                                -
+                                            </p>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
@@ -163,7 +181,8 @@
 
                                 <td class="px-6 py-6 align-top">
                                     @if ($butir->tanggapan)
-                                        <span class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
+                                        <span
+                                            class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
                                             style="background-color: #6bb17e;">
                                             Sudah Ditanggapi
                                         </span>
@@ -289,7 +308,7 @@
                             </label>
                             <textarea name="tanggapan" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor tanggapan&#10;Tanggal&#10;&#10;Isi tanggapan...">{{ old('tanggapan') }}</textarea>
+                                placeholder="Nomor surat tanggapan (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tanggapan...">{{ old('tanggapan') }}</textarea>
                         </div>
 
                         <div>

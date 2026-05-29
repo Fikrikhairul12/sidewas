@@ -127,12 +127,26 @@
                                             {{ $tanggapan?->deliverables ?? '-' }}
                                         </p>
 
-                                        <p class="mt-4 text-xs text-slate-500">
-                                            Status Pengajuan Tanggal:
-                                            <span class="font-bold">
-                                                {{ str_replace('_', ' ', $tanggapan?->status_pengajuan_tgl ?? '-') }}
-                                            </span>
-                                        </p>
+                                        @if ($tanggapan?->ubah_tgl)
+                                            <p class="mt-4 text-xs text-slate-500">
+                                                Status Pengajuan Tanggal:
+                                                <span class="font-bold">
+                                                    {{ ucwords(str_replace('_', ' ', $tanggapan?->status_pengajuan_tgl ?? '-')) }}
+                                                </span>
+                                            </p>
+
+                                            <p class="mt-2 text-xs text-slate-500">
+                                                Tanggal Jatuh Tempo Diajukan:
+                                                <span class="font-bold text-slate-700">
+                                                    {{ \Carbon\Carbon::parse($tanggapan->ubah_tgl)->format('d/m/Y') }}
+                                                </span>
+                                            </p>
+                                        @else
+                                            <p class="mt-4 text-xs text-slate-500">
+                                                Pengajuan Ubah Tanggal:
+                                                <span class="font-bold text-slate-700">Tidak Ada</span>
+                                            </p>
+                                        @endif
                                     @else
                                         <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
                                             Tindak Lanjut
@@ -280,7 +294,8 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="`/snp/reviu/${selectedReview?.id}`" class="px-6 py-6">
+                <form method="POST" :action="`/snp/reviu/${selectedReview?.id}`" enctype="multipart/form-data"
+                    class="px-6 py-6">
                     @csrf
                     @method('PATCH')
 
@@ -291,7 +306,7 @@
                             </label>
                             <textarea name="hasil_review" rows="4" required x-model="selectedReview.hasil_review"
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor reviu&#10;Tanggal&#10;&#10;Isi hasil reviu..."></textarea>
+                                placeholder="Nomor surat reviu Dewas (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi hasil reviu..."></textarea>
                         </div>
 
                         <div>
@@ -301,6 +316,19 @@
                             <textarea name="deliverables" rows="3" x-model="selectedReview.deliverables"
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 placeholder="Opsional. Masukkan deliverables hasil reviu..."></textarea>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Dokumen Reviu
+                            </label>
+
+                            <input type="file" name="dokumen"
+                                class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Opsional. Format PDF, Word, Excel, JPG, PNG. Maksimal 5 MB.
+                            </p>
                         </div>
 
                         <div class="grid gap-5 md:grid-cols-2">

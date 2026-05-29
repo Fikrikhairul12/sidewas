@@ -105,10 +105,41 @@
         .status-selesai {
             background: #6bb17e;
         }
+
+        .print-footer {
+            position: fixed;
+            left: 8mm;
+            bottom: 5mm;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 7px;
+            color: #444;
+        }
+
+        .watermark {
+            position: fixed;
+            top: 38%;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: -1000;
+
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 85px;
+            font-weight: bold;
+            color: rgba(0, 0, 0, 0.08);
+
+            transform: rotate(-30deg);
+            transform-origin: center;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 
 <body>
+    <div class="watermark">
+        SIDEWAS SNP DEWAS
+    </div>
     <table>
         <thead>
             <tr>
@@ -244,13 +275,13 @@
 
                         <td class="center">
                             @php
-                                $status = $reviewTanggapan?->status ?? $record->status;
+                                $status = $reviewTanggapan?->status ?? 'belum_ditanggapi';
 
                                 $statusClass = match ($status) {
                                     'belum_ditanggapi' => 'status-belum',
                                     'dalam_proses_reviu_dewan_pengawas' => 'status-reviu',
                                     'dalam_proses_tindak_lanjut_direksi' => 'status-tl',
-                                    'selesai_tuntas', 'selesai' => 'status-selesai',
+                                    'selesai_tuntas' => 'status-selesai',
                                     default => 'status-belum',
                                 };
                             @endphp
@@ -319,6 +350,9 @@
             @endforeach
         </tbody>
     </table>
+    <div class="print-footer">
+        Dokumen ini dicetak oleh {{ $printedBy ?? '-' }} pada {{ $printedAt ?? '-' }}
+    </div>
 </body>
 
 </html>
