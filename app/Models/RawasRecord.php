@@ -6,16 +6,16 @@ use App\Models\Concerns\TracksUser;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
-class RagabRecord extends Model
+class RawasRecord extends Model
 {
     use TracksUser;
 
-    protected $connection = 'mysql_ragab';
+    protected $connection = 'mysql_rawas';
 
     protected $table = 'tb_record';
 
     protected $fillable = [
-        'id_ragab',
+        'id_rawas',
         'cluster_id',
         'sub_cluster_id',
         'nomor_surat',
@@ -36,8 +36,8 @@ class RagabRecord extends Model
     protected static function booted(): void
     {
         static::creating(function ($record) {
-            if (empty($record->id_ragab)) {
-                $record->id_ragab = static::generateIdRagab($record->nomor_surat);
+            if (empty($record->id_rawas)) {
+                $record->id_rawas = static::generateIdRawas($record->nomor_surat);
             }
 
             if (!empty($record->tanggal_surat) && empty($record->jth_tempo)) {
@@ -50,27 +50,26 @@ class RagabRecord extends Model
         });
     }
 
-    public static function generateIdRagab(string $nomorSurat): string
+    public static function generateIdRawas(string $nomorSurat): string
     {
         $nomorSurat = trim($nomorSurat);
 
-        return $nomorSurat . '-RAGAB';
+        return $nomorSurat . '-RAWAS';
     }
-
 
     public function cluster()
     {
-        return $this->belongsTo(RagabCluster::class, 'cluster_id', 'id');
+        return $this->belongsTo(RawasCluster::class, 'cluster_id', 'id');
     }
 
     public function subCluster()
     {
-        return $this->belongsTo(RagabSubCluster::class, 'sub_cluster_id', 'id');
+        return $this->belongsTo(RawasSubCluster::class, 'sub_cluster_id', 'id');
     }
 
-    public function butirRagab()
+    public function butirRawas()
     {
-        return $this->hasMany(RagabButir::class, 'id_ragab', 'id_ragab');
+        return $this->hasMany(RawasButir::class, 'id_rawas', 'id_rawas');
     }
 
     public function creator()

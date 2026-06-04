@@ -5,21 +5,21 @@
         selectedButirId: '',
         selectedButir: null,
         butirs: @js(
-    $butirSiapTindakLanjut
-        ->map(
-            fn($butir) => [
-                'id' => $butir->id,
-                'id_butir_snp' => $butir->id_butir_snp,
-                'id_snp' => $butir->record?->id_snp,
-                'nomor_surat' => $butir->record?->nomor_surat,
-                'perihal_surat' => $butir->record?->perihal_surat,
-                'butir_snp' => $butir->butir_snp,
-                'jth_tempo' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('Y-m-d') : null,
-                'jth_tempo_label' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('d/m/Y') : '-',
-            ],
-        )
-        ->values(),
-),
+            $butirSiapTindakLanjut
+                ->map(
+                    fn($butir) => [
+                        'id' => $butir->id,
+                        'id_butir_rawas' => $butir->id_butir_rawas,
+                        'id_rawas' => $butir->record?->id_rawas,
+                        'nomor_surat' => $butir->record?->nomor_surat,
+                        'perihal_surat' => $butir->record?->perihal_surat,
+                        'butir_rawas' => $butir->butir_rawas,
+                        'jth_tempo' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('Y-m-d') : null,
+                        'jth_tempo_label' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('d/m/Y') : '-',
+                    ],
+                )
+                ->values(),
+        ),
 
         get filteredButirs() {
             const keyword = this.butirSearch.toLowerCase().trim();
@@ -29,18 +29,18 @@
             }
 
             return this.butirs.filter((butir) => {
-                return String(butir.id_butir_snp || '').toLowerCase().includes(keyword) ||
-                    String(butir.id_snp || '').toLowerCase().includes(keyword) ||
+                return String(butir.id_butir_rawas || '').toLowerCase().includes(keyword) ||
+                    String(butir.id_rawas || '').toLowerCase().includes(keyword) ||
                     String(butir.nomor_surat || '').toLowerCase().includes(keyword) ||
                     String(butir.perihal_surat || '').toLowerCase().includes(keyword) ||
-                    String(butir.butir_snp || '').toLowerCase().includes(keyword);
+                    String(butir.butir_rawas || '').toLowerCase().includes(keyword);
             });
         },
 
         selectButir(butir) {
             this.selectedButir = butir;
             this.selectedButirId = butir.id;
-            this.butirSearch = `${butir.id_butir_snp} - ${butir.nomor_surat ?? '-'}`;
+            this.butirSearch = `${butir.id_butir_rawas} - ${butir.nomor_surat ?? '-'}`;
         },
 
         resetButir() {
@@ -54,16 +54,15 @@
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                        SNP Dewas
+                        RAWAS
                     </p>
 
                     <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                        Tindak Lanjut SNP
+                        Tindak Lanjut RAWAS
                     </h1>
 
                     <p class="mt-2 text-sm text-slate-500">
-                        Halaman ini digunakan untuk menginput tindak lanjut terhadap butir SNP yang sudah masuk tahap
-                        tindak lanjut direksi.
+                        Halaman ini digunakan untuk menginput tindak lanjut terhadap butir RAWAS.
                     </p>
                 </div>
 
@@ -87,11 +86,11 @@
             </div>
         @endif
 
-        @include('layouts.snp.partials.filter-lanjutan', [
-            'action' => route('snp.tindak-lanjut.index'),
+        @include('layouts.rawas.partials.filter-lanjutan', [
+            'action' => route('rawas.tindak-lanjut.index'),
             'statusOptions' => $statusOptions,
             'keywordPlaceholder' =>
-                'Cari ID SNP, ID butir, nomor surat, perihal, tanggapan, tindak lanjut, atau deliverables...',
+                'Cari ID RAWAS, ID butir, nomor surat, perihal, tindak lanjut, hasil reviu, atau deliverables...',
         ])
 
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -101,7 +100,7 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Data akan muncul setelah butir SNP masuk tahap tindak lanjut direksi.
+                    Data akan muncul setelah butir RAWAS dibuat atau tindak lanjut diinput.
                 </p>
             </div>
 
@@ -110,7 +109,7 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi SNP
+                                Informasi RAWAS
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Tindak Lanjut
@@ -132,20 +131,21 @@
                                 $record = $butir?->record;
 
                                 $reviewTerakhir = $item
-                                    ? $item->reviews->where('tahap_review', 'tindak_lanjut')->sortByDesc('id')->first()
+                                    ? $item->reviews
+                                        ->where('tahap_review', 'tindak_lanjut')
+                                        ->sortByDesc('id')
+                                        ->first()
                                     : null;
 
-                                $reviewTanggapan = $butir?->reviews
-                                    ?->where('tahap_review', 'tanggapan')
-                                    ->where('status', 'dalam_proses_tindak_lanjut_direksi')
-                                    ->sortByDesc('id')
+                                $komitePic = $butir?->butirPics
+                                    ?->where('jenis_pic', 'komite')
                                     ->first();
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
                                 <td class="px-6 py-6 align-top">
                                     <p class="text-xs font-bold" style="color: #2377b9;">
-                                        {{ $record?->id_snp ?? '-' }}
+                                        {{ $record?->id_rawas ?? '-' }}
                                     </p>
 
                                     <p class="mt-2 text-xs text-slate-700">
@@ -158,30 +158,22 @@
                                     </p>
 
                                     <p class="mt-1 text-xs text-slate-700">
-                                        Butir: {{ $butir?->id_butir_snp ?? '-' }}
+                                        Butir: {{ $butir?->id_butir_rawas ?? '-' }}
                                     </p>
 
                                     <p
                                         class="mt-3 max-w-md whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $butir?->butir_snp ?? '-' }}
+                                        {{ $butir?->butir_rawas ?? '-' }}
                                     </p>
 
                                     <div class="mt-4">
                                         <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Dokumen Reviu Tanggapan
+                                            Komite
                                         </p>
 
-                                        @if ($reviewTanggapan?->dokumen)
-                                            <a href="{{ route('snp.reviu.dokumen', $reviewTanggapan->id) }}"
-                                                class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
-                                                style="background-color: #2377b9;">
-                                                Download Dokumen
-                                            </a>
-                                        @else
-                                            <p class="mt-1 text-xs text-slate-400">
-                                                -
-                                            </p>
-                                        @endif
+                                        <p class="mt-1 text-xs text-slate-700">
+                                            {{ $komitePic?->komite?->kode_komite ?? '-' }}
+                                        </p>
                                     </div>
                                 </td>
 
@@ -246,8 +238,7 @@
                                         </span>
 
                                         <p class="mt-4 text-xs text-slate-500">
-                                            Surat/butir ini sudah masuk tahap tindak lanjut direksi, tetapi tindak
-                                            lanjut belum diinput.
+                                            Butir ini sudah tersedia dan menunggu tindak lanjut.
                                         </p>
 
                                         <p class="mt-4 text-xs text-slate-500">
@@ -270,7 +261,7 @@
                                         <p class="mt-4 text-xs text-slate-500">
                                             Komite:
                                             <span class="font-bold">
-                                                {{ $reviewTerakhir->komite?->kode_komite ?? '-' }}
+                                                {{ $reviewTerakhir->komite?->kode_komite ?? $komitePic?->komite?->kode_komite ?? '-' }}
                                             </span>
                                         </p>
 
@@ -300,6 +291,13 @@
                                                 style="background-color: #2377b9;">
                                                 Belum Direviu
                                             </span>
+
+                                            <p class="mt-4 text-xs text-slate-500">
+                                                Komite:
+                                                <span class="font-bold">
+                                                    {{ $komitePic?->komite?->kode_komite ?? '-' }}
+                                                </span>
+                                            </p>
                                         @else
                                             <span
                                                 class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
@@ -331,12 +329,11 @@
                             <tr>
                                 <td colspan="4" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada surat/butir yang harus ditindaklanjuti.
+                                        Belum ada data tindak lanjut RAWAS.
                                     </p>
 
                                     <p class="mt-1 text-xs text-slate-400">
-                                        Data akan muncul setelah reviu tanggapan berstatus Dalam Proses Tindak Lanjut
-                                        Direksi.
+                                        Data akan muncul setelah butir RAWAS dibuat.
                                     </p>
                                 </td>
                             </tr>
@@ -373,7 +370,7 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Form Tindak Lanjut SNP
+                            Form Tindak Lanjut RAWAS
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
@@ -381,7 +378,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            Pilih butir SNP yang sudah berstatus dalam proses tindak lanjut direksi.
+                            Pilih butir RAWAS yang ingin ditindaklanjuti.
                         </p>
                     </div>
 
@@ -391,7 +388,7 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('snp.tindak-lanjut.store') }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('rawas.tindak-lanjut.store') }}" enctype="multipart/form-data"
                     class="px-6 py-6">
                     @csrf
 
@@ -409,7 +406,7 @@
                     <div class="grid gap-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Pilih Butir SNP
+                                Pilih Butir RAWAS
                             </label>
 
                             <input type="hidden" name="butir_id" :value="selectedButirId" required>
@@ -418,7 +415,7 @@
                                 <div class="border-b border-slate-200 p-3">
                                     <input type="text" x-model="butirSearch"
                                         @input="selectedButir = null; selectedButirId = ''"
-                                        placeholder="Ketik ID butir, ID SNP, nomor surat, atau isi butir..."
+                                        placeholder="Ketik ID butir, ID RAWAS, nomor surat, atau isi butir..."
                                         class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 </div>
 
@@ -431,16 +428,16 @@
                                                     'bg-blue-50 ring-2 ring-blue-200' : ''">
                                                 <div class="flex flex-col gap-1">
                                                     <p class="text-sm font-bold" style="color: #2377b9;"
-                                                        x-text="butir.id_butir_snp"></p>
+                                                        x-text="butir.id_butir_rawas"></p>
 
                                                     <p class="text-xs text-slate-500">
-                                                        <span x-text="butir.id_snp"></span>
+                                                        <span x-text="butir.id_rawas"></span>
                                                         <span> • </span>
                                                         <span x-text="butir.nomor_surat ?? '-'"></span>
                                                     </p>
 
                                                     <p class="mt-2 text-sm font-semibold uppercase leading-relaxed text-slate-800"
-                                                        x-text="butir.butir_snp"></p>
+                                                        x-text="butir.butir_rawas"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
                                                         Jatuh Tempo:
@@ -454,7 +451,7 @@
 
                                     <div x-show="filteredButirs.length === 0"
                                         class="py-8 text-center text-sm text-slate-400">
-                                        Butir SNP tidak ditemukan.
+                                        Butir RAWAS tidak ditemukan.
                                     </div>
                                 </div>
                             </div>
@@ -466,7 +463,7 @@
                                     </p>
 
                                     <p class="mt-1 text-sm font-bold" style="color: #2377b9;"
-                                        x-text="selectedButir.id_butir_snp"></p>
+                                        x-text="selectedButir.id_butir_rawas"></p>
 
                                     <p class="mt-2 text-sm text-slate-700">
                                         Jatuh tempo tindak lanjut:
@@ -482,7 +479,7 @@
 
                             @if ($butirSiapTindakLanjut->count() === 0)
                                 <p class="mt-2 text-xs font-semibold text-red-500">
-                                    Belum ada butir SNP yang siap ditindaklanjuti.
+                                    Belum ada butir RAWAS yang siap ditindaklanjuti.
                                 </p>
                             @endif
                         </div>

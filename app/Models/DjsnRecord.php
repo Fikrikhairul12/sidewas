@@ -3,19 +3,18 @@
 namespace App\Models;
 
 use App\Models\Concerns\TracksUser;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
-class RagabRecord extends Model
+class DjsnRecord extends Model
 {
     use TracksUser;
 
-    protected $connection = 'mysql_ragab';
-
+    protected $connection = 'mysql_djsn';
     protected $table = 'tb_record';
 
     protected $fillable = [
-        'id_ragab',
+        'id_djsn',
         'cluster_id',
         'sub_cluster_id',
         'nomor_surat',
@@ -36,8 +35,8 @@ class RagabRecord extends Model
     protected static function booted(): void
     {
         static::creating(function ($record) {
-            if (empty($record->id_ragab)) {
-                $record->id_ragab = static::generateIdRagab($record->nomor_surat);
+            if (empty($record->id_djsn)) {
+                $record->id_djsn = static::generateIdDjsn($record->nomor_surat);
             }
 
             if (!empty($record->tanggal_surat) && empty($record->jth_tempo)) {
@@ -50,27 +49,26 @@ class RagabRecord extends Model
         });
     }
 
-    public static function generateIdRagab(string $nomorSurat): string
+    public static function generateIdDjsn(string $nomorSurat): string
     {
         $nomorSurat = trim($nomorSurat);
 
-        return $nomorSurat . '-RAGAB';
+        return $nomorSurat . '-DJSN';
     }
-
 
     public function cluster()
     {
-        return $this->belongsTo(RagabCluster::class, 'cluster_id', 'id');
+        return $this->belongsTo(DjsnCluster::class, 'cluster_id', 'id');
     }
 
     public function subCluster()
     {
-        return $this->belongsTo(RagabSubCluster::class, 'sub_cluster_id', 'id');
+        return $this->belongsTo(DjsnSubCluster::class, 'sub_cluster_id', 'id');
     }
 
-    public function butirRagab()
+    public function butirDjsn()
     {
-        return $this->hasMany(RagabButir::class, 'id_ragab', 'id_ragab');
+        return $this->hasMany(DjsnButir::class, 'id_djsn', 'id_djsn');
     }
 
     public function creator()

@@ -118,19 +118,28 @@
             </button>
 
             <div x-show="open" x-transition class="bg-slate-700/20" style="display: none;">
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+                <a href="{{ route('ragab.perekaman') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                        {{ request()->routeIs('ragab.perekaman') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Perekaman Ragab
                 </a>
 
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+                <a href="{{ route('ragab.tindak-lanjut.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('ragab.tindak-lanjut') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Tindak Lanjut Ragab
                 </a>
 
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+                <a href="{{ route('ragab.reviu.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('ragab.reviu') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Reviu Ragab
+                </a>
+
+                <a href="{{ route('ragab.report.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('ragab.report') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
+                    Cetak Laporan Ragab
                 </a>
             </div>
         </div>
@@ -156,19 +165,28 @@
             </button>
 
             <div x-show="open" x-transition class="bg-slate-700/20" style="display: none;">
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+                <a href="{{ route('rawas.perekaman') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                        {{ request()->routeIs('rawas.perekaman') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Perekaman Rawas
                 </a>
 
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+                <a href="{{ route('rawas.tindak-lanjut.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('rawas.tindak-lanjut') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Tindak Lanjut Rawas
                 </a>
 
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+                <a href="{{ route('rawas.reviu.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('rawas.reviu') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Reviu Rawas
+                </a>
+
+                <a href="{{ route('rawas.report.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('rawas.report') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
+                    Cetak Laporan Rawas
                 </a>
             </div>
         </div>
@@ -195,23 +213,34 @@
             </button>
 
             <div x-show="open" x-transition class="bg-slate-700/20" style="display: none;">
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+                <a href="{{ route('djsn.perekaman') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                        {{ request()->routeIs('djsn.perekaman') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Perekaman DJSN
                 </a>
 
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+                <a href="{{ route('djsn.tanggapan.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('djsn.tanggapan.*') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Tanggapan DJSN
                 </a>
 
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+                <a href="{{ route('djsn.tindak-lanjut.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('djsn.tindak-lanjut') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Tindak Lanjut DJSN
                 </a>
-                <a href="#"
-                    class="block border-t border-slate-600 px-12 py-3 text-sm text-slate-300 transition hover:bg-slate-600 hover:text-white">
+
+                <a href="{{ route('djsn.reviu.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('djsn.reviu.*') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
                     Reviu DJSN
+                </a>
+
+                <a href="{{ route('djsn.report.index') }}"
+                    class="block border-b border-white/10 px-12 py-3 text-sm transition
+                    {{ request()->routeIs('djsn.report') ? 'bg-white/15 text-white font-semibold' : 'text-blue-50 hover:bg-white/10 hover:text-white' }}">
+                    Cetak Laporan DJSN
                 </a>
             </div>
         </div>

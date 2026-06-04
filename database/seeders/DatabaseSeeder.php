@@ -19,6 +19,9 @@ class DatabaseSeeder extends Seeder
             SnpMasterSeeder::class,
             AccessControlSeeder::class,
             PicMasterSeeder::class,
+            RagabMasterSeeder::class,
+            RawasMasterSeeder::class,
+            DjsnMasterSeeder::class,
         ]);
     }
 }

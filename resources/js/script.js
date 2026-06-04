@@ -1,31 +1,8 @@
-window.perekamanSnpModal = function (clusters = [], direktorats = []) {
-    return {
-        openCreateModal: false,
-
-        selectedClusterId: '',
-        selectedDirektoratUtamaId: '',
-        selectedDirektoratPendukungId: '',
-
-        clusters: clusters,
-        direktorats: direktorats,
-
-        get filteredSubClusters() {
-            const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
-            return cluster ? cluster.sub_clusters : [];
-        },
-
-        get filteredUnitKerjaUtama() {
-            const direktorat = this.direktorats.find(item => String(item.id) === String(this.selectedDirektoratUtamaId));
-            return direktorat ? direktorat.unit_kerja : [];
-        },
-
-        get filteredUnitKerjaPendukung() {
-            const direktorat = this.direktorats.find(item => String(item.id) === String(this.selectedDirektoratPendukungId));
-            return direktorat ? direktorat.unit_kerja : [];
-        },
-    };
-};
-
+/**
+ * ============================================================
+ * PEREKAMAN SNP
+ * ============================================================
+ */
 window.perekamanSnpModal = function (clusters = [], direktorats = []) {
     return {
         openCreateModal: false,
@@ -99,6 +76,99 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
     };
 };
 
+
+/**
+ * ============================================================
+ * PEREKAMAN RAGAB
+ * ============================================================
+ * Clone dari perekaman SNP.
+ * Dipakai di resources/views/layouts/ragab/perekaman.blade.php
+ */
+window.perekamanRagabModal = function (clusters = [], direktorats = []) {
+    return {
+        openCreateModal: false,
+        openButirModal: false,
+
+        selectedRecord: null,
+
+        selectedClusterId: '',
+        selectedDirektoratUtamaId: '',
+
+        picPendukungSearch: '',
+        selectedPicPendukung: [],
+
+        clusters: clusters,
+        direktorats: direktorats,
+
+        openButirModalFor(record) {
+            this.selectedRecord = record;
+            this.selectedDirektoratUtamaId = '';
+            this.picPendukungSearch = '';
+            this.selectedPicPendukung = [];
+            this.openButirModal = true;
+        },
+
+        get filteredSubClusters() {
+            const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
+            return cluster ? cluster.sub_clusters : [];
+        },
+
+        get filteredUnitKerjaUtama() {
+            const direktorat = this.direktorats.find(item => String(item.id) === String(this.selectedDirektoratUtamaId));
+            return direktorat ? direktorat.unit_kerja : [];
+        },
+
+        get allUnitKerjaPendukung() {
+            return this.direktorats.flatMap(direktorat => {
+                return (direktorat.unit_kerja || []).map(unit => ({
+                    ...unit,
+                    direktorat_nama: direktorat.nama_direktorat,
+                }));
+            });
+        },
+
+        get filteredAllUnitKerjaPendukung() {
+            const keyword = this.picPendukungSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return this.allUnitKerjaPendukung;
+            }
+
+            return this.allUnitKerjaPendukung.filter(unit => {
+                const kode = String(unit.kode_unit || '').toLowerCase();
+                const nama = String(unit.nama_unit || '').toLowerCase();
+                const direktorat = String(unit.direktorat_nama || '').toLowerCase();
+
+                return kode.includes(keyword)
+                    || nama.includes(keyword)
+                    || direktorat.includes(keyword);
+            });
+        },
+
+        get selectedPicPendukungDetail() {
+            return this.allUnitKerjaPendukung.filter(unit => {
+                return this.selectedPicPendukung.includes(String(unit.id));
+            });
+        },
+
+        removePicPendukung(id) {
+            this.selectedPicPendukung = this.selectedPicPendukung.filter(item => String(item) !== String(id));
+        },
+    };
+};
+
+
+/**
+ * ============================================================
+ * REPORT SNP - MODAL CETAK CUSTOM
+ * ============================================================
+ * Flow:
+ * - user centang surat SNP
+ * - klik Cetak Report Custom
+ * - modal tampil daftar butir dari surat terpilih
+ * - user pilih butir dan field
+ * - submit ke PDF Custom / Excel Custom
+ */
 document.addEventListener('DOMContentLoaded', () => {
     const openCustomReportModalBtn = document.getElementById('openCustomReportModalBtn');
     const closeCustomReportModalBtn = document.getElementById('closeCustomReportModalBtn');
@@ -136,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let hasButir = false;
 
         checkedRecords.forEach((checkbox) => {
-            const recordLabel = checkbox.dataset.recordLabel || 'Surat SNP';
+            const recordLabel = checkbox.dataset.recordLabel || 'Surat';
             let butirs = [];
 
             try {
@@ -157,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (butirs.length === 0) {
                 const empty = document.createElement('p');
                 empty.className = 'text-sm text-slate-400';
-                empty.textContent = 'Surat ini belum memiliki butir SNP.';
+                empty.textContent = 'Surat ini belum memiliki butir.';
                 group.appendChild(empty);
             }
 
@@ -176,10 +246,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const span = document.createElement('span');
                 span.className = 'text-slate-700';
+
+                const idButir = butir.id_butir_snp ?? butir.id_butir_ragab ?? butir.id_butir_rawas ?? butir.id_butir_djsn ?? '-';
+                const isiButir = butir.butir_snp ?? butir.butir_ragab ?? butir.id_butir_rawas ?? butir.id_butir_djsn ?? '-';
+
                 span.innerHTML = `
-                    <span class="font-bold" style="color:#2377b9;">${escapeHtml(butir.id_butir_snp ?? '-')}</span>
+                    <span class="font-bold" style="color:#2377b9;">${escapeHtml(idButir)}</span>
                     <br>
-                    <span class="text-xs">${escapeHtml(butir.butir_snp ?? '-')}</span>
+                    <span class="text-xs">${escapeHtml(isiButir)}</span>
                 `;
 
                 label.appendChild(input);
@@ -193,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hasButir) {
             customReportButirList.innerHTML = `
                 <p class="text-sm text-red-500">
-                    Surat yang dipilih belum memiliki butir SNP.
+                    Surat yang dipilih belum memiliki butir.
                 </p>
             `;
         }
@@ -205,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         customReportRecordIds.innerHTML = '';
 
         if (checkedRecords.length === 0) {
-            alert('Pilih minimal satu surat SNP terlebih dahulu.');
+            alert('Pilih minimal satu surat terlebih dahulu.');
             return;
         }
 
@@ -262,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (selectedButirs.length === 0) {
             event.preventDefault();
-            alert('Pilih minimal satu butir SNP untuk dicetak.');
+            alert('Pilih minimal satu butir untuk dicetak.');
             return;
         }
 
@@ -273,16 +347,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+
+/**
+ * ============================================================
+ * REPORT SNP - MODAL PILIH FORMAT
+ * ============================================================
+ * Flow:
+ * - user centang surat SNP
+ * - klik Cetak Report
+ * - modal pilih format PDF / Excel muncul
+ */
 document.addEventListener('DOMContentLoaded', () => {
     const openReportFormatModalBtn = document.getElementById('openReportFormatModalBtn');
     const closeReportFormatModalBtn = document.getElementById('closeReportFormatModalBtn');
     const reportFormatModal = document.getElementById('reportFormatModal');
 
+    if (!reportFormatModal) {
+        return;
+    }
+
     const openReportFormatModal = () => {
         const checkedRecords = document.querySelectorAll('input[name="record_ids[]"]:checked');
 
         if (checkedRecords.length === 0) {
-            alert('Pilih minimal satu surat SNP terlebih dahulu.');
+            alert('Pilih minimal satu surat terlebih dahulu.');
             return;
         }
 
@@ -298,9 +386,169 @@ document.addEventListener('DOMContentLoaded', () => {
     openReportFormatModalBtn?.addEventListener('click', openReportFormatModal);
     closeReportFormatModalBtn?.addEventListener('click', closeReportFormatModal);
 
-    reportFormatModal?.addEventListener('click', (event) => {
+    reportFormatModal.addEventListener('click', (event) => {
         if (event.target === reportFormatModal) {
             closeReportFormatModal();
         }
     });
 });
+
+/**
+ * ============================================================
+ * PEREKAMAN RAWAS
+ * ============================================================
+ * Clone dari perekaman SNP.
+ * Dipakai di resources/views/layouts/rawas/perekaman.blade.php
+ */
+window.perekamanRawasModal = function (clusters = [], direktorats = []) {
+    return {
+        openCreateModal: false,
+        openButirModal: false,
+
+        selectedRecord: null,
+
+        selectedClusterId: '',
+        selectedDirektoratUtamaId: '',
+
+        picPendukungSearch: '',
+        selectedPicPendukung: [],
+
+        clusters: clusters,
+        direktorats: direktorats,
+
+        openButirModalFor(record) {
+            this.selectedRecord = record;
+            this.selectedDirektoratUtamaId = '';
+            this.picPendukungSearch = '';
+            this.selectedPicPendukung = [];
+            this.openButirModal = true;
+        },
+
+        get filteredSubClusters() {
+            const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
+            return cluster ? cluster.sub_clusters : [];
+        },
+
+        get filteredUnitKerjaUtama() {
+            const direktorat = this.direktorats.find(item => String(item.id) === String(this.selectedDirektoratUtamaId));
+            return direktorat ? direktorat.unit_kerja : [];
+        },
+
+        get allUnitKerjaPendukung() {
+            return this.direktorats.flatMap(direktorat => {
+                return (direktorat.unit_kerja || []).map(unit => ({
+                    ...unit,
+                    direktorat_nama: direktorat.nama_direktorat,
+                }));
+            });
+        },
+
+        get filteredAllUnitKerjaPendukung() {
+            const keyword = this.picPendukungSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return this.allUnitKerjaPendukung;
+            }
+
+            return this.allUnitKerjaPendukung.filter(unit => {
+                const kode = String(unit.kode_unit || '').toLowerCase();
+                const nama = String(unit.nama_unit || '').toLowerCase();
+                const direktorat = String(unit.direktorat_nama || '').toLowerCase();
+
+                return kode.includes(keyword)
+                    || nama.includes(keyword)
+                    || direktorat.includes(keyword);
+            });
+        },
+
+        get selectedPicPendukungDetail() {
+            return this.allUnitKerjaPendukung.filter(unit => {
+                return this.selectedPicPendukung.includes(String(unit.id));
+            });
+        },
+
+        removePicPendukung(id) {
+            this.selectedPicPendukung = this.selectedPicPendukung.filter(item => String(item) !== String(id));
+        },
+    };
+};
+
+/**
+ * ============================================================
+ * PEREKAMAN DJSN
+ * ============================================================
+ * Clone dari perekaman SNP.
+ * Dipakai di resources/views/layouts/djsn/perekaman.blade.php
+ */
+window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
+    return {
+        openCreateModal: false,
+        openButirModal: false,
+
+        selectedRecord: null,
+
+        selectedClusterId: '',
+        selectedDirektoratUtamaId: '',
+
+        picPendukungSearch: '',
+        selectedPicPendukung: [],
+
+        clusters: clusters,
+        direktorats: direktorats,
+
+        openButirModalFor(record) {
+            this.selectedRecord = record;
+            this.selectedDirektoratUtamaId = '';
+            this.picPendukungSearch = '';
+            this.selectedPicPendukung = [];
+            this.openButirModal = true;
+        },
+
+        get filteredSubClusters() {
+            const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
+            return cluster ? cluster.sub_clusters : [];
+        },
+
+        get filteredUnitKerjaUtama() {
+            const direktorat = this.direktorats.find(item => String(item.id) === String(this.selectedDirektoratUtamaId));
+            return direktorat ? direktorat.unit_kerja : [];
+        },
+
+        get allUnitKerjaPendukung() {
+            return this.direktorats.flatMap(direktorat => {
+                return (direktorat.unit_kerja || []).map(unit => ({
+                    ...unit,
+                    direktorat_nama: direktorat.nama_direktorat,
+                }));
+            });
+        },
+
+        get filteredAllUnitKerjaPendukung() {
+            const keyword = this.picPendukungSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return this.allUnitKerjaPendukung;
+            }
+
+            return this.allUnitKerjaPendukung.filter(unit => {
+                const kode = String(unit.kode_unit || '').toLowerCase();
+                const nama = String(unit.nama_unit || '').toLowerCase();
+                const direktorat = String(unit.direktorat_nama || '').toLowerCase();
+
+                return kode.includes(keyword)
+                    || nama.includes(keyword)
+                    || direktorat.includes(keyword);
+            });
+        },
+
+        get selectedPicPendukungDetail() {
+            return this.allUnitKerjaPendukung.filter(unit => {
+                return this.selectedPicPendukung.includes(String(unit.id));
+            });
+        },
+
+        removePicPendukung(id) {
+            this.selectedPicPendukung = this.selectedPicPendukung.filter(item => String(item) !== String(id));
+        },
+    };
+};

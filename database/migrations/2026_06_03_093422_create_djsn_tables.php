@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected string $connectionName = 'mysql_ragab';
+    protected string $connectionName = 'mysql_djsn';
 
     public function up(): void
     {
@@ -33,7 +33,7 @@ return new class extends Migration
 
         Schema::connection($this->connectionName)->create('tb_record', function (Blueprint $table) {
             $table->id();
-            $table->string('id_ragab', 50)->unique();
+            $table->string('id_djsn', 70)->unique();
 
             $table->unsignedBigInteger('cluster_id')->nullable();
             $table->unsignedBigInteger('sub_cluster_id')->nullable();
@@ -44,6 +44,7 @@ return new class extends Migration
             $table->text('dokumen')->nullable();
             $table->date('jth_tempo')->nullable();
             $table->string('status', 50)->default('draft');
+
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
@@ -61,17 +62,18 @@ return new class extends Migration
                 ->cascadeOnUpdate();
         });
 
-        Schema::connection($this->connectionName)->create('tb_butir_ragab', function (Blueprint $table) {
+        Schema::connection($this->connectionName)->create('tb_butir_djsn', function (Blueprint $table) {
             $table->id();
-            $table->string('id_butir_ragab', 70)->unique();
-            $table->string('id_ragab', 50);
-            $table->text('butir_ragab');
+            $table->string('id_butir_djsn', 90)->unique();
+            $table->string('id_djsn', 70);
+            $table->text('butir_djsn');
+
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
 
-            $table->foreign('id_ragab')
-                ->references('id_ragab')
+            $table->foreign('id_djsn')
+                ->references('id_djsn')
                 ->on('tb_record')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
@@ -79,82 +81,131 @@ return new class extends Migration
 
         Schema::connection($this->connectionName)->create('tb_butir_pic', function (Blueprint $table) {
             $table->id();
-            $table->string('id_butir_ragab', 70);
+            $table->string('id_butir_djsn', 90);
             $table->unsignedBigInteger('unit_kerja_id')->nullable();
             $table->unsignedBigInteger('komite_id')->nullable();
+
             $table->enum('jenis_pic', [
                 'utama',
                 'pendukung',
                 'komite',
             ]);
+
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
 
-            $table->index('id_butir_ragab');
+            $table->index('id_butir_djsn');
             $table->index('unit_kerja_id');
             $table->index('komite_id');
 
             $table->unique([
-                'id_butir_ragab',
+                'id_butir_djsn',
                 'unit_kerja_id',
                 'komite_id',
                 'jenis_pic',
-            ], 'tb_butir_pic_ragab_unique');
+            ], 'tb_butir_pic_djsn_unique');
 
-            $table->foreign('id_butir_ragab')
-                ->references('id_butir_ragab')
-                ->on('tb_butir_ragab')
+            $table->foreign('id_butir_djsn')
+                ->references('id_butir_djsn')
+                ->on('tb_butir_djsn')
+                ->cascadeOnDelete()
+                ->cascadeOnUpdate();
+        });
+
+        Schema::connection($this->connectionName)->create('tb_tanggapan', function (Blueprint $table) {
+            $table->id();
+            $table->string('id_butir_djsn', 90);
+            $table->text('tanggapan')->nullable();
+            $table->text('deliverables')->nullable();
+            $table->text('dokumen')->nullable();
+            $table->date('ubah_tgl')->nullable();
+
+            $table->enum('status_pengajuan_tgl', [
+                'pending',
+                'disetujui',
+                'ditolak',
+            ])->default('pending');
+
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->timestamps();
+
+            $table->index('id_butir_djsn');
+
+            $table->foreign('id_butir_djsn')
+                ->references('id_butir_djsn')
+                ->on('tb_butir_djsn')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
         });
 
         Schema::connection($this->connectionName)->create('tb_tindak_lanjut', function (Blueprint $table) {
             $table->id();
-            $table->string('id_butir_ragab', 70);
+            $table->string('id_butir_djsn', 90);
             $table->text('tindak_lanjut')->nullable();
             $table->text('deliverables')->nullable();
             $table->text('dokumen')->nullable();
             $table->date('jth_tempo')->nullable();
+
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
 
-            $table->index('id_butir_ragab');
+            $table->index('id_butir_djsn');
 
-            $table->foreign('id_butir_ragab')
-                ->references('id_butir_ragab')
-                ->on('tb_butir_ragab')
+            $table->foreign('id_butir_djsn')
+                ->references('id_butir_djsn')
+                ->on('tb_butir_djsn')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
         });
 
         Schema::connection($this->connectionName)->create('tb_review', function (Blueprint $table) {
             $table->id();
-            $table->string('id_butir_ragab', 70);
+
+            $table->string('id_butir_djsn', 90);
+            $table->unsignedBigInteger('id_tanggapan')->nullable();
             $table->unsignedBigInteger('id_tindak_lanjut')->nullable();
             $table->unsignedBigInteger('komite_id')->nullable();
-            $table->string('tahap_review', 50)->default('tindak_lanjut');
+
+            $table->enum('tahap_review', [
+                'tanggapan',
+                'tindak_lanjut',
+            ]);
+
             $table->text('hasil_review')->nullable();
             $table->text('deliverables')->nullable();
             $table->text('dokumen')->nullable();
+
             $table->enum('status', [
                 'belum_ditanggapi',
                 'dalam_proses_reviu_dewan_pengawas',
+                'dalam_proses_tindak_lanjut_direksi',
                 'selesai_tuntas',
             ])->default('belum_ditanggapi');
+
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
 
-            $table->index('id_butir_ragab');
+            $table->index('id_butir_djsn');
+            $table->index('id_tanggapan');
             $table->index('id_tindak_lanjut');
             $table->index('komite_id');
+            $table->index('tahap_review');
+            $table->index('status');
 
-            $table->foreign('id_butir_ragab')
-                ->references('id_butir_ragab')
-                ->on('tb_butir_ragab')
+            $table->foreign('id_butir_djsn')
+                ->references('id_butir_djsn')
+                ->on('tb_butir_djsn')
                 ->cascadeOnDelete()
+                ->cascadeOnUpdate();
+
+            $table->foreign('id_tanggapan')
+                ->references('id')
+                ->on('tb_tanggapan')
+                ->nullOnDelete()
                 ->cascadeOnUpdate();
 
             $table->foreign('id_tindak_lanjut')
@@ -169,8 +220,9 @@ return new class extends Migration
     {
         Schema::connection($this->connectionName)->dropIfExists('tb_review');
         Schema::connection($this->connectionName)->dropIfExists('tb_tindak_lanjut');
+        Schema::connection($this->connectionName)->dropIfExists('tb_tanggapan');
         Schema::connection($this->connectionName)->dropIfExists('tb_butir_pic');
-        Schema::connection($this->connectionName)->dropIfExists('tb_butir_ragab');
+        Schema::connection($this->connectionName)->dropIfExists('tb_butir_djsn');
         Schema::connection($this->connectionName)->dropIfExists('tb_record');
         Schema::connection($this->connectionName)->dropIfExists('tb_sub_cluster');
         Schema::connection($this->connectionName)->dropIfExists('tb_cluster');

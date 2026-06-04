@@ -1,24 +1,24 @@
 <x-app-layout>
-    <div x-data="perekamanSnpModal(@js($clusters), @js($direktorats))" class="space-y-6">
+    <div x-data="perekamanRawasModal(@js($clusters), @js($direktorats))" class="space-y-6">
         {{-- Page Header --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                        SNP Dewas
+                        RAWAS
                     </p>
 
                     <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                        Perekaman SNP Dewas
+                        Perekaman RAWAS
                     </h1>
 
                     <p class="mt-2 text-sm text-slate-500">
-                        Halaman ini berisi riwayat perekaman Saran Nasihat Pertimbangan Dewan Pengawas.
+                        Halaman ini berisi riwayat perekaman Rapat Dewas.
                     </p>
                 </div>
 
                 <div class="flex flex-wrap gap-3">
-                    @if (auth()->user()->canCreateSnpPerekaman())
+                    @if (auth()->user()->canCreateRawasPerekaman())
                         <button type="button" @click="openCreateModal = true"
                             class="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
                             style="background-color: #2377b9;">
@@ -128,186 +128,16 @@
         </div>
 
         {{-- Filter --}}
-        <div x-data="{ openFilter: false }" class="rounded-2xl border border-blue-100 bg-white shadow-sm">
-            <button type="button" @click="openFilter = !openFilter"
-                class="flex w-full items-center justify-between px-6 py-4 text-left">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50"
-                        style="color: #2377b9;">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h18M6 12h12M10 19.5h4" />
-                        </svg>
-                    </div>
-
-                    <div>
-                        <p class="font-semibold text-slate-800">Filter Lanjutan</p>
-                        <p class="text-sm text-slate-500">
-                            Isi minimal satu filter untuk mencari data perekaman SNP.
-                        </p>
-                    </div>
-                </div>
-
-                <svg class="h-5 w-5 text-slate-500 transition-transform" :class="{ 'rotate-180': openFilter }"
-                    fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7" />
-                </svg>
-            </button>
-
-            <div x-show="openFilter" x-transition class="border-t border-blue-50 px-6 py-5" style="display: none;">
-
-                <form method="GET" action="{{ route('snp.perekaman') }}">
-                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {{-- Status --}}
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">Status</label>
-                            <select name="status"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Semua Status</option>
-                                <option value="draft" @selected(request('status') === 'draft')>Draft</option>
-                                <option value="terbit" @selected(request('status') === 'terbit')>Terbit</option>
-                                <option value="dalam_proses" @selected(request('status') === 'dalam_proses')>Dalam Proses</option>
-                                <option value="selesai" @selected(request('status') === 'selesai')>Selesai</option>
-                            </select>
-                        </div>
-
-                        {{-- Direktorat --}}
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">
-                                Direktorat Penanggung Jawab
-                            </label>
-                            <select name="direktorat_id"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Semua Direktorat</option>
-                                @foreach ($direktorats as $direktorat)
-                                    <option value="{{ $direktorat->id }}" @selected(request('direktorat_id') == $direktorat->id)>
-                                        {{ $direktorat->nama_direktorat }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Unit Kerja Utama --}}
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">
-                                Unit Kerja Utama
-                            </label>
-                            <select name="unit_kerja_utama_id"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Semua Unit Kerja Utama</option>
-                                @foreach ($unitKerjas as $unit)
-                                    <option value="{{ $unit->id }}" @selected(request('unit_kerja_utama_id') == $unit->id)>
-                                        {{ $unit->kode_unit }} - {{ $unit->nama_unit }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- PIC Pendukung --}}
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">
-                                PIC Pendukung
-                            </label>
-                            <select name="unit_kerja_pendukung_id"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Semua PIC Pendukung</option>
-                                @foreach ($unitKerjas as $unit)
-                                    <option value="{{ $unit->id }}" @selected(request('unit_kerja_pendukung_id') == $unit->id)>
-                                        {{ $unit->kode_unit }} - {{ $unit->nama_unit }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Komite --}}
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">Komite</label>
-                            <select name="komite_id"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Semua Komite</option>
-                                @foreach ($komites as $komite)
-                                    <option value="{{ $komite->id }}" @selected(request('komite_id') == $komite->id)>
-                                        {{ $komite->kode_komite }} - {{ $komite->nama_komite }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Cluster --}}
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">Cluster</label>
-                            <select name="cluster_id" x-model="selectedClusterId"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Semua Cluster</option>
-                                @foreach ($clusters as $cluster)
-                                    <option value="{{ $cluster->id }}" @selected(request('cluster_id') == $cluster->id)>
-                                        {{ $cluster->nama_cluster }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Sub Cluster --}}
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">Sub Cluster</label>
-                            <select name="sub_cluster_id"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Semua Sub Cluster</option>
-
-                                @if (request('sub_cluster_id'))
-                                    @foreach ($clusters as $cluster)
-                                        @foreach ($cluster->subClusters as $subCluster)
-                                            <option value="{{ $subCluster->id }}" @selected(request('sub_cluster_id') == $subCluster->id)>
-                                                {{ $subCluster->nama_sub_cluster }}
-                                            </option>
-                                        @endforeach
-                                    @endforeach
-                                @else
-                                    <template x-for="subCluster in filteredSubClusters" :key="subCluster.id">
-                                        <option :value="subCluster.id" x-text="subCluster.nama_sub_cluster"></option>
-                                    </template>
-                                @endif
-                            </select>
-                        </div>
-
-                        {{-- Tanggal Mulai --}}
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">Tanggal Mulai</label>
-                            <input type="date" name="tanggal_mulai" value="{{ request('tanggal_mulai') }}"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-
-                        {{-- Tanggal Selesai --}}
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-slate-700">Tanggal Selesai</label>
-                            <input type="date" name="tanggal_selesai" value="{{ request('tanggal_selesai') }}"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-
-                        {{-- Kata Kunci --}}
-                        <div class="md:col-span-2 xl:col-span-3">
-                            <label class="mb-2 block text-sm font-medium text-slate-700">Kata Kunci</label>
-                            <input type="text" name="keyword" value="{{ request('keyword') }}"
-                                placeholder="Cari ID SNP, nomor surat, perihal, ID butir, atau isi butir..."
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <div class="mt-5 flex justify-end gap-3">
-                        <a href="{{ route('snp.perekaman') }}"
-                            class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                            Reset
-                        </a>
-
-                        <button type="submit"
-                            class="rounded-xl px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-                            style="background-color: #2377b9;">
-                            Terapkan Filter
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        @include('layouts.rawas.partials.filter-lanjutan', [
+            'action' => route('rawas.perekaman'),
+            'statusOptions' => [
+                'draft' => 'Draft',
+                'terbit' => 'Terbit',
+                'dalam_proses' => 'Dalam Proses',
+                'selesai' => 'Selesai',
+            ],
+            'keywordPlaceholder' => 'Cari ID RAWAS, ID butir, nomor surat, perihal, atau isi butir...',
+        ])
 
         {{-- Table --}}
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -318,7 +148,7 @@
                         Riwayat Perekaman
                     </h2>
                     <p class="mt-1 text-sm text-slate-500">
-                        Daftar SNP Dewas yang sudah pernah direkam ke sistem.
+                        Daftar RAWAS yang sudah pernah direkam ke sistem.
                     </p>
                 </div>
 
@@ -332,7 +162,7 @@
                                 Informasi Surat
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Butir SNP
+                                Butir RAWAS
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Cluster
@@ -340,8 +170,7 @@
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Status
                             </th>
-                            <th
-                                class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
+                            <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Aksi
                             </th>
                         </tr>
@@ -354,7 +183,7 @@
                                 <td class="px-6 py-6 align-top">
                                     <div class="space-y-2">
                                         <p class="text-sm font-bold tracking-wide" style="color: #2377b9;">
-                                            {{ $record->id_snp }}
+                                            {{ $record->id_rawas }}
                                         </p>
 
                                         <p class="text-xs text-slate-700">
@@ -378,7 +207,7 @@
                                             </p>
 
                                             @if ($record->dokumen)
-                                                <a href="{{ route('snp.perekaman.dokumen', $record->id) }}"
+                                                <a href="{{ route('rawas.perekaman.dokumen', $record->id) }}"
                                                     class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
                                                     style="background-color: #2377b9;">
                                                     Download Dokumen
@@ -407,21 +236,21 @@
                                     </div>
                                 </td>
 
-                                {{-- Butir SNP --}}
+                                {{-- Butir RAWAS --}}
                                 <td class="px-6 py-6 align-top">
-                                    @if ($record->butirSnp->count() > 0)
+                                    @if ($record->butirRawas->count() > 0)
                                         <div class="space-y-6">
-                                            @foreach ($record->butirSnp as $butir)
+                                            @foreach ($record->butirRawas as $butir)
                                                 <div
                                                     class="{{ !$loop->first ? 'mt-5 border-t border-slate-300 pt-5' : '' }}">
                                                     <p class="text-sm font-bold tracking-wide"
                                                         style="color: #2377b9;">
-                                                        {{ $butir->id_butir_snp }}
+                                                        {{ $butir->id_butir_rawas }}
                                                     </p>
 
                                                     <p
                                                         class="mt-3 max-w-xl text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                                        {{ $butir->butir_snp }}
+                                                        {{ $butir->butir_rawas }}
                                                     </p>
 
                                                     @php
@@ -553,24 +382,25 @@
                                             ][$record->status] ?? 'text-white';
                                     @endphp
 
-                                    <span class="inline-flex text-center rounded-full px-4 py-1.5 text-xs font-bold {{ $teksColor }}"
+                                    <span
+                                        class="inline-flex text-center rounded-full px-4 py-1.5 text-xs font-bold {{ $teksColor }}"
                                         style="background-color: {{ $statusColor }};">
                                         {{ $statusLabel }}
                                     </span>
 
                                     <p class="mt-3 text-sm text-slate-500">
-                                        {{ $record->butir_snp_count ?? $record->butirSnp->count() }} butir
+                                        {{ $record->butir_rawas_count ?? $record->butirRawas->count() }} butir
                                     </p>
                                 </td>
 
                                 {{-- Aksi --}}
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        @if (auth()->user()->canCreateSnpPerekaman())
+                                        @if (auth()->user()->canCreateRawasPerekaman())
                                             <button type="button"
                                                 @click="openButirModalFor({
                                                     id: {{ $record->id }},
-                                                    id_snp: @js($record->id_snp),
+                                                    id_rawas: @js($record->id_rawas),
                                                     nomor_surat: @js($record->nomor_surat)
                                                 })"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
@@ -591,9 +421,9 @@
                                             Edit
                                         </a>
 
-                                        @if (auth()->user()->canRequestDeleteSnpPerekaman())
+                                        @if (auth()->user()->canRequestDeleteRawasPerekaman())
                                             <form method="POST"
-                                                action="{{ route('snp.perekaman.destroy.request', $record->id) }}"
+                                                action="{{ route('rawas.perekaman.destroy.request', $record->id) }}"
                                                 onsubmit="return confirm('Ajukan penghapusan perekaman ini?')">
                                                 @csrf
                                                 @method('DELETE')
@@ -611,7 +441,7 @@
                             <tr class="py-3 border-b-4 border-slate-200 transition hover:bg-blue-50/40">
                                 <td colspan="5" class="px-6 py-14 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada data perekaman SNP.
+                                        Belum ada data perekaman RAWAS.
                                     </p>
                                     <p class="mt-1 text-xs text-slate-400">
                                         Klik tombol Tambah Perekaman untuk menambahkan data pertama.
@@ -695,11 +525,11 @@
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
-                            Tambah Perekaman SNP Dewas
+                            Tambah Perekaman RAWAS
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            ID SNP, tanggal jatuh tempo, dan status draft akan dibuat otomatis.
+                            ID RAWAS, tanggal jatuh tempo, dan status draft akan dibuat otomatis.
                         </p>
                     </div>
 
@@ -712,7 +542,7 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('snp.perekaman.store') }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('rawas.perekaman.store') }}" enctype="multipart/form-data"
                     class="px-6 py-6">
                     @csrf
 
@@ -834,13 +664,13 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Tambah Butir SNP
+                            Tambah Butir RAWAS
                         </p>
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
-                            Surat <span x-text="selectedRecord?.id_snp"></span>
+                            Surat <span x-text="selectedRecord?.id_rawas"></span>
                         </h2>
                         <p class="mt-1 text-sm text-slate-500">
-                            ID Butir SNP akan dibuat otomatis.
+                            ID Butir RAWAS akan dibuat otomatis.
                         </p>
                     </div>
 
@@ -850,17 +680,17 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="`/snp/perekaman/${selectedRecord?.id}/butir`" class="px-6 py-6">
+                <form method="POST" :action="`/rawas/perekaman/${selectedRecord?.id}/butir`" class="px-6 py-6">
                     @csrf
 
                     <div class="grid gap-5 lg:grid-cols-2">
                         <div class="lg:col-span-2">
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Isi Butir SNP
+                                Isi Butir RAWAS
                             </label>
-                            <textarea name="butir_snp" rows="4" required
+                            <textarea name="butir_rawas" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan isi butir SNP..."></textarea>
+                                placeholder="Masukkan isi butir RAWAS..."></textarea>
                         </div>
 
                         <div>

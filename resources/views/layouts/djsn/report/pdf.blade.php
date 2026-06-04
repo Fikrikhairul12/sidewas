@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Report SNP Dewas</title>
+    <title>Report DJSN</title>
 
     <style>
         @page {
@@ -138,14 +138,14 @@
 
 <body>
     <div class="watermark">
-        SIDEWAS SNP DEWAS
+        SIDEWAS DJSN
     </div>
     <table>
         <thead>
             <tr>
                 <th style="width: 10%;">NOMOR, TANGGAL & PERIHAL SURAT</th>
-                <th style="width: 6%;">ID BUTIR SNP</th>
-                <th style="width: 12%;">ISI BUTIR SNP</th>
+                <th style="width: 6%;">ID BUTIR DJSN</th>
+                <th style="width: 12%;">ISI BUTIR DJSN</th>
                 <th style="width: 8%;">PIC UNIT KERJA</th>
                 <th style="width: 12%;">TANGGAPAN & TINDAK LANJUT DIREKSI</th>
                 <th style="width: 7%;">DELIVERABLE</th>
@@ -162,14 +162,14 @@
                 @php
                     $totalRowsRecord = 0;
 
-                    foreach ($record->butirSnp as $butirHitung) {
+                    foreach ($record->butirDjsn as $butirHitung) {
                         $totalRowsRecord += max(1, 1 + $butirHitung->tindakLanjuts->count());
                     }
 
                     $isFirstRecordRow = true;
                 @endphp
 
-                @foreach ($record->butirSnp as $butir)
+                @foreach ($record->butirDjsn as $butir)
                     @php
                         $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
                         $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
@@ -212,11 +212,11 @@
                         @endif
 
                         <td class="center pre-line" rowspan="{{ $jumlahBarisButir }}">
-                            {{ $butir->id_butir_snp }}
+                            {{ $butir->id_butir_djsn }}
                         </td>
 
                         <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
-                            {{ $butir->butir_snp }}
+                            {{ $butir->butir_djsn }}
                         </td>
 
                         <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">

@@ -5,16 +5,16 @@ namespace App\Models;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
 
-class RagabReview extends Model
+class RawasReview extends Model
 {
     use TracksUser;
 
-    protected $connection = 'mysql_ragab';
+    protected $connection = 'mysql_rawas';
 
     protected $table = 'tb_review';
 
     protected $fillable = [
-        'id_butir_ragab',
+        'id_butir_rawas',
         'id_tindak_lanjut',
         'komite_id',
         'tahap_review',
@@ -28,12 +28,12 @@ class RagabReview extends Model
 
     public function butir()
     {
-        return $this->belongsTo(RagabButir::class, 'id_butir_ragab', 'id_butir_ragab');
+        return $this->belongsTo(RawasButir::class, 'id_butir_rawas', 'id_butir_rawas');
     }
 
     public function tindakLanjut()
     {
-        return $this->belongsTo(RagabTindakLanjut::class, 'id_tindak_lanjut', 'id');
+        return $this->belongsTo(RawasTindakLanjut::class, 'id_tindak_lanjut', 'id');
     }
 
     public function komite()

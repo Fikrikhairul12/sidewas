@@ -9,6 +9,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Models\RoleType;
 use App\Models\SnpButir;
+use App\Models\RagabButir;
+use App\Models\RagabReview;
 
 class User extends Authenticatable
 {
@@ -328,6 +330,321 @@ class User extends Authenticatable
         return $this->hasRoleType('pic_snp')
             || $this->hasRoleType('moderator_snp')
             || $this->hasRoleType('admin_snp')
+            || $this->isSuperAdmin();
+    }
+
+    public function canAccessRagabPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_ragab')
+            || $this->hasRoleType('moderator_ragab')
+            || $this->hasRoleType('pic_ragab');
+    }
+
+    public function canCreateRagabPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_ragab')
+            || $this->hasRoleType('moderator_ragab');
+    }
+
+    public function canRequestDeleteRagabPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_ragab')
+            || $this->hasRoleType('moderator_ragab');
+    }
+
+    public function isRagabAdmin(): bool
+    {
+        return $this->hasRoleType('admin_ragab');
+    }
+
+    public function isRagabModerator(): bool
+    {
+        return $this->hasRoleType('moderator_ragab');
+    }
+
+    public function canAccessRagabTindakLanjut(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_ragab')
+            || $this->hasRoleType('moderator_ragab')
+            || $this->hasRoleType('pic_ragab');
+    }
+
+    public function canCreateRagabTindakLanjutForButir(RagabButir $butir): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $hasAllowedRole = $this->hasRoleType('pic_ragab')
+            || $this->hasRoleType('moderator_ragab');
+
+        if (!$hasAllowedRole) {
+            return false;
+        }
+
+        $userUnitKerjaIds = $this->unitKerjaIds();
+
+        if (empty($userUnitKerjaIds)) {
+            return false;
+        }
+
+        $picUnitKerjaIds = $butir->butirPics()
+            ->whereIn('jenis_pic', ['utama', 'pendukung'])
+            ->whereNotNull('unit_kerja_id')
+            ->pluck('unit_kerja_id')
+            ->toArray();
+
+        return count(array_intersect($userUnitKerjaIds, $picUnitKerjaIds)) > 0;
+    }
+
+    public function canAccessRagabReview(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_ragab')
+            || $this->hasRoleType('moderator_ragab')
+            || $this->hasRoleType('komite_ragab');
+    }
+
+    public function canReviewRagabByKomite(?int $komiteId): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (!$this->hasRoleType('pic_ragab') && !$this->hasRoleType('moderator_ragab')) {
+            return false;
+        }
+
+        if (empty($komiteId)) {
+            return false;
+        }
+
+        return in_array($komiteId, $this->komiteIds());
+    }
+
+    public function canAccessRawasPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_rawas')
+            || $this->hasRoleType('moderator_rawas')
+            || $this->hasRoleType('pic_rawas');
+    }
+
+    public function canCreateRawasPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_rawas')
+            || $this->hasRoleType('moderator_rawas');
+    }
+
+    public function canRequestDeleteRawasPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_rawas')
+            || $this->hasRoleType('moderator_rawas');
+    }
+
+    public function isRawasAdmin(): bool
+    {
+        return $this->hasRoleType('admin_rawas');
+    }
+
+    public function isRawasModerator(): bool
+    {
+        return $this->hasRoleType('moderator_rawas');
+    }
+
+    public function canAccessRawasTindakLanjut(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_rawas')
+            || $this->hasRoleType('moderator_rawas')
+            || $this->hasRoleType('pic_rawas');
+    }
+
+    public function canCreateRawasTindakLanjutForButir(RawasButir $butir): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $hasAllowedRole = $this->hasRoleType('pic_rawas')
+            || $this->hasRoleType('moderator_rawas');
+
+        if (!$hasAllowedRole) {
+            return false;
+        }
+
+        $userUnitKerjaIds = $this->unitKerjaIds();
+
+        if (empty($userUnitKerjaIds)) {
+            return false;
+        }
+
+        $picUnitKerjaIds = $butir->butirPics()
+            ->whereIn('jenis_pic', ['utama', 'pendukung'])
+            ->whereNotNull('unit_kerja_id')
+            ->pluck('unit_kerja_id')
+            ->toArray();
+
+        return count(array_intersect($userUnitKerjaIds, $picUnitKerjaIds)) > 0;
+    }
+
+    public function canAccessRawasReview(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_rawas')
+            || $this->hasRoleType('moderator_rawas')
+            || $this->hasRoleType('komite_rawas');
+    }
+
+    public function canReviewRawasByKomite(?int $komiteId): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (!$this->hasRoleType('pic_rawas') && !$this->hasRoleType('moderator_rawas')) {
+            return false;
+        }
+
+        if (empty($komiteId)) {
+            return false;
+        }
+
+        return in_array($komiteId, $this->komiteIds());
+    }
+
+    public function canAccessDjsnPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_djsn')
+            || $this->hasRoleType('moderator_djsn')
+            || $this->hasRoleType('pic_djsn');
+    }
+
+    public function canCreateDjsnPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_djsn')
+            || $this->hasRoleType('moderator_djsn');
+    }
+
+    public function canRequestDeleteDjsnPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_djsn')
+            || $this->hasRoleType('moderator_djsn');
+    }
+
+    public function isDjsnAdmin(): bool
+    {
+        return $this->hasRoleType('admin_djsn');
+    }
+
+    public function isDjsnModerator(): bool
+    {
+        return $this->hasRoleType('moderator_djsn');
+    }
+
+    public function canAccessDjsnTanggapan(): bool
+    {
+        return $this->hasRoleType('pic_djsn')
+            || $this->hasRoleType('moderator_djsn')
+            || $this->hasRoleType('admin_djsn')
+            || $this->isSuperAdmin();
+    }
+
+    public function canCreateDjsnTanggapanForButir(DjsnButir $butir): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $hasAllowedRole = $this->hasRoleType('pic_djsn')
+            || $this->hasRoleType('moderator_djsn');
+
+        if (!$hasAllowedRole) {
+            return false;
+        }
+
+        $userUnitKerjaIds = $this->unitKerjaIds();
+
+        if (empty($userUnitKerjaIds)) {
+            return false;
+        }
+
+        $picUnitKerjaIds = $butir->butirPics()
+            ->whereIn('jenis_pic', ['utama', 'pendukung'])
+            ->whereNotNull('unit_kerja_id')
+            ->pluck('unit_kerja_id')
+            ->toArray();
+
+        return count(array_intersect($userUnitKerjaIds, $picUnitKerjaIds)) > 0;
+    }
+
+    public function canAccessDjsnReview(): bool
+    {
+        return $this->hasRoleType('pic_djsn')
+            || $this->hasRoleType('moderator_djsn')
+            || $this->hasRoleType('admin_djsn')
+            || $this->isSuperAdmin();
+    }
+
+    public function canReviewDjsnByKomite(?int $komiteId): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (!$this->hasRoleType('pic_djsn') && !$this->hasRoleType('moderator_djsn')) {
+            return false;
+        }
+
+        if (!$komiteId) {
+            return false;
+        }
+
+        return in_array($komiteId, $this->komiteIds());
+    }
+
+    public function canCreateDjsnTindakLanjutForButir(DjsnButir $butir): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $hasAllowedRole = $this->hasRoleType('pic_djsn')
+            || $this->hasRoleType('moderator_djsn');
+
+        if (!$hasAllowedRole) {
+            return false;
+        }
+
+        $userUnitKerjaIds = $this->unitKerjaIds();
+
+        if (empty($userUnitKerjaIds)) {
+            return false;
+        }
+
+        $picUnitKerjaIds = $butir->butirPics()
+            ->whereIn('jenis_pic', ['utama', 'pendukung'])
+            ->whereNotNull('unit_kerja_id')
+            ->pluck('unit_kerja_id')
+            ->toArray();
+
+        return count(array_intersect($userUnitKerjaIds, $picUnitKerjaIds)) > 0;
+    }
+
+    public function canAccessDjsnTindakLanjut(): bool
+    {
+        return $this->hasRoleType('pic_djsn')
+            || $this->hasRoleType('moderator_djsn')
+            || $this->hasRoleType('admin_djsn')
             || $this->isSuperAdmin();
     }
 }

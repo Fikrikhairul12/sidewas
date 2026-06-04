@@ -25,11 +25,19 @@ class RagabButir extends Model
     {
         static::creating(function ($butir) {
             if (empty($butir->id_butir_ragab)) {
-                $count = static::where('id_ragab', $butir->id_ragab)->count() + 1;
-
-                $butir->id_butir_ragab = $butir->id_ragab . '.' . str_pad($count, 2, '0', STR_PAD_LEFT);
+                $butir->id_butir_ragab = static::generateIdButirRagab($butir->id_ragab);
             }
         });
+    }
+
+    public static function generateIdButirRagab(string $idRagab): string
+    {
+        $lastButir = static::where('id_ragab', $idRagab)->orderByDesc('id')->first();
+        $nextNumber = $lastButir
+            ? ((int) substr($lastButir->id_butir_ragab, strrpos($lastButir->id_butir_ragab, '.') + 1)) + 1
+            : 1;
+
+        return $idRagab . '.' . str_pad($nextNumber, 2, '0', STR_PAD_LEFT);
     }
 
     public function record()

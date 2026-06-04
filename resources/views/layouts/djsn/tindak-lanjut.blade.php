@@ -9,11 +9,11 @@
         ->map(
             fn($butir) => [
                 'id' => $butir->id,
-                'id_butir_snp' => $butir->id_butir_snp,
-                'id_snp' => $butir->record?->id_snp,
+                'id_butir_djsn' => $butir->id_butir_djsn,
+                'id_djsn' => $butir->record?->id_djsn,
                 'nomor_surat' => $butir->record?->nomor_surat,
                 'perihal_surat' => $butir->record?->perihal_surat,
-                'butir_snp' => $butir->butir_snp,
+                'butir_djsn' => $butir->butir_djsn,
                 'jth_tempo' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('Y-m-d') : null,
                 'jth_tempo_label' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('d/m/Y') : '-',
             ],
@@ -29,18 +29,18 @@
             }
 
             return this.butirs.filter((butir) => {
-                return String(butir.id_butir_snp || '').toLowerCase().includes(keyword) ||
-                    String(butir.id_snp || '').toLowerCase().includes(keyword) ||
+                return String(butir.id_butir_djsn || '').toLowerCase().includes(keyword) ||
+                    String(butir.id_djsn || '').toLowerCase().includes(keyword) ||
                     String(butir.nomor_surat || '').toLowerCase().includes(keyword) ||
                     String(butir.perihal_surat || '').toLowerCase().includes(keyword) ||
-                    String(butir.butir_snp || '').toLowerCase().includes(keyword);
+                    String(butir.butir_djsn || '').toLowerCase().includes(keyword);
             });
         },
 
         selectButir(butir) {
             this.selectedButir = butir;
             this.selectedButirId = butir.id;
-            this.butirSearch = `${butir.id_butir_snp} - ${butir.nomor_surat ?? '-'}`;
+            this.butirSearch = `${butir.id_butir_djsn} - ${butir.nomor_surat ?? '-'}`;
         },
 
         resetButir() {
@@ -54,15 +54,15 @@
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                        SNP Dewas
+                        DJSN
                     </p>
 
                     <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                        Tindak Lanjut SNP
+                        Tindak Lanjut DJSN
                     </h1>
 
                     <p class="mt-2 text-sm text-slate-500">
-                        Halaman ini digunakan untuk menginput tindak lanjut terhadap butir SNP yang sudah masuk tahap
+                        Halaman ini digunakan untuk menginput tindak lanjut terhadap butir DJSN yang sudah masuk tahap
                         tindak lanjut direksi.
                     </p>
                 </div>
@@ -87,11 +87,11 @@
             </div>
         @endif
 
-        @include('layouts.snp.partials.filter-lanjutan', [
-            'action' => route('snp.tindak-lanjut.index'),
+        @include('layouts.djsn.partials.filter-lanjutan', [
+            'action' => route('djsn.tindak-lanjut.index'),
             'statusOptions' => $statusOptions,
             'keywordPlaceholder' =>
-                'Cari ID SNP, ID butir, nomor surat, perihal, tanggapan, tindak lanjut, atau deliverables...',
+                'Cari ID DJSN, ID butir, nomor surat, perihal, tanggapan, tindak lanjut, atau deliverables...',
         ])
 
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -101,7 +101,7 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Data akan muncul setelah butir SNP masuk tahap tindak lanjut direksi.
+                    Data akan muncul setelah butir DJSN masuk tahap tindak lanjut direksi.
                 </p>
             </div>
 
@@ -110,7 +110,7 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi SNP
+                                Informasi DJSN
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Tindak Lanjut
@@ -145,7 +145,7 @@
                             <tr class="hover:bg-blue-50/40">
                                 <td class="px-6 py-6 align-top">
                                     <p class="text-xs font-bold" style="color: #2377b9;">
-                                        {{ $record?->id_snp ?? '-' }}
+                                        {{ $record?->id_djsn ?? '-' }}
                                     </p>
 
                                     <p class="mt-2 text-xs text-slate-700">
@@ -158,12 +158,12 @@
                                     </p>
 
                                     <p class="mt-1 text-xs text-slate-700">
-                                        Butir: {{ $butir?->id_butir_snp ?? '-' }}
+                                        Butir: {{ $butir?->id_butir_djsn ?? '-' }}
                                     </p>
 
                                     <p
                                         class="mt-3 max-w-md whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $butir?->butir_snp ?? '-' }}
+                                        {{ $butir?->butir_djsn ?? '-' }}
                                     </p>
 
                                     <div class="mt-4">
@@ -172,7 +172,7 @@
                                         </p>
 
                                         @if ($reviewTanggapan?->dokumen)
-                                            <a href="{{ route('snp.reviu.dokumen', $reviewTanggapan->id) }}"
+                                            <a href="{{ route('djsn.reviu.dokumen', $reviewTanggapan->id) }}"
                                                 class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
                                                 style="background-color: #2377b9;">
                                                 Download Dokumen
@@ -373,7 +373,7 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Form Tindak Lanjut SNP
+                            Form Tindak Lanjut DJSN
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
@@ -381,7 +381,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            Pilih butir SNP yang sudah berstatus dalam proses tindak lanjut direksi.
+                            Pilih butir DJSN yang sudah berstatus dalam proses tindak lanjut direksi.
                         </p>
                     </div>
 
@@ -391,7 +391,7 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('snp.tindak-lanjut.store') }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('djsn.tindak-lanjut.store') }}" enctype="multipart/form-data"
                     class="px-6 py-6">
                     @csrf
 
@@ -409,7 +409,7 @@
                     <div class="grid gap-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Pilih Butir SNP
+                                Pilih Butir DJSN
                             </label>
 
                             <input type="hidden" name="butir_id" :value="selectedButirId" required>
@@ -418,7 +418,7 @@
                                 <div class="border-b border-slate-200 p-3">
                                     <input type="text" x-model="butirSearch"
                                         @input="selectedButir = null; selectedButirId = ''"
-                                        placeholder="Ketik ID butir, ID SNP, nomor surat, atau isi butir..."
+                                        placeholder="Ketik ID butir, ID DJSN, nomor surat, atau isi butir..."
                                         class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 </div>
 
@@ -431,16 +431,16 @@
                                                     'bg-blue-50 ring-2 ring-blue-200' : ''">
                                                 <div class="flex flex-col gap-1">
                                                     <p class="text-sm font-bold" style="color: #2377b9;"
-                                                        x-text="butir.id_butir_snp"></p>
+                                                        x-text="butir.id_butir_djsn"></p>
 
                                                     <p class="text-xs text-slate-500">
-                                                        <span x-text="butir.id_snp"></span>
+                                                        <span x-text="butir.id_djsn"></span>
                                                         <span> • </span>
                                                         <span x-text="butir.nomor_surat ?? '-'"></span>
                                                     </p>
 
                                                     <p class="mt-2 text-sm font-semibold uppercase leading-relaxed text-slate-800"
-                                                        x-text="butir.butir_snp"></p>
+                                                        x-text="butir.butir_djsn"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
                                                         Jatuh Tempo:
@@ -454,7 +454,7 @@
 
                                     <div x-show="filteredButirs.length === 0"
                                         class="py-8 text-center text-sm text-slate-400">
-                                        Butir SNP tidak ditemukan.
+                                        Butir DJSN tidak ditemukan.
                                     </div>
                                 </div>
                             </div>
@@ -466,7 +466,7 @@
                                     </p>
 
                                     <p class="mt-1 text-sm font-bold" style="color: #2377b9;"
-                                        x-text="selectedButir.id_butir_snp"></p>
+                                        x-text="selectedButir.id_butir_djsn"></p>
 
                                     <p class="mt-2 text-sm text-slate-700">
                                         Jatuh tempo tindak lanjut:
@@ -482,7 +482,7 @@
 
                             @if ($butirSiapTindakLanjut->count() === 0)
                                 <p class="mt-2 text-xs font-semibold text-red-500">
-                                    Belum ada butir SNP yang siap ditindaklanjuti.
+                                    Belum ada butir DJSN yang siap ditindaklanjuti.
                                 </p>
                             @endif
                         </div>

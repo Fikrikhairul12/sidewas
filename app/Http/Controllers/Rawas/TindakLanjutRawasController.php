@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\Snp;
+namespace App\Http\Controllers\Rawas;
 
 use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
 use App\Models\Komite;
-use App\Models\SnpCluster;
-use App\Models\UnitKerja;
 use App\Models\LogActivity;
-use App\Models\SnpButir;
-use App\Models\SnpReview;
-use App\Models\SnpTindakLanjut;
+use App\Models\RawasButir;
+use App\Models\RawasCluster;
+use App\Models\RawasReview;
+use App\Models\RawasTindakLanjut;
+use App\Models\UnitKerja;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -18,37 +18,33 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class TindakLanjutSnpController extends Controller
+class TindakLanjutRawasController extends Controller
 {
     public function index(Request $request)
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpTindakLanjut()) {
-            abort(403, 'Anda tidak memiliki akses ke halaman tindak lanjut SNP.');
+        if (!$user || !$user->canAccessRawasTindakLanjut()) {
+            abort(403, 'Anda tidak memiliki akses ke halaman tindak lanjut RAWAS.');
         }
 
         /**
-         * Tabel riwayat TL SNP harus hybrid:
-         * 1. Butir yang sudah lolos reviu tanggapan dan belum punya TL tetap tampil.
-         * 2. Kalau 1 butir punya banyak TL, semua TL tampil sebagai row terpisah.
+         * RAWAS tidak punya tanggapan.
+         * Jadi tabel riwayat TL berbasis hybrid:
+         * 1. Butir yang belum punya TL tetap tampil sebagai "Menunggu Tindak Lanjut".
+         * 2. Butir yang punya banyak TL tampil sebanyak jumlah TL.
          */
-        $butirsRiwayatQuery = SnpButir::with([
+        $butirsRiwayatQuery = RawasButir::with([
             'record.cluster',
             'record.subCluster',
             'record.creator',
             'butirPics.unitKerja.direktorat',
             'butirPics.komite',
-            'tanggapan',
             'reviews.komite',
             'tindakLanjuts.creator',
             'tindakLanjuts.reviews.komite',
         ])
-            ->whereHas('record')
-            ->whereHas('reviews', function ($reviewQuery) {
-                $reviewQuery->where('tahap_review', 'tanggapan')
-                    ->where('status', 'dalam_proses_tindak_lanjut_direksi');
-            });
+            ->whereHas('record');
 
         if ($request->filled('cluster_id')) {
             $butirsRiwayatQuery->whereHas('record', function ($recordQuery) use ($request) {
@@ -94,7 +90,7 @@ class TindakLanjutSnpController extends Controller
             });
         }
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_snp')) {
+        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_rawas')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
             $butirsRiwayatQuery->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
@@ -181,7 +177,6 @@ class TindakLanjutSnpController extends Controller
                 $butir = $row['butir'];
                 $item = $row['item'];
                 $record = $butir?->record;
-                $tanggapan = $butir?->tanggapan;
 
                 $reviewTerakhir = $item
                     ? $item->reviews
@@ -190,19 +185,25 @@ class TindakLanjutSnpController extends Controller
                         ->first()
                     : null;
 
+                $komitePic = $butir?->butirPics
+                    ?->where('jenis_pic', 'komite')
+                    ->first();
+
                 $values = [
-                    $butir?->id_butir_snp,
-                    $butir?->butir_snp,
-                    $record?->id_snp,
+                    $butir?->id_butir_rawas,
+                    $butir?->butir_rawas,
+                    $record?->id_rawas,
                     $record?->nomor_surat,
                     $record?->perihal_surat,
-                    $tanggapan?->tanggapan,
-                    $tanggapan?->deliverables,
                     $item?->tindak_lanjut,
                     $item?->deliverables,
                     $reviewTerakhir?->hasil_review,
                     $reviewTerakhir?->deliverables,
                     $reviewTerakhir?->status,
+                    $reviewTerakhir?->komite?->kode_komite,
+                    $reviewTerakhir?->komite?->nama_komite,
+                    $komitePic?->komite?->kode_komite,
+                    $komitePic?->komite?->nama_komite,
                 ];
 
                 foreach ($values as $value) {
@@ -220,7 +221,7 @@ class TindakLanjutSnpController extends Controller
                 $item = $row['item'];
                 $butir = $row['butir'];
 
-                return $item?->id ?? ('0.' . $butir?->id);
+                return $item?->id ?? (0 - (int) $butir?->id);
             })
             ->values();
 
@@ -240,21 +241,17 @@ class TindakLanjutSnpController extends Controller
 
         /**
          * Kandidat modal tambah TL:
-         * semua butir yang sudah lolos reviu tanggapan.
-         * Tidak pakai whereDoesntHave karena 1 butir boleh punya banyak TL.
+         * RAWAS tidak punya tanggapan, jadi semua butir yang sudah dibuat boleh dipilih.
+         * Tidak pakai whereDoesntHave, karena 1 butir boleh punya banyak TL.
          */
-        $butirSiapTindakLanjutQuery = SnpButir::with([
+        $butirSiapTindakLanjutQuery = RawasButir::with([
             'record',
             'butirPics.unitKerja',
             'butirPics.komite',
-            'reviews',
         ])
-            ->whereHas('reviews', function ($reviewQuery) {
-                $reviewQuery->where('tahap_review', 'tanggapan')
-                    ->where('status', 'dalam_proses_tindak_lanjut_direksi');
-            });
+            ->whereHas('record');
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_snp')) {
+        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_rawas')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
             $butirSiapTindakLanjutQuery->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
@@ -264,10 +261,10 @@ class TindakLanjutSnpController extends Controller
         }
 
         $butirSiapTindakLanjut = $butirSiapTindakLanjutQuery
-            ->orderBy('id', 'desc')
+            ->orderByDesc('id')
             ->get();
 
-        $clusters = SnpCluster::with('subClusters')
+        $clusters = RawasCluster::with('subClusters')
             ->orderBy('nama_cluster')
             ->get();
 
@@ -284,7 +281,7 @@ class TindakLanjutSnpController extends Controller
             'selesai_tuntas' => 'Selesai Tuntas',
         ];
 
-        return view('layouts.snp.tindak-lanjut', compact(
+        return view('layouts.rawas.tindak-lanjut', compact(
             'tindakLanjutRows',
             'butirSiapTindakLanjut',
             'clusters',
@@ -298,7 +295,7 @@ class TindakLanjutSnpController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'butir_id' => ['required', 'integer', 'exists:mysql_snp.tb_butir_snp,id'],
+            'butir_id' => ['required', 'integer', 'exists:mysql_rawas.tb_butir_rawas,id'],
             'tindak_lanjut' => ['required', 'string'],
             'deliverables' => ['required', 'string'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
@@ -306,38 +303,31 @@ class TindakLanjutSnpController extends Controller
 
         $user = User::find(Auth::id());
 
-        $butir = SnpButir::with([
+        $butir = RawasButir::with([
             'record',
             'butirPics',
             'reviews',
         ])->findOrFail($validated['butir_id']);
 
-        if (!$user || !$user->canCreateSnpTindakLanjutForButir($butir)) {
+        if (!$user || !$user->canCreateRawasTindakLanjutForButir($butir)) {
             abort(403, 'Anda tidak memiliki akses untuk membuat tindak lanjut pada butir ini.');
         }
 
-        $hasReadyReview = $butir->reviews()
-            ->where('tahap_review', 'tanggapan')
-            ->where('status', 'dalam_proses_tindak_lanjut_direksi')
-            ->exists();
-
-        if (!$hasReadyReview) {
-            return back()->with('error', 'Butir SNP ini belum masuk tahap tindak lanjut direksi.');
-        }
-
-        DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $butir, $user) {
+        DB::connection('mysql_rawas')->transaction(function () use ($request, $validated, $butir, $user) {
             $dokumenPath = null;
 
             if ($request->hasFile('dokumen')) {
-                $dokumenPath = $request->file('dokumen')->store('dokumen/tindak-lanjut-snp', 'public');
+                $dokumenPath = $request->file('dokumen')->store('dokumen/tindak-lanjut-rawas', 'public');
             }
 
-            $tindakLanjut = SnpTindakLanjut::create([
-                'id_butir_snp' => $butir->id_butir_snp,
+            $tindakLanjut = RawasTindakLanjut::create([
+                'id_butir_rawas' => $butir->id_butir_rawas,
                 'tindak_lanjut' => $validated['tindak_lanjut'],
                 'deliverables' => $validated['deliverables'],
                 'dokumen' => $dokumenPath,
                 'jth_tempo' => $butir->record?->jth_tempo,
+                'created_by' => $user->id,
+                'updated_by' => $user->id,
             ]);
 
             $komitePic = $butir->butirPics()
@@ -345,26 +335,34 @@ class TindakLanjutSnpController extends Controller
                 ->whereNotNull('komite_id')
                 ->first();
 
-            $review = SnpReview::create([
-                'id_butir_snp' => $butir->id_butir_snp,
-                'id_tanggapan' => null,
+            $review = RawasReview::create([
+                'id_butir_rawas' => $butir->id_butir_rawas,
                 'id_tindak_lanjut' => $tindakLanjut->id,
-                'tahap_review' => 'tindak_lanjut',
                 'komite_id' => $komitePic?->komite_id,
+                'tahap_review' => 'tindak_lanjut',
                 'hasil_review' => null,
                 'deliverables' => null,
                 'dokumen' => null,
                 'status' => 'belum_ditanggapi',
+                'created_by' => $user->id,
+                'updated_by' => $user->id,
             ]);
+
+            if ($butir->record) {
+                $butir->record->update([
+                    'status' => 'dalam_proses',
+                    'updated_by' => $user->id,
+                ]);
+            }
 
             LogActivity::create([
                 'user_id' => $user->id,
-                'type_code' => 'snp',
-                'database_name' => 'sidewas_snp',
+                'type_code' => 'rawas',
+                'database_name' => 'sidewas_rawas',
                 'table_name' => 'tb_tindak_lanjut',
-                'record_key' => $butir->id_butir_snp,
+                'record_key' => $butir->id_butir_rawas,
                 'action' => 'create',
-                'description' => 'User membuat tindak lanjut SNP dan sistem membuat review tindak lanjut.',
+                'description' => 'User membuat tindak lanjut RAWAS dan sistem membuat review tindak lanjut.',
                 'old_values' => null,
                 'new_values' => [
                     'butir' => $butir->load('record')->toArray(),
@@ -377,7 +375,7 @@ class TindakLanjutSnpController extends Controller
         });
 
         return redirect()
-            ->route('snp.tindak-lanjut.index')
-            ->with('success', 'Tindak lanjut SNP berhasil disimpan.');
+            ->route('rawas.tindak-lanjut.index')
+            ->with('success', 'Tindak lanjut RAWAS berhasil disimpan.');
     }
 }

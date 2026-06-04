@@ -1,24 +1,24 @@
 <x-app-layout>
-    <div x-data="perekamanSnpModal(@js($clusters), @js($direktorats))" class="space-y-6">
+    <div x-data="perekamanDjsnModal(@js($clusters), @js($direktorats))" class="space-y-6">
         {{-- Page Header --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                        SNP Dewas
+                        DJSN
                     </p>
 
                     <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                        Perekaman SNP Dewas
+                        Perekaman DJSN
                     </h1>
 
                     <p class="mt-2 text-sm text-slate-500">
-                        Halaman ini berisi riwayat perekaman Saran Nasihat Pertimbangan Dewan Pengawas.
+                        Halaman ini berisi riwayat perekaman Dewan Jaminan Sosial Nasional.
                     </p>
                 </div>
 
                 <div class="flex flex-wrap gap-3">
-                    @if (auth()->user()->canCreateSnpPerekaman())
+                    @if (auth()->user()->canCreateDjsnPerekaman())
                         <button type="button" @click="openCreateModal = true"
                             class="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
                             style="background-color: #2377b9;">
@@ -143,7 +143,7 @@
                     <div>
                         <p class="font-semibold text-slate-800">Filter Lanjutan</p>
                         <p class="text-sm text-slate-500">
-                            Isi minimal satu filter untuk mencari data perekaman SNP.
+                            Isi minimal satu filter untuk mencari data perekaman DJSN.
                         </p>
                     </div>
                 </div>
@@ -156,7 +156,7 @@
 
             <div x-show="openFilter" x-transition class="border-t border-blue-50 px-6 py-5" style="display: none;">
 
-                <form method="GET" action="{{ route('snp.perekaman') }}">
+                <form method="GET" action="{{ route('djsn.perekaman') }}">
                     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {{-- Status --}}
                         <div>
@@ -288,13 +288,13 @@
                         <div class="md:col-span-2 xl:col-span-3">
                             <label class="mb-2 block text-sm font-medium text-slate-700">Kata Kunci</label>
                             <input type="text" name="keyword" value="{{ request('keyword') }}"
-                                placeholder="Cari ID SNP, nomor surat, perihal, ID butir, atau isi butir..."
+                                placeholder="Cari ID DJSN, nomor surat, perihal, ID butir, atau isi butir..."
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
                     </div>
 
                     <div class="mt-5 flex justify-end gap-3">
-                        <a href="{{ route('snp.perekaman') }}"
+                        <a href="{{ route('djsn.perekaman') }}"
                             class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                             Reset
                         </a>
@@ -318,7 +318,7 @@
                         Riwayat Perekaman
                     </h2>
                     <p class="mt-1 text-sm text-slate-500">
-                        Daftar SNP Dewas yang sudah pernah direkam ke sistem.
+                        Daftar DJSN Dewas yang sudah pernah direkam ke sistem.
                     </p>
                 </div>
 
@@ -332,7 +332,7 @@
                                 Informasi Surat
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Butir SNP
+                                Butir DJSN
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Cluster
@@ -354,7 +354,7 @@
                                 <td class="px-6 py-6 align-top">
                                     <div class="space-y-2">
                                         <p class="text-sm font-bold tracking-wide" style="color: #2377b9;">
-                                            {{ $record->id_snp }}
+                                            {{ $record->id_djsn }}
                                         </p>
 
                                         <p class="text-xs text-slate-700">
@@ -378,7 +378,7 @@
                                             </p>
 
                                             @if ($record->dokumen)
-                                                <a href="{{ route('snp.perekaman.dokumen', $record->id) }}"
+                                                <a href="{{ route('djsn.perekaman.dokumen', $record->id) }}"
                                                     class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
                                                     style="background-color: #2377b9;">
                                                     Download Dokumen
@@ -407,21 +407,21 @@
                                     </div>
                                 </td>
 
-                                {{-- Butir SNP --}}
+                                {{-- Butir DJSN --}}
                                 <td class="px-6 py-6 align-top">
-                                    @if ($record->butirSnp->count() > 0)
+                                    @if ($record->butirDjsn->count() > 0)
                                         <div class="space-y-6">
-                                            @foreach ($record->butirSnp as $butir)
+                                            @foreach ($record->butirDjsn as $butir)
                                                 <div
                                                     class="{{ !$loop->first ? 'mt-5 border-t border-slate-300 pt-5' : '' }}">
                                                     <p class="text-sm font-bold tracking-wide"
                                                         style="color: #2377b9;">
-                                                        {{ $butir->id_butir_snp }}
+                                                        {{ $butir->id_butir_djsn }}
                                                     </p>
 
                                                     <p
                                                         class="mt-3 max-w-xl text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                                        {{ $butir->butir_snp }}
+                                                        {{ $butir->butir_djsn }}
                                                     </p>
 
                                                     @php
@@ -559,18 +559,18 @@
                                     </span>
 
                                     <p class="mt-3 text-sm text-slate-500">
-                                        {{ $record->butir_snp_count ?? $record->butirSnp->count() }} butir
+                                        {{ $record->butir_djsn_count ?? $record->butirDjsn->count() }} butir
                                     </p>
                                 </td>
 
                                 {{-- Aksi --}}
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        @if (auth()->user()->canCreateSnpPerekaman())
+                                        @if (auth()->user()->canCreateDjsnPerekaman())
                                             <button type="button"
                                                 @click="openButirModalFor({
                                                     id: {{ $record->id }},
-                                                    id_snp: @js($record->id_snp),
+                                                    id_djsn: @js($record->id_djsn),
                                                     nomor_surat: @js($record->nomor_surat)
                                                 })"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
@@ -591,9 +591,9 @@
                                             Edit
                                         </a>
 
-                                        @if (auth()->user()->canRequestDeleteSnpPerekaman())
+                                        @if (auth()->user()->canRequestDeleteDjsnPerekaman())
                                             <form method="POST"
-                                                action="{{ route('snp.perekaman.destroy.request', $record->id) }}"
+                                                action="{{ route('djsn.perekaman.destroy.request', $record->id) }}"
                                                 onsubmit="return confirm('Ajukan penghapusan perekaman ini?')">
                                                 @csrf
                                                 @method('DELETE')
@@ -611,7 +611,7 @@
                             <tr class="py-3 border-b-4 border-slate-200 transition hover:bg-blue-50/40">
                                 <td colspan="5" class="px-6 py-14 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada data perekaman SNP.
+                                        Belum ada data perekaman DJSN.
                                     </p>
                                     <p class="mt-1 text-xs text-slate-400">
                                         Klik tombol Tambah Perekaman untuk menambahkan data pertama.
@@ -695,11 +695,11 @@
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
-                            Tambah Perekaman SNP Dewas
+                            Tambah Perekaman DJSN Dewas
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            ID SNP, tanggal jatuh tempo, dan status draft akan dibuat otomatis.
+                            ID DJSN, tanggal jatuh tempo, dan status draft akan dibuat otomatis.
                         </p>
                     </div>
 
@@ -712,7 +712,7 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('snp.perekaman.store') }}" enctype="multipart/form-data"
+                <form method="POST" action="{{ route('djsn.perekaman.store') }}" enctype="multipart/form-data"
                     class="px-6 py-6">
                     @csrf
 
@@ -834,13 +834,13 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Tambah Butir SNP
+                            Tambah Butir DJSN
                         </p>
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
-                            Surat <span x-text="selectedRecord?.id_snp"></span>
+                            Surat <span x-text="selectedRecord?.id_djsn"></span>
                         </h2>
                         <p class="mt-1 text-sm text-slate-500">
-                            ID Butir SNP akan dibuat otomatis.
+                            ID Butir DJSN akan dibuat otomatis.
                         </p>
                     </div>
 
@@ -850,17 +850,17 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="`/snp/perekaman/${selectedRecord?.id}/butir`" class="px-6 py-6">
+                <form method="POST" :action="`/djsn/perekaman/${selectedRecord?.id}/butir`" class="px-6 py-6">
                     @csrf
 
                     <div class="grid gap-5 lg:grid-cols-2">
                         <div class="lg:col-span-2">
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Isi Butir SNP
+                                Isi Butir DJSN
                             </label>
-                            <textarea name="butir_snp" rows="4" required
+                            <textarea name="butir_djsn" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan isi butir SNP..."></textarea>
+                                placeholder="Masukkan isi butir DJSN..."></textarea>
                         </div>
 
                         <div>
