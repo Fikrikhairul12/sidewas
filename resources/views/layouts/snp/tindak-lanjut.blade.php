@@ -319,10 +319,10 @@
                                                 Detail
                                             </a>
                                         @else
-                                            <span
-                                                class="rounded-lg bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 text-center">
-                                                Menunggu Tindak Lanjut
-                                            </span>
+                                            <button type="button" @click="openModal = true"
+                                                class="rounded-lg px-4 py-2 text-xs font-bold text-white text-center hover:opacity-90" style="background-color: #2377b9;">
+                                                Lakukan Tindak Lanjut
+                                            </button>
                                         @endif
                                     </div>
                                 </td>
@@ -489,7 +489,7 @@
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Tindak Lanjut
+                                Tindak Lanjut SNP
                             </label>
 
                             <textarea name="tindak_lanjut" rows="4" required

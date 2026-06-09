@@ -2,15 +2,15 @@
     <div x-data="{ openModal: false, selectedReview: null }" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                DJSN
+                Rekomendasi DJSN
             </p>
 
             <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                Reviu DJSN
+                Reviu Tanggapan & Tindak Lanjut Rekomendasi DJSN
             </h1>
 
             <p class="mt-2 text-sm text-slate-500">
-                Halaman ini digunakan komite untuk mereviu tanggapan dan tindak lanjut DJSN.
+                Halaman ini digunakan komite untuk mereviu tanggapan dan tindak lanjut Rekomendasi DJSN.
             </p>
         </div>
 
@@ -36,14 +36,14 @@
                 'selesai_tuntas' => 'Selesai Tuntas',
             ],
             'keywordPlaceholder' =>
-                'Cari ID DJSN, ID butir, nomor surat, perihal, tanggapan, tindak lanjut, atau hasil reviu...',
+                'Cari ID Rekomendasi DJSN, ID butir, nomor surat, perihal, tanggapan, tindak lanjut, atau hasil reviu...',
         ])
 
         {{-- DAFTAR REVIU DJSN --}}
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div class="border-b border-blue-50 px-6 py-5">
                 <h2 class="text-lg font-bold text-slate-800">
-                    Daftar Reviu DJSN
+                    Daftar Reviu Rekomendasi DJSN
                 </h2>
                 <p class="mt-1 text-sm text-slate-500">
                     Data yang ditampilkan adalah reviu tanggapan dan reviu tindak lanjut sesuai komite user.
@@ -55,7 +55,7 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi DJSN
+                                Informasi Rekomendasi DJSN
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Tahap Reviu
@@ -227,7 +227,7 @@
                                                     deliverables: @js($review->deliverables ?? '')
                                                 }; openModal = true"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
-                                                style="background-color: #2377b9;">
+                                                style="background-color: #FFA500;">
                                                 Detail / Reviu
                                             </button>
                                         @endif

@@ -4,6 +4,7 @@
         butirSearch: '',
         selectedButirId: '',
         selectedButir: null,
+        selectedUnitKerjaId: '',
         butirs: @js(
             $butirSiapTindakLanjut
                 ->map(
@@ -13,12 +14,27 @@
                         'id_ragab' => $butir->record?->id_ragab,
                         'nomor_surat' => $butir->record?->nomor_surat,
                         'perihal_surat' => $butir->record?->perihal_surat,
-                        'butir_ragab' => $butir->butir_ragab,
-                        'jth_tempo' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('Y-m-d') : null,
+                        'tanggal_ragab_label' => $butir->tanggal_ragab ? \Carbon\Carbon::parse($butir->tanggal_ragab)->format('d/m/Y') : '-',
+                        'agenda_ragab' => $butir->agenda_ragab,
+                        'keputusan_ragab' => $butir->keputusan_ragab,
+                        'cluster' => $butir->cluster?->nama_cluster,
+                        'sub_cluster' => $butir->subCluster?->nama_sub_cluster,
                         'jth_tempo_label' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('d/m/Y') : '-',
+                        'unit_kerjas' => $butir->butirPics
+                            ->where('jenis_pic', 'unit')
+                            ->map(
+                                fn($pic) => [
+                                    'id' => $pic->unitKerja?->id,
+                                    'kode_unit' => $pic->unitKerja?->kode_unit,
+                                    'nama_unit' => $pic->unitKerja?->nama_unit,
+                                    'direktorat' => $pic->unitKerja?->direktorat?->nama_direktorat,
+                                ],
+                            )
+                            ->filter(fn($unit) => !empty($unit['id']))
+                            ->values(),
                     ],
                 )
-                ->values(),
+                ->values()
         ),
 
         get filteredButirs() {
@@ -33,20 +49,31 @@
                     String(butir.id_ragab || '').toLowerCase().includes(keyword) ||
                     String(butir.nomor_surat || '').toLowerCase().includes(keyword) ||
                     String(butir.perihal_surat || '').toLowerCase().includes(keyword) ||
-                    String(butir.butir_ragab || '').toLowerCase().includes(keyword);
+                    String(butir.tanggal_ragab_label || '').toLowerCase().includes(keyword) ||
+                    String(butir.agenda_ragab || '').toLowerCase().includes(keyword) ||
+                    String(butir.keputusan_ragab || '').toLowerCase().includes(keyword) ||
+                    String(butir.cluster || '').toLowerCase().includes(keyword) ||
+                    String(butir.sub_cluster || '').toLowerCase().includes(keyword);
             });
         },
 
         selectButir(butir) {
             this.selectedButir = butir;
             this.selectedButirId = butir.id;
+            this.selectedUnitKerjaId = '';
             this.butirSearch = `${butir.id_butir_ragab} - ${butir.nomor_surat ?? '-'}`;
         },
 
         resetButir() {
             this.selectedButir = null;
             this.selectedButirId = '';
+            this.selectedUnitKerjaId = '';
             this.butirSearch = '';
+        },
+
+        openCreate() {
+            this.resetButir();
+            this.openModal = true;
         }
     }" class="space-y-6">
 
@@ -54,19 +81,19 @@
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                        RAGAB Dewas
+                        Keputusan RAGAB
                     </p>
 
                     <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                        Tindak Lanjut RAGAB
+                        Tindak Lanjut Keputusan RAGAB
                     </h1>
 
                     <p class="mt-2 text-sm text-slate-500">
-                        Halaman ini digunakan untuk menginput tindak lanjut terhadap butir RAGAB.
+                        Halaman ini digunakan untuk menginput tindak lanjut keputusan RAGAB berdasarkan PIC unit.
                     </p>
                 </div>
 
-                <button type="button" @click="openModal = true"
+                <button type="button" @click="openCreate()"
                     class="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
                     style="background-color: #2377b9;">
                     Tambah Tindak Lanjut
@@ -90,7 +117,7 @@
             'action' => route('ragab.tindak-lanjut.index'),
             'statusOptions' => $statusOptions,
             'keywordPlaceholder' =>
-                'Cari ID RAGAB, ID butir, nomor surat, perihal, tindak lanjut, hasil reviu, atau deliverables...',
+                'Cari nomor surat, agenda RAGAB, keputusan RAGAB, direktorat, PIC unit, tindak lanjut, atau hasil reviu...',
         ])
 
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -100,7 +127,7 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Data akan muncul setelah butir RAGAB dibuat atau tindak lanjut diinput.
+                    Data menampilkan butir Keputusan RAGAB yang sudah tersedia dan seluruh tindak lanjut yang sudah diinput.
                 </p>
             </div>
 
@@ -109,7 +136,7 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi RAGAB
+                                Informasi Keputusan RAGAB
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Tindak Lanjut
@@ -118,7 +145,7 @@
                                 Reviu
                             </th>
                             <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Aksi
+                                Keterangan
                             </th>
                         </tr>
                     </thead>
@@ -129,52 +156,57 @@
                                 $butir = $row['butir'];
                                 $item = $row['item'];
                                 $record = $butir?->record;
-
-                                $reviewTerakhir = $item
-                                    ? $item->reviews
-                                        ->where('tahap_review', 'tindak_lanjut')
-                                        ->sortByDesc('id')
-                                        ->first()
-                                    : null;
-
-                                $komitePic = $butir?->butirPics
-                                    ?->where('jenis_pic', 'komite')
-                                    ->first();
+                                $review = $butir?->reviewTindakLanjut;
+                                $komitePic = $butir?->butirPics?->where('jenis_pic', 'komite')->first();
+                                $unitPics = $butir?->butirPics?->where('jenis_pic', 'unit') ?? collect();
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
                                 <td class="px-6 py-6 align-top">
                                     <p class="text-xs font-bold" style="color: #2377b9;">
-                                        {{ $record?->id_ragab ?? '-' }}
+                                        {{ $record?->nomor_surat ?? '-' }}
                                     </p>
 
                                     <p class="mt-2 text-xs text-slate-700">
-                                        Nomor: {{ $record?->nomor_surat ?? '-' }}
-                                    </p>
-
-                                    <p class="mt-1 text-xs text-slate-700">
-                                        Tanggal:
+                                        Tanggal Surat:
                                         {{ $record?->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d/m/Y') : '-' }}
                                     </p>
 
                                     <p class="mt-1 text-xs text-slate-700">
-                                        Butir: {{ $butir?->id_butir_ragab ?? '-' }}
+                                        Perihal: {{ $record?->perihal_surat ?? '-' }}
                                     </p>
 
-                                    <p
-                                        class="mt-3 max-w-md whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $butir?->butir_ragab ?? '-' }}
+                                    <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        TGL & Agenda RAGAB
                                     </p>
 
-                                    <div class="mt-4">
-                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Komite
-                                        </p>
+                                    <p class="mt-1 max-w-md whitespace-pre-line text-xs text-slate-800">
+                                        {{ $butir?->tanggal_ragab ? \Carbon\Carbon::parse($butir->tanggal_ragab)->format('d/m/Y') : '-' }}
+                                        <br>
+                                        {{ $butir?->agenda_ragab ?? '-' }}
+                                    </p>
 
-                                        <p class="mt-1 text-xs text-slate-700">
-                                            {{ $komitePic?->komite?->kode_komite ?? '-' }}
-                                        </p>
-                                    </div>
+                                    <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Keputusan RAGAB
+                                    </p>
+
+                                    <p class="mt-1 max-w-md whitespace-pre-line text-xs text-slate-800">
+                                        {{ $butir?->keputusan_ragab ?? '-' }}
+                                    </p>
+
+                                    <p class="mt-3 text-xs text-slate-500">
+                                        Cluster:
+                                        <span class="font-bold text-slate-700">
+                                            {{ $butir?->cluster?->nama_cluster ?? '-' }}
+                                        </span>
+                                    </p>
+
+                                    <p class="mt-1 text-xs text-slate-500">
+                                        Sub-Cluster:
+                                        <span class="font-bold text-slate-700">
+                                            {{ $butir?->subCluster?->nama_sub_cluster ?? '-' }}
+                                        </span>
+                                    </p>
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
@@ -185,7 +217,23 @@
                                         </span>
 
                                         <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Tindak Lanjut
+                                            Direktorat
+                                        </p>
+
+                                        <p class="mt-1 text-xs text-slate-800">
+                                            {{ $item->unitKerja?->direktorat?->nama_direktorat ?? '-' }}
+                                        </p>
+
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            PIC Unit
+                                        </p>
+
+                                        <p class="mt-1 text-xs text-slate-800">
+                                            {{ $item->unitKerja?->kode_unit ?? '-' }} - {{ $item->unitKerja?->nama_unit ?? '-' }}
+                                        </p>
+
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Tindak Lanjut Keputusan RAGAB
                                         </p>
 
                                         <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
@@ -193,7 +241,7 @@
                                         </p>
 
                                         <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Deliverables
+                                            Deliverable
                                         </p>
 
                                         <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
@@ -226,20 +274,27 @@
                                                     Download Dokumen
                                                 </a>
                                             @else
-                                                <p class="mt-1 text-xs text-slate-400">
-                                                    -
-                                                </p>
+                                                <p class="mt-1 text-xs text-slate-400">-</p>
                                             @endif
                                         </div>
                                     @else
-                                        <span
-                                            class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                                        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
                                             Belum Ditindaklanjuti
                                         </span>
 
-                                        <p class="mt-4 text-xs text-slate-500">
-                                            Butir ini sudah tersedia dan menunggu tindak lanjut.
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            PIC Unit Terdaftar
                                         </p>
+
+                                        <div class="mt-2 space-y-1">
+                                            @forelse ($unitPics as $pic)
+                                                <p class="text-xs text-slate-700">
+                                                    {{ $pic->unitKerja?->kode_unit ?? '-' }} - {{ $pic->unitKerja?->nama_unit ?? '-' }}
+                                                </p>
+                                            @empty
+                                                <p class="text-xs text-slate-400">-</p>
+                                            @endforelse
+                                        </div>
 
                                         <p class="mt-4 text-xs text-slate-500">
                                             Jatuh Tempo:
@@ -251,61 +306,49 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    @if ($reviewTerakhir)
-                                        <span
-                                            class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
+                                    @if ($review)
+                                        <span class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
                                             style="background-color: #2377b9;">
-                                            {{ ucwords(str_replace('_', ' ', $reviewTerakhir->status)) }}
+                                            {{ ucwords(str_replace('_', ' ', $review->status)) }}
                                         </span>
 
-                                        <p class="mt-4 text-xs text-slate-500">
-                                            Komite:
-                                            <span class="font-bold">
-                                                {{ $reviewTerakhir->komite?->kode_komite ?? $komitePic?->komite?->kode_komite ?? '-' }}
-                                            </span>
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Hasil Reviu
                                         </p>
 
-                                        @if ($reviewTerakhir->hasil_review)
+                                        <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
+                                            {{ $review->hasil_review ?? '-' }}
+                                        </p>
+
+                                        @if ($review->deliverables)
                                             <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                Hasil Reviu
+                                                Deliverable Reviu
                                             </p>
 
                                             <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
-                                                {{ $reviewTerakhir->hasil_review }}
-                                            </p>
-                                        @endif
-
-                                        @if ($reviewTerakhir->deliverables)
-                                            <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                Deliverables Reviu
-                                            </p>
-
-                                            <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
-                                                {{ $reviewTerakhir->deliverables }}
+                                                {{ $review->deliverables }}
                                             </p>
                                         @endif
                                     @else
                                         @if ($item)
-                                            <span
-                                                class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
+                                            <span class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
                                                 style="background-color: #2377b9;">
                                                 Belum Direviu
                                             </span>
-
-                                            <p class="mt-4 text-xs text-slate-500">
-                                                Komite:
-                                                <span class="font-bold">
-                                                    {{ $komitePic?->komite?->kode_komite ?? '-' }}
-                                                </span>
-                                            </p>
                                         @else
-                                            <span
-                                                class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
+                                            <span class="inline-flex rounded-xl px-3 py-1 text-center text-xs font-bold text-white"
                                                 style="background-color: #64748b;">
                                                 Belum Ditindaklanjuti
                                             </span>
                                         @endif
                                     @endif
+
+                                    <p class="mt-4 text-xs text-slate-500">
+                                        Komite:
+                                        <span class="font-bold">
+                                            {{ $review?->komite?->kode_komite ?? $komitePic?->komite?->kode_komite ?? '-' }}
+                                        </span>
+                                    </p>
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
@@ -317,10 +360,10 @@
                                                 Detail
                                             </a>
                                         @else
-                                            <span
-                                                class="rounded-lg bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 text-center">
+                                            <button type="button" @click="openCreate()"
+                                                class="rounded-lg bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 text-center hover:text-blue-50 hover:bg-blue-700 hover:transition-colors">
                                                 Menunggu Tindak Lanjut
-                                            </span>
+                                            </button>
                                         @endif
                                     </div>
                                 </td>
@@ -329,11 +372,11 @@
                             <tr>
                                 <td colspan="4" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada data tindak lanjut RAGAB.
+                                        Belum ada data tindak lanjut Keputusan RAGAB.
                                     </p>
 
                                     <p class="mt-1 text-xs text-slate-400">
-                                        Data akan muncul setelah butir RAGAB dibuat.
+                                        Data akan muncul setelah butir Keputusan RAGAB dibuat.
                                     </p>
                                 </td>
                             </tr>
@@ -342,8 +385,7 @@
                 </table>
             </div>
 
-            <div
-                class="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-sm text-slate-500">
                     Menampilkan
                     <span class="font-semibold text-slate-700">{{ $tindakLanjutRows->firstItem() ?? 0 }}</span>
@@ -370,7 +412,7 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Form Tindak Lanjut RAGAB
+                            Form Tindak Lanjut Keputusan RAGAB
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
@@ -378,7 +420,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            Pilih butir RAGAB yang ingin ditindaklanjuti.
+                            Pilih butir dan PIC unit yang akan menginput tindak lanjut.
                         </p>
                     </div>
 
@@ -406,7 +448,7 @@
                     <div class="grid gap-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Pilih Butir RAGAB
+                                Pilih Butir Keputusan RAGAB
                             </label>
 
                             <input type="hidden" name="butir_id" :value="selectedButirId" required>
@@ -414,8 +456,8 @@
                             <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
                                 <div class="border-b border-slate-200 p-3">
                                     <input type="text" x-model="butirSearch"
-                                        @input="selectedButir = null; selectedButirId = ''"
-                                        placeholder="Ketik ID butir, ID RAGAB, nomor surat, atau isi butir..."
+                                        @input="selectedButir = null; selectedButirId = ''; selectedUnitKerjaId = ''"
+                                        placeholder="Ketik nomor surat, agenda, keputusan, cluster, atau sub-cluster..."
                                         class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 </div>
 
@@ -431,13 +473,16 @@
                                                         x-text="butir.id_butir_ragab"></p>
 
                                                     <p class="text-xs text-slate-500">
-                                                        <span x-text="butir.id_ragab"></span>
-                                                        <span> • </span>
                                                         <span x-text="butir.nomor_surat ?? '-'"></span>
+                                                        <span> • </span>
+                                                        <span x-text="butir.tanggal_ragab_label ?? '-'"></span>
                                                     </p>
 
                                                     <p class="mt-2 text-sm font-semibold uppercase leading-relaxed text-slate-800"
-                                                        x-text="butir.butir_ragab"></p>
+                                                        x-text="butir.agenda_ragab ?? '-'"></p>
+
+                                                    <p class="mt-1 line-clamp-2 text-xs text-slate-500"
+                                                        x-text="butir.keputusan_ragab ?? '-'"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
                                                         Jatuh Tempo:
@@ -451,7 +496,7 @@
 
                                     <div x-show="filteredButirs.length === 0"
                                         class="py-8 text-center text-sm text-slate-400">
-                                        Butir RAGAB tidak ditemukan.
+                                        Butir Keputusan RAGAB tidak ditemukan.
                                     </div>
                                 </div>
                             </div>
@@ -464,6 +509,11 @@
 
                                     <p class="mt-1 text-sm font-bold" style="color: #2377b9;"
                                         x-text="selectedButir.id_butir_ragab"></p>
+
+                                    <p class="mt-2 text-sm text-slate-700">
+                                        Tanggal & Agenda:
+                                        <span class="font-bold" x-text="`${selectedButir.tanggal_ragab_label} - ${selectedButir.agenda_ragab ?? '-'}`"></span>
+                                    </p>
 
                                     <p class="mt-2 text-sm text-slate-700">
                                         Jatuh tempo tindak lanjut:
@@ -479,29 +529,49 @@
 
                             @if ($butirSiapTindakLanjut->count() === 0)
                                 <p class="mt-2 text-xs font-semibold text-red-500">
-                                    Belum ada butir RAGAB yang siap ditindaklanjuti.
+                                    Belum ada butir Keputusan RAGAB yang siap ditindaklanjuti.
                                 </p>
                             @endif
                         </div>
 
+                        <template x-if="selectedButir">
+                            <div class="grid gap-5 md:grid-cols-2">
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                        PIC Unit Penginput Tindak Lanjut
+                                    </label>
+
+                                    <select name="unit_kerja_id" x-model="selectedUnitKerjaId" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">Pilih PIC Unit</option>
+
+                                        <template x-for="unit in selectedButir.unit_kerjas" :key="unit.id">
+                                            <option :value="unit.id"
+                                                x-text="`${unit.kode_unit ?? '-'} - ${unit.nama_unit ?? '-'}`"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                        </template>
+
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Tindak Lanjut
+                                Tindak Lanjut Keputusan RAGAB
                             </label>
 
                             <textarea name="tindak_lanjut" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor surat tindak lanjut (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tindak lanjut...">{{ old('tindak_lanjut') }}</textarea>
+                                placeholder="Nomor surat tindak lanjut (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tindak lanjut keputusan RAGAB...">{{ old('tindak_lanjut') }}</textarea>
                         </div>
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Deliverables
+                                Deliverable
                             </label>
 
                             <textarea name="deliverables" rows="3" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan deliverables...">{{ old('deliverables') }}</textarea>
+                                placeholder="Masukkan deliverable...">{{ old('deliverables') }}</textarea>
                         </div>
 
                         <div>

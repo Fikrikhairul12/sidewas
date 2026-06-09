@@ -1,27 +1,27 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\GoogleAuthController;
-use App\Http\Controllers\Snp\PerekamanSnpController;
 use App\Http\Controllers\Administrasi\PengajuanController;
-use App\Http\Controllers\Snp\TanggapanSnpController;
-use App\Http\Controllers\Snp\ReviuSnpController;
-use App\Http\Controllers\Snp\TindakLanjutSnpController;
-use App\Http\Controllers\Snp\ReportSnpController;
-use App\Http\Controllers\Ragab\PerekamanRagabController;
-use App\Http\Controllers\Ragab\TindakLanjutRagabController;
-use App\Http\Controllers\Ragab\ReviuRagabController;
-use App\Http\Controllers\Ragab\ReportRagabController;
-use App\Http\Controllers\Rawas\PerekamanRawasController;
-use App\Http\Controllers\Rawas\TindakLanjutRawasController;
-use App\Http\Controllers\Rawas\ReviuRawasController;
-use App\Http\Controllers\Rawas\ReportRawasController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Djsn\PerekamanDjsnController;
+use App\Http\Controllers\Djsn\ReportDjsnController;
+use App\Http\Controllers\Djsn\ReviuDjsnController;
 use App\Http\Controllers\Djsn\TanggapanDjsnController;
 use App\Http\Controllers\Djsn\TindakLanjutDjsnController;
-use App\Http\Controllers\Djsn\ReviuDjsnController;
-use App\Http\Controllers\Djsn\ReportDjsnController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Ragab\PerekamanRagabController;
+use App\Http\Controllers\Ragab\ReportRagabController;
+use App\Http\Controllers\Ragab\ReviuRagabController;
+use App\Http\Controllers\Ragab\TindakLanjutRagabController;
+use App\Http\Controllers\Rawas\PerekamanRawasController;
+use App\Http\Controllers\Rawas\ReportRawasController;
+use App\Http\Controllers\Rawas\ReviuRawasController;
+use App\Http\Controllers\Rawas\TindakLanjutRawasController;
+use App\Http\Controllers\Snp\PerekamanSnpController;
+use App\Http\Controllers\Snp\ReportSnpController;
+use App\Http\Controllers\Snp\ReviuSnpController;
+use App\Http\Controllers\Snp\TanggapanSnpController;
+use App\Http\Controllers\Snp\TindakLanjutSnpController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -136,6 +136,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/ragab/perekaman/{record}/dokumen', [PerekamanRagabController::class, 'downloadDokumen'])
         ->name('ragab.perekaman.dokumen');
+
+    Route::get('/ragab/perekaman/{record}/dokumen-memo', [PerekamanRagabController::class, 'downloadDokumenMemo'])
+        ->name('ragab.perekaman.dokumen-memo');
 
     Route::delete('/ragab/perekaman/{record}/request-delete', [PerekamanRagabController::class, 'requestDelete'])
         ->name('ragab.perekaman.destroy.request');

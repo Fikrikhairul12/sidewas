@@ -6,7 +6,7 @@
             </p>
 
             <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                Reviu SNP
+                Reviu Tanggapan & Tindak Lanjut SNP
             </h1>
 
             <p class="mt-2 text-sm text-slate-500">
@@ -39,11 +39,11 @@
                 'Cari ID SNP, ID butir, nomor surat, perihal, tanggapan, tindak lanjut, atau hasil reviu...',
         ])
 
-        {{-- DAFTAR REVIU SNP --}}
+        {{-- DAFTAR REVIU Tanggapan & Tindak Lanjut SNP --}}
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div class="border-b border-blue-50 px-6 py-5">
                 <h2 class="text-lg font-bold text-slate-800">
-                    Daftar Reviu SNP
+                    Daftar Reviu Tanggapan & Tindak Lanjut SNP
                 </h2>
                 <p class="mt-1 text-sm text-slate-500">
                     Data yang ditampilkan adalah reviu tanggapan dan reviu tindak lanjut sesuai komite user.
@@ -55,7 +55,7 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi SNP
+                                Informasi Tanggapan & Tindak Lanjut SNP
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Tahap Reviu
@@ -227,7 +227,7 @@
                                                     deliverables: @js($review->deliverables ?? '')
                                                 }; openModal = true"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
-                                                style="background-color: #2377b9;">
+                                                style="background-color: #FFA500;">
                                                 Detail / Reviu
                                             </button>
                                         @endif

@@ -8,7 +8,6 @@ use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\RagabButir;
 use App\Models\RagabCluster;
-use App\Models\RagabReview;
 use App\Models\RagabTindakLanjut;
 use App\Models\UnitKerja;
 use App\Models\User;
@@ -28,57 +27,33 @@ class TindakLanjutRagabController extends Controller
             abort(403, 'Anda tidak memiliki akses ke halaman tindak lanjut RAGAB.');
         }
 
-        /**
-         * RAGAB tidak punya tanggapan.
-         * Jadi tabel riwayat TL berbasis hybrid:
-         * 1. Butir yang belum punya TL tetap tampil sebagai "Menunggu Tindak Lanjut".
-         * 2. Butir yang punya banyak TL tampil sebanyak jumlah TL.
-         */
         $butirsRiwayatQuery = RagabButir::with([
-            'record.cluster',
-            'record.subCluster',
             'record.creator',
+            'cluster',
+            'subCluster',
+            'butirDirektorats.direktorat',
             'butirPics.unitKerja.direktorat',
-            'butirPics.komite',
-            'reviews.komite',
             'tindakLanjuts.creator',
-            'tindakLanjuts.reviews.komite',
-        ])
-            ->whereHas('record');
+            'tindakLanjuts.unitKerja.direktorat',
+        ])->whereHas('record');
 
         if ($request->filled('cluster_id')) {
-            $butirsRiwayatQuery->whereHas('record', function ($recordQuery) use ($request) {
-                $recordQuery->where('cluster_id', $request->cluster_id);
-            });
+            $butirsRiwayatQuery->where('cluster_id', $request->cluster_id);
         }
 
         if ($request->filled('sub_cluster_id')) {
-            $butirsRiwayatQuery->whereHas('record', function ($recordQuery) use ($request) {
-                $recordQuery->where('sub_cluster_id', $request->sub_cluster_id);
-            });
+            $butirsRiwayatQuery->where('sub_cluster_id', $request->sub_cluster_id);
         }
 
         if ($request->filled('direktorat_id')) {
-            $unitKerjaIds = UnitKerja::where('direktorat_id', $request->direktorat_id)
-                ->pluck('id')
-                ->toArray();
-
-            $butirsRiwayatQuery->whereHas('butirPics', function ($picQuery) use ($unitKerjaIds) {
-                $picQuery->where('jenis_pic', 'utama')
-                    ->whereIn('unit_kerja_id', $unitKerjaIds);
-            });
-        }
-
-        if ($request->filled('unit_kerja_utama_id')) {
-            $butirsRiwayatQuery->whereHas('butirPics', function ($picQuery) use ($request) {
-                $picQuery->where('jenis_pic', 'utama')
-                    ->where('unit_kerja_id', $request->unit_kerja_utama_id);
+            $butirsRiwayatQuery->whereHas('butirDirektorats', function ($direktoratQuery) use ($request) {
+                $direktoratQuery->where('direktorat_id', $request->direktorat_id);
             });
         }
 
         if ($request->filled('unit_kerja_pendukung_id')) {
             $butirsRiwayatQuery->whereHas('butirPics', function ($picQuery) use ($request) {
-                $picQuery->where('jenis_pic', 'pendukung')
+                $picQuery->where('jenis_pic', 'unit')
                     ->where('unit_kerja_id', $request->unit_kerja_pendukung_id);
             });
         }
@@ -90,11 +65,11 @@ class TindakLanjutRagabController extends Controller
             });
         }
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_ragab')) {
+        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_ragab') && !$user->hasRoleType('moderator_ragab')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
             $butirsRiwayatQuery->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
-                $picQuery->whereIn('jenis_pic', ['utama', 'pendukung'])
+                $picQuery->where('jenis_pic', 'unit')
                     ->whereIn('unit_kerja_id', $userUnitKerjaIds);
             });
         }
@@ -107,7 +82,7 @@ class TindakLanjutRagabController extends Controller
 
         foreach ($butirsRiwayat as $butir) {
             if ($butir->tindakLanjuts->count() > 0) {
-                foreach ($butir->tindakLanjuts->sortByDesc('id') as $tindakLanjut) {
+                foreach ($butir->tindakLanjuts->sortByDesc('created_at') as $tindakLanjut) {
                     $rows->push([
                         'type' => 'tindak_lanjut',
                         'butir' => $butir,
@@ -151,17 +126,18 @@ class TindakLanjutRagabController extends Controller
             $status = $request->status;
 
             $rows = $rows->filter(function ($row) use ($status) {
+                $butir = $row['butir'];
                 $item = $row['item'];
 
                 if ($status === 'belum_ditindaklanjuti') {
                     return empty($item);
                 }
 
-                if (!$item) {
-                    return false;
+                if (in_array($status, ['dalam_proses_tindak_lanjut', 'diusulkan_tuntas'], true)) {
+                    return $butir->statusTindakLanjut() === $status;
                 }
 
-                $reviewTerakhir = $item->reviews
+                $reviewTerakhir = $butir->reviews
                     ->where('tahap_review', 'tindak_lanjut')
                     ->sortByDesc('id')
                     ->first();
@@ -178,32 +154,46 @@ class TindakLanjutRagabController extends Controller
                 $item = $row['item'];
                 $record = $butir?->record;
 
-                $reviewTerakhir = $item
-                    ? $item->reviews
-                        ->where('tahap_review', 'tindak_lanjut')
-                        ->sortByDesc('id')
-                        ->first()
-                    : null;
-
-                $komitePic = $butir?->butirPics
-                    ?->where('jenis_pic', 'komite')
+                $reviewTerakhir = $butir?->reviews
+                    ?->where('tahap_review', 'tindak_lanjut')
+                    ->sortByDesc('id')
                     ->first();
 
+                $picUnits = $butir?->butirPics
+                    ?->where('jenis_pic', 'unit')
+                    ->map(fn ($pic) => trim(($pic->unitKerja?->kode_unit ?? '') . ' ' . ($pic->unitKerja?->nama_unit ?? '')))
+                    ->implode(' ');
+
+                $direktorats = $butir?->butirDirektorats
+                    ?->map(fn ($item) => $item->direktorat?->nama_direktorat)
+                    ->filter()
+                    ->implode(' ');
+
+                $komitePic = $butir?->butirPics?->where('jenis_pic', 'komite')->first();
+
                 $values = [
-                    $butir?->id_butir_ragab,
-                    $butir?->butir_ragab,
                     $record?->id_ragab,
                     $record?->nomor_surat,
                     $record?->perihal_surat,
+                    $butir?->id_butir_ragab,
+                    $butir?->tanggal_ragab?->format('d/m/Y'),
+                    $butir?->agenda_ragab,
+                    $butir?->keputusan_ragab,
+                    $butir?->cluster?->nama_cluster,
+                    $butir?->subCluster?->nama_sub_cluster,
+                    $direktorats,
+                    $picUnits,
+                    $komitePic?->komite?->kode_komite,
+                    $komitePic?->komite?->nama_komite,
+                    $item?->unitKerja?->direktorat?->nama_direktorat,
+                    $item?->unitKerja?->kode_unit,
+                    $item?->unitKerja?->nama_unit,
                     $item?->tindak_lanjut,
                     $item?->deliverables,
                     $reviewTerakhir?->hasil_review,
                     $reviewTerakhir?->deliverables,
                     $reviewTerakhir?->status,
-                    $reviewTerakhir?->komite?->kode_komite,
-                    $reviewTerakhir?->komite?->nama_komite,
-                    $komitePic?->komite?->kode_komite,
-                    $komitePic?->komite?->nama_komite,
+                    $butir?->statusTindakLanjutLabel(),
                 ];
 
                 foreach ($values as $value) {
@@ -221,7 +211,13 @@ class TindakLanjutRagabController extends Controller
                 $item = $row['item'];
                 $butir = $row['butir'];
 
-                return $item?->id ?? (0 - (int) $butir?->id);
+                $isWaitingTl = empty($item) ? 1 : 0;
+
+                $timestamp = $item?->created_at?->timestamp
+                    ?? $butir?->created_at?->timestamp
+                    ?? 0;
+
+                return ($isWaitingTl * 10000000000) + $timestamp;
             })
             ->values();
 
@@ -239,23 +235,21 @@ class TindakLanjutRagabController extends Controller
             ]
         );
 
-        /**
-         * Kandidat modal tambah TL:
-         * RAGAB tidak punya tanggapan, jadi semua butir yang sudah dibuat boleh dipilih.
-         * Tidak pakai whereDoesntHave, karena 1 butir boleh punya banyak TL.
-         */
         $butirSiapTindakLanjutQuery = RagabButir::with([
             'record',
-            'butirPics.unitKerja',
+            'cluster',
+            'subCluster',
+            'butirDirektorats.direktorat',
+            'butirPics.unitKerja.direktorat',
             'butirPics.komite',
-        ])
-            ->whereHas('record');
+            'tindakLanjuts',
+        ])->whereHas('record');
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_ragab')) {
+        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_ragab') && !$user->hasRoleType('moderator_ragab')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
             $butirSiapTindakLanjutQuery->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
-                $picQuery->whereIn('jenis_pic', ['utama', 'pendukung'])
+                $picQuery->where('jenis_pic', 'unit')
                     ->whereIn('unit_kerja_id', $userUnitKerjaIds);
             });
         }
@@ -264,18 +258,15 @@ class TindakLanjutRagabController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $clusters = RagabCluster::with('subClusters')
-            ->orderBy('nama_cluster')
-            ->get();
-
+        $clusters = RagabCluster::with('subClusters')->orderBy('nama_cluster')->get();
         $direktorats = Direktorat::orderBy('nama_direktorat')->get();
-
         $unitKerjas = UnitKerja::orderBy('nama_unit')->get();
-
         $komites = Komite::orderBy('nama_komite')->get();
 
         $statusOptions = [
             'belum_ditindaklanjuti' => 'Belum Ditindaklanjuti',
+            'dalam_proses_tindak_lanjut' => 'Dalam Proses Tindak Lanjut',
+            'diusulkan_tuntas' => 'Diusulkan Tuntas',
             'belum_ditanggapi' => 'Belum Direviu',
             'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
             'selesai_tuntas' => 'Selesai Tuntas',
@@ -296,6 +287,7 @@ class TindakLanjutRagabController extends Controller
     {
         $validated = $request->validate([
             'butir_id' => ['required', 'integer', 'exists:mysql_ragab.tb_butir_ragab,id'],
+            'unit_kerja_id' => ['required', 'integer'],
             'tindak_lanjut' => ['required', 'string'],
             'deliverables' => ['required', 'string'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
@@ -304,13 +296,27 @@ class TindakLanjutRagabController extends Controller
         $user = User::find(Auth::id());
 
         $butir = RagabButir::with([
-            'record',
-            'butirPics',
-            'reviews',
+            'record.butirRagab.butirPics',
+            'record.butirRagab.tindakLanjuts',
+            'butirDirektorats',
+            'butirPics.unitKerja',
+            'tindakLanjuts',
         ])->findOrFail($validated['butir_id']);
 
         if (!$user || !$user->canCreateRagabTindakLanjutForButir($butir)) {
             abort(403, 'Anda tidak memiliki akses untuk membuat tindak lanjut pada butir ini.');
+        }
+
+        $picUnitKerjaIds = $butir->picUnitKerjaIds();
+
+        if (!in_array((int) $validated['unit_kerja_id'], $picUnitKerjaIds, true)) {
+            return back()->with('error', 'PIC Unit yang dipilih tidak terdaftar pada butir RAGAB ini.');
+        }
+
+        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_ragab') && !$user->hasRoleType('moderator_ragab')) {
+            if (!in_array((int) $validated['unit_kerja_id'], $user->unitKerjaIds(), true)) {
+                abort(403, 'Anda tidak memiliki akses untuk membuat tindak lanjut atas PIC Unit ini.');
+            }
         }
 
         DB::connection('mysql_ragab')->transaction(function () use ($request, $validated, $butir, $user) {
@@ -322,6 +328,7 @@ class TindakLanjutRagabController extends Controller
 
             $tindakLanjut = RagabTindakLanjut::create([
                 'id_butir_ragab' => $butir->id_butir_ragab,
+                'unit_kerja_id' => $validated['unit_kerja_id'],
                 'tindak_lanjut' => $validated['tindak_lanjut'],
                 'deliverables' => $validated['deliverables'],
                 'dokumen' => $dokumenPath,
@@ -330,27 +337,18 @@ class TindakLanjutRagabController extends Controller
                 'updated_by' => $user->id,
             ]);
 
-            $komitePic = $butir->butirPics()
-                ->where('jenis_pic', 'komite')
-                ->whereNotNull('komite_id')
-                ->first();
+            $record = $butir->record;
 
-            $review = RagabReview::create([
-                'id_butir_ragab' => $butir->id_butir_ragab,
-                'id_tindak_lanjut' => $tindakLanjut->id,
-                'komite_id' => $komitePic?->komite_id,
-                'tahap_review' => 'tindak_lanjut',
-                'hasil_review' => null,
-                'deliverables' => null,
-                'dokumen' => null,
-                'status' => 'belum_ditanggapi',
-                'created_by' => $user->id,
-                'updated_by' => $user->id,
-            ]);
+            if ($record) {
+                $record->loadMissing('butirRagab.butirPics', 'butirRagab.tindakLanjuts');
 
-            if ($butir->record) {
-                $butir->record->update([
-                    'status' => 'dalam_proses',
+                $allButirsReady = $record->butirRagab->count() > 0
+                    && $record->butirRagab->every(fn ($recordButir) => $recordButir->isTindakLanjutLengkap());
+
+                $hasAnyTl = $record->butirRagab->contains(fn ($recordButir) => $recordButir->tindakLanjuts->count() > 0);
+
+                $record->update([
+                    'status' => $allButirsReady ? 'diusulkan_tuntas' : ($hasAnyTl ? 'dalam_proses' : $record->status),
                     'updated_by' => $user->id,
                 ]);
             }
@@ -362,12 +360,12 @@ class TindakLanjutRagabController extends Controller
                 'table_name' => 'tb_tindak_lanjut',
                 'record_key' => $butir->id_butir_ragab,
                 'action' => 'create',
-                'description' => 'User membuat tindak lanjut RAGAB dan sistem membuat review tindak lanjut.',
+                'description' => 'User membuat tindak lanjut RAGAB.',
                 'old_values' => null,
                 'new_values' => [
                     'butir' => $butir->load('record')->toArray(),
                     'tindak_lanjut' => $tindakLanjut->toArray(),
-                    'review' => $review->toArray(),
+                    'status_tindak_lanjut_butir' => $butir->fresh()->statusTindakLanjut(),
                 ],
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),

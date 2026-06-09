@@ -16,12 +16,11 @@ class RagabRecord extends Model
 
     protected $fillable = [
         'id_ragab',
-        'cluster_id',
-        'sub_cluster_id',
         'nomor_surat',
         'tanggal_surat',
         'perihal_surat',
         'dokumen',
+        'dokumen_memo',
         'jth_tempo',
         'status',
         'created_by',
@@ -52,20 +51,7 @@ class RagabRecord extends Model
 
     public static function generateIdRagab(string $nomorSurat): string
     {
-        $nomorSurat = trim($nomorSurat);
-
-        return $nomorSurat . '-RAGAB';
-    }
-
-
-    public function cluster()
-    {
-        return $this->belongsTo(RagabCluster::class, 'cluster_id', 'id');
-    }
-
-    public function subCluster()
-    {
-        return $this->belongsTo(RagabSubCluster::class, 'sub_cluster_id', 'id');
+        return trim($nomorSurat) . '-RAGAB';
     }
 
     public function butirRagab()

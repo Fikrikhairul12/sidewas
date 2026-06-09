@@ -2,15 +2,15 @@
     <div class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                RAWAS
+                Keputusan RAWAS
             </p>
 
             <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                Cetak Report RAWAS
+                Cetak Report Keputusan RAWAS
             </h1>
 
             <p class="mt-2 text-sm text-slate-500">
-                Pilih satu atau lebih surat RAWAS untuk dicetak ke PDF.
+                Pilih satu atau lebih surat Keputusan RAWAS untuk dicetak ke PDF.
             </p>
         </div>
 
@@ -116,7 +116,7 @@
                                 Kata Kunci
                             </label>
                             <input type="text" name="keyword" value="{{ request('keyword') }}"
-                                placeholder="Cari ID RAWAS, nomor surat, perihal..."
+                                placeholder="Cari ID Keputusan RAWAS, nomor surat, perihal..."
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
                     </div>
@@ -144,7 +144,7 @@
                 <div class="flex items-center justify-between border-b border-blue-50 px-6 py-5">
                     <div>
                         <h2 class="text-lg font-bold text-slate-800">
-                            Daftar Surat RAWAS
+                            Daftar Surat Keputusan RAWAS
                         </h2>
                         <p class="mt-1 text-sm text-slate-500">
                             Centang surat yang ingin dimasukkan ke report.
@@ -176,7 +176,7 @@
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                    ID RAWAS
+                                    ID Keputusan RAWAS
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
@@ -251,7 +251,7 @@
                             @empty
                                 <tr>
                                     <td colspan="5" class="px-6 py-12 text-center text-sm text-slate-500">
-                                        Belum ada data RAWAS.
+                                        Belum ada data Keputusan RAWAS.
                                     </td>
                                 </tr>
                             @endforelse
@@ -275,7 +275,7 @@
                             Cetak Report Custom
                         </h2>
                         <p class="mt-1 text-sm text-slate-500">
-                            Pilih butir RAWAS dan kolom yang ingin ditampilkan di report.
+                            Pilih butir Keputusan RAWAS dan kolom yang ingin ditampilkan di report.
                         </p>
                     </div>
 
@@ -295,10 +295,10 @@
                             <div class="flex items-center justify-between gap-3">
                                 <div>
                                     <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">
-                                        Pilih Butir RAWAS
+                                        Pilih Butir Keputusan RAWAS
                                     </h3>
                                     <p class="mt-1 text-sm text-slate-500">
-                                        Pilih butir dari surat RAWAS yang sudah dicentang.
+                                        Pilih butir dari surat Keputusan RAWAS yang sudah dicentang.
                                     </p>
                                 </div>
 
@@ -311,7 +311,7 @@
                             <div id="customReportButirList"
                                 class="mt-4 grid max-h-72 gap-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4">
                                 <p class="text-sm text-slate-400">
-                                    Pilih surat RAWAS terlebih dahulu.
+                                    Pilih surat Keputusan RAWAS terlebih dahulu.
                                 </p>
                             </div>
                         </div>
@@ -336,8 +336,8 @@
                             @php
                                 $reportFields = [
                                     'surat' => 'Nomor, Tanggal & Perihal Surat',
-                                    'id_butir' => 'ID Butir RAWAS',
-                                    'isi_butir' => 'Isi Butir RAWAS',
+                                    'id_butir' => 'ID Butir Keputusan RAWAS',
+                                    'isi_butir' => 'Isi Butir Keputusan RAWAS',
                                     'pic_utama' => 'PIC Unit Kerja Utama',
                                     'pic_pendukung' => 'PIC Unit Kerja Pendukung',
                                     'tindak_lanjut' => 'Tindak Lanjut Direksi',

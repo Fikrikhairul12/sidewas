@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Laravel') }}</title>
+    <link rel="icon" href="{{ asset('storage/images/icon-sidewas.png') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -17,7 +18,13 @@
 </head>
 
 <body class="font-sans antialiased">
-    <div x-data="{ sidebarOpen: true }" class="min-h-screen bg-gray-100">
+    <div x-data="{ sidebarOpen: true }" class="min-h-screen bg-[#eef6fb]"
+        style="
+        background:
+            radial-gradient(circle at 8% 45%, rgba(129, 196, 65, 0.18), transparent 32%),
+            radial-gradient(circle at 82% 28%, rgba(29, 117, 185, 0.16), transparent 34%),
+            linear-gradient(135deg, #f7fbf7 0%, #eef6fb 45%, #f4f8ff 100%);
+    ">
         {{-- Sidebar --}}
         @include('layouts.sidebar')
 
@@ -107,7 +114,8 @@
                     </p>
 
                     <a href="https://mail.google.com/mail/?view=cm&fs=1&to=pepd.sekdewas@bpjsketenagakerjaan.go.id"
-                        class="font-semibold text-sidewas-blue transition hover:text-blue-700 hover:underline" target="_blank">
+                        class="font-semibold text-sidewas-blue transition hover:text-blue-700 hover:underline"
+                        target="_blank">
                         Hubungi Kami
                     </a>
                 </div>

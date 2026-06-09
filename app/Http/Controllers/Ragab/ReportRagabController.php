@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Ragab;
 
 use App\Http\Controllers\Controller;
-use App\Models\RagabRecord;
-use App\Models\User;
-use App\Models\UnitKerja;
-use App\Models\Direktorat;
-use App\Models\Komite;
 use App\Exports\RagabReportExport;
+use App\Models\Direktorat;
+use App\Models\RagabRecord;
+use App\Models\UnitKerja;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,9 +24,13 @@ class ReportRagabController extends Controller
         }
 
         $recordsQuery = RagabRecord::with([
-            'cluster',
-            'subCluster',
-            'butirRagab',
+            'butirRagab.cluster',
+            'butirRagab.subCluster',
+            'butirRagab.butirDirektorats.direktorat',
+            'butirRagab.tindakLanjuts.unitKerja.direktorat',
+            'butirRagab.butirPics.unitKerja',
+            'butirRagab.tindakLanjuts.unitKerja',
+            'butirRagab.reviewTindakLanjut',
         ])
             ->withCount('butirRagab');
 
@@ -37,7 +40,16 @@ class ReportRagabController extends Controller
             $recordsQuery->where(function ($query) use ($keyword) {
                 $query->where('id_ragab', 'like', "%{$keyword}%")
                     ->orWhere('nomor_surat', 'like', "%{$keyword}%")
-                    ->orWhere('perihal_surat', 'like', "%{$keyword}%");
+                    ->orWhere('perihal_surat', 'like', "%{$keyword}%")
+                    ->orWhereHas('butirRagab', function ($butirQuery) use ($keyword) {
+                        $butirQuery->where('id_butir_ragab', 'like', "%{$keyword}%")
+                            ->orWhere('agenda_ragab', 'like', "%{$keyword}%")
+                            ->orWhere('keputusan_ragab', 'like', "%{$keyword}%");
+                    })
+                    ->orWhereHas('butirRagab.tindakLanjuts', function ($tlQuery) use ($keyword) {
+                        $tlQuery->where('tindak_lanjut', 'like', "%{$keyword}%")
+                            ->orWhere('deliverables', 'like', "%{$keyword}%");
+                    });
             });
         }
 
@@ -54,40 +66,15 @@ class ReportRagabController extends Controller
         }
 
         if ($request->filled('direktorat_id')) {
-            $unitKerjaIds = UnitKerja::where('direktorat_id', $request->direktorat_id)
-                ->pluck('id')
-                ->toArray();
-
-            $recordsQuery->whereHas('butirRagab.butirPics', function ($query) use ($unitKerjaIds) {
-                $query->where('jenis_pic', 'utama')
-                    ->whereIn('unit_kerja_id', $unitKerjaIds);
+            $recordsQuery->whereHas('butirRagab.butirDirektorats', function ($query) use ($request) {
+                $query->where('direktorat_id', $request->direktorat_id);
             });
         }
 
-        if ($request->filled('unit_kerja_utama_id')) {
-            $unitKerjaUtamaId = $request->unit_kerja_utama_id;
-
-            $recordsQuery->whereHas('butirRagab.butirPics', function ($query) use ($unitKerjaUtamaId) {
-                $query->where('jenis_pic', 'utama')
-                    ->where('unit_kerja_id', $unitKerjaUtamaId);
-            });
-        }
-
-        if ($request->filled('unit_kerja_pendukung_id')) {
-            $unitKerjaPendukungId = $request->unit_kerja_pendukung_id;
-
-            $recordsQuery->whereHas('butirRagab.butirPics', function ($query) use ($unitKerjaPendukungId) {
-                $query->where('jenis_pic', 'pendukung')
-                    ->where('unit_kerja_id', $unitKerjaPendukungId);
-            });
-        }
-
-        if ($request->filled('komite_id')) {
-            $komiteId = $request->komite_id;
-
-            $recordsQuery->whereHas('butirRagab.butirPics', function ($query) use ($komiteId) {
-                $query->where('jenis_pic', 'komite')
-                    ->where('komite_id', $komiteId);
+        if ($request->filled('unit_kerja_id')) {
+            $recordsQuery->whereHas('butirRagab.butirPics', function ($query) use ($request) {
+                $query->where('jenis_pic', 'unit')
+                    ->where('unit_kerja_id', $request->unit_kerja_id);
             });
         }
 
@@ -97,16 +84,24 @@ class ReportRagabController extends Controller
             ->withQueryString();
 
         $direktorats = Direktorat::orderBy('nama_direktorat')->get();
+        $unitKerjas = UnitKerja::orderBy('kode_unit')->orderBy('nama_unit')->get();
 
-        $unitKerjas = UnitKerja::orderBy('nama_unit')->get();
+        $statusOptions = [
+            'draft' => 'Draft',
+            'terbit' => 'Terbit',
+            'dalam_proses' => 'Dalam Proses',
+            'diusulkan_tuntas' => 'Diusulkan Tuntas',
+            'tuntas' => 'Tuntas',
+        ];
 
-        $komites = Komite::orderBy('nama_komite')->get();
+        $reportFields = $this->reportFieldLabels();
 
         return view('layouts.ragab.report.index', compact(
             'records',
             'direktorats',
             'unitKerjas',
-            'komites'
+            'statusOptions',
+            'reportFields'
         ));
     }
 
@@ -125,16 +120,7 @@ class ReportRagabController extends Controller
             'record_ids.required' => 'Pilih minimal satu surat RAGAB untuk dicetak.',
         ]);
 
-        $records = RagabRecord::with([
-            'cluster',
-            'subCluster',
-            'butirRagab.butirPics.unitKerja',
-            'butirRagab.butirPics.komite',
-            'butirRagab.tindakLanjuts.reviews',
-        ])
-            ->whereIn('id', $validated['record_ids'])
-            ->orderBy('id_ragab')
-            ->get();
+        $records = $this->getRecordsForReport($validated['record_ids']);
 
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
@@ -143,8 +129,7 @@ class ReportRagabController extends Controller
             'records',
             'printedBy',
             'printedAt'
-        ))
-            ->setPaper('legal', 'landscape');
+        ))->setPaper('legal', 'landscape');
 
         return $pdf->download('report-ragab.pdf');
     }
@@ -170,62 +155,14 @@ class ReportRagabController extends Controller
             'fields.required' => 'Pilih minimal satu field report.',
         ]);
 
-        $allowedFields = [
-            'surat',
-            'id_butir',
-            'isi_butir',
-            'pic_unit',
-            'pic_utama',
-            'pic_pendukung',
-            'tindak_lanjut',
-            'deliverable',
-            'dokumen',
-            'jatuh_tempo',
-            'komite',
-            'hasil_reviu',
-            'status',
-        ];
-
-        $selectedFields = array_values(array_intersect($validated['fields'], $allowedFields));
-        $selectedFields = $this->mapFieldsForPdf($selectedFields);
+        $selectedFields = array_values(array_intersect($validated['fields'], array_keys($this->reportFieldLabels())));
 
         if (empty($selectedFields)) {
             return back()->with('error', 'Pilih minimal satu field report.');
         }
 
-        $butirIds = $validated['butir_ids'];
-
-        $records = RagabRecord::with([
-            'cluster',
-            'subCluster',
-            'butirRagab' => function ($query) use ($butirIds) {
-                $query->whereIn('id', $butirIds)
-                    ->orderBy('id');
-            },
-            'butirRagab.butirPics.unitKerja',
-            'butirRagab.butirPics.komite',
-            'butirRagab.tindakLanjuts.reviews',
-        ])
-            ->whereIn('id', $validated['record_ids'])
-            ->whereHas('butirRagab', function ($query) use ($butirIds) {
-                $query->whereIn('id', $butirIds);
-            })
-            ->orderBy('id_ragab')
-            ->get();
-
-        $fieldLabels = [
-            'surat' => 'NOMOR, TANGGAL & PERIHAL SURAT',
-            'id_butir' => 'ID BUTIR RAGAB',
-            'isi_butir' => 'ISI BUTIR RAGAB',
-            'pic_unit' => 'PIC UNIT KERJA',
-            'tindak_lanjut' => 'TINDAK LANJUT DIREKSI',
-            'deliverable' => 'DELIVERABLE',
-            'dokumen' => 'DOKUMEN PENDUKUNG',
-            'jatuh_tempo' => 'TGL. JATUH TEMPO',
-            'komite' => 'PIC KOMITE DEWAN PENGAWAS',
-            'hasil_reviu' => 'HASIL REVIU DEWAN PENGAWAS',
-            'status' => 'STATUS TINDAK LANJUT',
-        ];
+        $records = $this->getRecordsForReport($validated['record_ids'], $validated['butir_ids']);
+        $fieldLabels = $this->reportFieldLabels();
 
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
@@ -236,49 +173,9 @@ class ReportRagabController extends Controller
             'fieldLabels',
             'printedBy',
             'printedAt'
-        ))
-            ->setPaper('legal', 'landscape');
+        ))->setPaper('legal', 'landscape');
 
         return $pdf->stream('report-ragab-custom.pdf');
-    }
-
-    private function reportFieldLabels(): array
-    {
-        return [
-            'surat' => 'NOMOR, TANGGAL & PERIHAL SURAT',
-            'id_butir' => 'ID BUTIR RAGAB',
-            'isi_butir' => 'ISI BUTIR RAGAB',
-            'pic_utama' => 'PIC UNIT KERJA UTAMA',
-            'pic_pendukung' => 'PIC UNIT KERJA PENDUKUNG',
-            'tindak_lanjut' => 'TINDAK LANJUT DIREKSI',
-            'deliverable' => 'DELIVERABLE',
-            'dokumen' => 'DOKUMEN PENDUKUNG',
-            'jatuh_tempo' => 'TGL. JATUH TEMPO',
-            'komite' => 'PIC KOMITE DEWAN PENGAWAS',
-            'hasil_reviu' => 'HASIL REVIU DEWAN PENGAWAS',
-            'status' => 'STATUS TINDAK LANJUT',
-
-            // Optional, kalau PDF custom masih pakai gabungan
-            'pic_unit' => 'PIC UNIT KERJA',
-        ];
-    }
-
-    private function mapFieldsForPdf(array $fields): array
-    {
-        $mapped = [];
-
-        foreach ($fields as $field) {
-            if ($field === 'pic_utama' || $field === 'pic_pendukung') {
-                if (!in_array('pic_unit', $mapped, true)) {
-                    $mapped[] = 'pic_unit';
-                }
-
-                continue;
-            }
-            $mapped[] = $field;
-        }
-
-        return array_values(array_unique($mapped));
     }
 
     public function cetakExcel(Request $request)
@@ -286,42 +183,18 @@ class ReportRagabController extends Controller
         $user = User::find(Auth::id());
 
         if (!$user || !$user->canAccessRagabPerekaman()) {
-            abort(403, 'Anda tidak memiliki akses untuk mencetak report Ragab.');
+            abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 
         $validated = $request->validate([
             'record_ids' => ['required', 'array', 'min:1'],
             'record_ids.*' => ['integer'],
         ], [
-            'record_ids.required' => 'Pilih minimal satu surat Ragab untuk dicetak.',
+            'record_ids.required' => 'Pilih minimal satu surat RAGAB untuk dicetak.',
         ]);
 
-        $records = RagabRecord::with([
-            'cluster',
-            'subCluster',
-            'butirRagab.butirPics.unitKerja',
-            'butirRagab.butirPics.komite',
-            'butirRagab.tindakLanjuts.reviews',
-        ])
-            ->whereIn('id', $validated['record_ids'])
-            ->orderBy('id_ragab')
-            ->get();
-
-        $selectedFields = [
-            'surat',
-            'id_butir',
-            'isi_butir',
-            'pic_utama',
-            'pic_pendukung',
-            'tindak_lanjut',
-            'deliverable',
-            'dokumen',
-            'jatuh_tempo',
-            'komite',
-            'hasil_reviu',
-            'status',
-        ];
-
+        $records = $this->getRecordsForReport($validated['record_ids']);
+        $selectedFields = array_keys($this->reportFieldLabels());
         $fieldLabels = $this->reportFieldLabels();
 
         return Excel::download(new RagabReportExport($records, $selectedFields, $fieldLabels), 'report-ragab.xlsx');
@@ -332,7 +205,7 @@ class ReportRagabController extends Controller
         $user = User::find(Auth::id());
 
         if (!$user || !$user->canAccessRagabPerekaman()) {
-            abort(403, 'Anda tidak memiliki akses untuk mencetak report Ragab.');
+            abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 
         $validated = $request->validate([
@@ -343,55 +216,70 @@ class ReportRagabController extends Controller
             'fields' => ['required', 'array', 'min:1'],
             'fields.*' => ['string'],
         ], [
-            'record_ids.required' => 'Pilih minimal satu surat Ragab untuk dicetak.',
-            'butir_ids.required' => 'Pilih minimal satu butir Ragab untuk dicetak.',
+            'record_ids.required' => 'Pilih minimal satu surat RAGAB untuk dicetak.',
+            'butir_ids.required' => 'Pilih minimal satu butir RAGAB untuk dicetak.',
             'fields.required' => 'Pilih minimal satu field report.',
         ]);
 
-        $allowedFields = [
-            'surat',
-            'id_butir',
-            'isi_butir',
-            'pic_unit',
-            'pic_utama',
-            'pic_pendukung',
-            'tindak_lanjut',
-            'deliverable',
-            'dokumen',
-            'jatuh_tempo',
-            'komite',
-            'hasil_reviu',
-            'status',
-        ];
-
-        $selectedFields = array_values(array_intersect($validated['fields'], $allowedFields));
+        $selectedFields = array_values(array_intersect($validated['fields'], array_keys($this->reportFieldLabels())));
 
         if (empty($selectedFields)) {
-            return redirect()->back()->with('error', 'Tidak ada field yang dipilih.');
+            return back()->with('error', 'Pilih minimal satu field report.');
         }
 
-        $butirIds = $validated['butir_ids'];
-
-        $records = RagabRecord::with([
-            'cluster',
-            'subCluster',
-            'butirRagab' => function ($query) use ($butirIds) {
-                $query->whereIn('id', $butirIds)
-                    ->orderBy('id');
-            },
-            'butirRagab.butirPics.unitKerja',
-            'butirRagab.butirPics.komite',
-            'butirRagab.tindakLanjuts.reviews',
-        ])
-            ->whereIn('id', $validated['record_ids'])
-            ->whereHas('butirRagab', function ($query) use ($butirIds) {
-                $query->whereIn('id', $butirIds);
-            })
-            ->orderBy('id_ragab')
-            ->get();
-
+        $records = $this->getRecordsForReport($validated['record_ids'], $validated['butir_ids']);
         $fieldLabels = $this->reportFieldLabels();
 
         return Excel::download(new RagabReportExport($records, $selectedFields, $fieldLabels), 'report-ragab-custom.xlsx');
+    }
+
+    private function getRecordsForReport(array $recordIds, ?array $butirIds = null)
+    {
+        return RagabRecord::with([
+            'butirRagab' => function ($query) use ($butirIds) {
+                if (!empty($butirIds)) {
+                    $query->whereIn('id', $butirIds);
+                }
+
+                $query->orderBy('id');
+            },
+            'butirRagab.cluster',
+            'butirRagab.subCluster',
+            'butirRagab.butirDirektorats.direktorat',
+            'butirRagab.butirPics.unitKerja',
+            'butirRagab.tindakLanjuts' => function ($query) {
+                $query->with('unitKerja')
+                    ->orderBy('unit_kerja_id')
+                    ->orderBy('created_at')
+                    ->orderBy('id');
+            },
+            'butirRagab.reviewTindakLanjut',
+        ])
+            ->whereIn('id', $recordIds)
+            ->when(!empty($butirIds), function ($query) use ($butirIds) {
+                $query->whereHas('butirRagab', function ($butirQuery) use ($butirIds) {
+                    $butirQuery->whereIn('id', $butirIds);
+                });
+            })
+            ->orderBy('tanggal_surat')
+            ->orderBy('id')
+            ->get();
+    }
+
+    private function reportFieldLabels(): array
+    {
+        return [
+            'surat' => 'NOMOR, TANGGAL & PERIHAL SURAT',
+            'tgl_agenda' => 'TGL & AGENDA RAGAB',
+            'keputusan' => 'KEPUTUSAN RAGAB',
+            'direktorat' => 'DIREKTORAT',
+            'unit_pic' => 'UNIT PIC',
+            'tindak_lanjut' => 'TINDAK LANJUT KEPUTUSAN RAGAB',
+            'deliverable' => 'DELIVERABLE',
+            'dokumen' => 'DOKUMEN PENDUKUNG',
+            'jatuh_tempo' => 'TGL. JATUH TEMPO',
+            'hasil_reviu' => 'HASIL REVIU TINDAK LANJUT KEPUTUSAN RAGAB',
+            'status' => 'STATUS TINDAK LANJUT',
+        ];
     }
 }

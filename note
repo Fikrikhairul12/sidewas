@@ -3,3 +3,7 @@ isAllowedEmailDomain
 
 Controller/Auth/GoogleAuthController
 isAllowedEmailDomain($googleUser->getEmail())
+
+Lorem ipsum dolor, sit amet consectetur adipisicing elit. Fuga deleniti accusamus quas, molestiae iste qui ad numquam
+obcaecati fugit voluptatibus perspiciatis debitis amet nulla, eum id quis atque dicta, suscipit nostrum quisquam maiores
+corporis sunt! Reprehenderit soluta sint dolorem nisi?

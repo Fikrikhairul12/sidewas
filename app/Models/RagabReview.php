@@ -15,8 +15,6 @@ class RagabReview extends Model
 
     protected $fillable = [
         'id_butir_ragab',
-        'id_tindak_lanjut',
-        'komite_id',
         'tahap_review',
         'hasil_review',
         'deliverables',
@@ -29,16 +27,6 @@ class RagabReview extends Model
     public function butir()
     {
         return $this->belongsTo(RagabButir::class, 'id_butir_ragab', 'id_butir_ragab');
-    }
-
-    public function tindakLanjut()
-    {
-        return $this->belongsTo(RagabTindakLanjut::class, 'id_tindak_lanjut', 'id');
-    }
-
-    public function komite()
-    {
-        return $this->belongsTo(Komite::class, 'komite_id', 'id');
     }
 
     public function creator()

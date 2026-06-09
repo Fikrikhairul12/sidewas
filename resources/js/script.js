@@ -84,7 +84,7 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
  * Clone dari perekaman SNP.
  * Dipakai di resources/views/layouts/ragab/perekaman.blade.php
  */
-window.perekamanRagabModal = function (clusters = [], direktorats = []) {
+window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerjas = []) {
     return {
         openCreateModal: false,
         openButirModal: false,
@@ -92,19 +92,23 @@ window.perekamanRagabModal = function (clusters = [], direktorats = []) {
         selectedRecord: null,
 
         selectedClusterId: '',
-        selectedDirektoratUtamaId: '',
+        selectedDirektoratIds: [],
+        selectedUnitKerjaIds: [],
 
-        picPendukungSearch: '',
-        selectedPicPendukung: [],
+        unitKerjaSearch: '',
 
         clusters: clusters,
         direktorats: direktorats,
+        unitKerjas: unitKerjas,
 
         openButirModalFor(record) {
             this.selectedRecord = record;
-            this.selectedDirektoratUtamaId = '';
-            this.picPendukungSearch = '';
-            this.selectedPicPendukung = [];
+
+            this.selectedClusterId = '';
+            this.selectedDirektoratIds = [];
+            this.selectedUnitKerjaIds = [];
+            this.unitKerjaSearch = '';
+
             this.openButirModal = true;
         },
 
@@ -113,31 +117,17 @@ window.perekamanRagabModal = function (clusters = [], direktorats = []) {
             return cluster ? cluster.sub_clusters : [];
         },
 
-        get filteredUnitKerjaUtama() {
-            const direktorat = this.direktorats.find(item => String(item.id) === String(this.selectedDirektoratUtamaId));
-            return direktorat ? direktorat.unit_kerja : [];
-        },
-
-        get allUnitKerjaPendukung() {
-            return this.direktorats.flatMap(direktorat => {
-                return (direktorat.unit_kerja || []).map(unit => ({
-                    ...unit,
-                    direktorat_nama: direktorat.nama_direktorat,
-                }));
-            });
-        },
-
-        get filteredAllUnitKerjaPendukung() {
-            const keyword = this.picPendukungSearch.toLowerCase().trim();
+        get filteredUnitKerjas() {
+            const keyword = this.unitKerjaSearch.toLowerCase().trim();
 
             if (!keyword) {
-                return this.allUnitKerjaPendukung;
+                return this.unitKerjas;
             }
 
-            return this.allUnitKerjaPendukung.filter(unit => {
+            return this.unitKerjas.filter(unit => {
                 const kode = String(unit.kode_unit || '').toLowerCase();
                 const nama = String(unit.nama_unit || '').toLowerCase();
-                const direktorat = String(unit.direktorat_nama || '').toLowerCase();
+                const direktorat = String(unit.direktorat?.nama_direktorat || unit.direktorat_nama || '').toLowerCase();
 
                 return kode.includes(keyword)
                     || nama.includes(keyword)
@@ -145,14 +135,14 @@ window.perekamanRagabModal = function (clusters = [], direktorats = []) {
             });
         },
 
-        get selectedPicPendukungDetail() {
-            return this.allUnitKerjaPendukung.filter(unit => {
-                return this.selectedPicPendukung.includes(String(unit.id));
+        get selectedUnitKerjaDetail() {
+            return this.unitKerjas.filter(unit => {
+                return this.selectedUnitKerjaIds.includes(String(unit.id));
             });
         },
 
-        removePicPendukung(id) {
-            this.selectedPicPendukung = this.selectedPicPendukung.filter(item => String(item) !== String(id));
+        removeUnitKerja(id) {
+            this.selectedUnitKerjaIds = this.selectedUnitKerjaIds.filter(item => String(item) !== String(id));
         },
     };
 };

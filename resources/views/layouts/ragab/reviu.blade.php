@@ -2,15 +2,15 @@
     <div x-data="{ openModal: false, selectedReview: null }" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                RAGAB
+                Keputusan RAGAB
             </p>
 
             <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                Reviu RAGAB
+                Reviu Tindak Lanjut Keputusan RAGAB
             </h1>
 
             <p class="mt-2 text-sm text-slate-500">
-                Halaman ini digunakan komite untuk mereviu tindak lanjut RAGAB.
+                Reviu dilakukan per butir Keputusan RAGAB. Data tetap tampil walaupun tindak lanjut dari PIC Unit belum lengkap.
             </p>
         </div>
 
@@ -26,22 +26,21 @@
             </div>
         @endif
 
-        {{-- FILTER --}}
         @include('layouts.ragab.partials.filter-lanjutan', [
             'action' => route('ragab.reviu.index'),
             'statusOptions' => $statusOptions,
             'keywordPlaceholder' =>
-                'Cari ID RAGAB, ID butir, nomor surat, perihal, tindak lanjut, atau hasil reviu...',
+                'Cari ID Keputusan RAGAB, ID butir, nomor surat, agenda, keputusan, PIC unit, tindak lanjut, atau hasil reviu...',
         ])
 
-        {{-- DAFTAR REVIU RAGAB --}}
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div class="border-b border-blue-50 px-6 py-5">
                 <h2 class="text-lg font-bold text-slate-800">
-                    Daftar Reviu RAGAB
+                    Daftar Reviu Butir Keputusan RAGAB
                 </h2>
+
                 <p class="mt-1 text-sm text-slate-500">
-                    Data yang ditampilkan adalah reviu tindak lanjut sesuai komite user.
+                    Butir masuk ke halaman ini setelah memiliki minimal satu tindak lanjut.
                 </p>
             </div>
 
@@ -50,13 +49,13 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi RAGAB
+                                Informasi Keputusan RAGAB
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Tahap Reviu
+                                Tindak Lanjut PIC Unit
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Reviu
+                                Status & Reviu Butir
                             </th>
                             <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Aksi
@@ -67,11 +66,28 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($reviews as $review)
                             @php
-                                $record = $review->butir?->record;
+                                $butir = $review->butir;
+                                $record = $butir?->record;
 
-                                $tindakLanjut = $review->tindakLanjut;
+                                $picUnits = $butir?->butirPics?->where('jenis_pic', 'unit') ?? collect();
 
-                                $dokumenAda = $tindakLanjut?->dokumen;
+                                $statusTl = $butir?->statusTindakLanjut() ?? 'dalam_proses_tindak_lanjut';
+                                $statusTlLabel = $butir?->statusTindakLanjutLabel() ?? 'Dalam Proses Tindak Lanjut';
+                                $progressTlLabel = $butir?->progressTindakLanjutLabel() ?? '-';
+
+                                $canReview = $statusTl === 'diusulkan_tuntas' && $review->status !== 'selesai_tuntas';
+
+                                $tindakLanjutsByUnit = ($butir?->tindakLanjuts ?? collect())
+                                    ->sortBy([
+                                        fn($tl) => $tl->unitKerja?->direktorat?->nama_direktorat ?? 'ZZZ',
+                                        fn($tl) => $tl->unitKerja?->kode_unit ?? 'ZZZ',
+                                        fn($tl) => $tl->id,
+                                    ])
+                                    ->groupBy(
+                                        fn($tl) => ($tl->unitKerja?->kode_unit ?? '-') .
+                                            ' - ' .
+                                            ($tl->unitKerja?->nama_unit ?? '-'),
+                                    );
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -85,80 +101,220 @@
                                     </p>
 
                                     <p class="mt-1 text-xs text-slate-700">
-                                        Butir: {{ $review->id_butir_ragab }}
+                                        Tanggal Surat:
+                                        {{ $record?->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d/m/Y') : '-' }}
                                     </p>
 
-                                    <p
-                                        class="mt-3 max-w-md text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $review->butir?->butir_ragab ?? '-' }}
+                                    <p class="mt-1 text-xs text-slate-700">
+                                        Perihal: {{ $record?->perihal_surat ?? '-' }}
                                     </p>
 
-                                    <p class="mt-3 text-xs text-slate-500">
-                                        Komite: {{ $review->komite?->kode_komite ?? '-' }}
-                                    </p>
+                                    <div class="mt-4 rounded-xl border border-slate-100 bg-white p-4">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Butir Keputusan RAGAB
+                                        </p>
+
+                                        <p class="mt-2 text-xs font-bold" style="color: #2377b9;">
+                                            {{ $butir?->id_butir_ragab ?? '-' }}
+                                        </p>
+
+                                        <p class="mt-3 text-xs text-slate-700">
+                                            Tanggal RAGAB:
+                                            <span class="font-bold">
+                                                {{ $butir?->tanggal_ragab ? \Carbon\Carbon::parse($butir->tanggal_ragab)->format('d/m/Y') : '-' }}
+                                            </span>
+                                        </p>
+
+                                        <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Agenda
+                                        </p>
+                                        <p class="mt-1 whitespace-pre-line text-xs text-slate-800">
+                                            {{ $butir?->agenda_ragab ?? '-' }}
+                                        </p>
+
+                                        <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Keputusan
+                                        </p>
+                                        <p class="mt-1 whitespace-pre-line text-xs text-slate-800">
+                                            {{ $butir?->keputusan_ragab ?? '-' }}
+                                        </p>
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            PIC Unit Terkait
+                                        </p>
+
+                                        <div class="mt-2 flex flex-wrap gap-2">
+                                            @forelse ($picUnits as $pic)
+                                                @php
+                                                    $hasTl =
+                                                        ($butir?->tindakLanjuts ?? collect())
+                                                            ->where('unit_kerja_id', $pic->unit_kerja_id)
+                                                            ->count() > 0;
+                                                @endphp
+
+                                                <span
+                                                    class="rounded-full px-3 py-1 text-xs font-bold {{ $hasTl ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500' }}">
+                                                    {{ $pic->unitKerja?->kode_unit ?? '-' }}
+                                                    {{ $hasTl ? '✓' : '•' }}
+                                                </span>
+                                            @empty
+                                                <span class="text-xs text-slate-400">-</span>
+                                            @endforelse
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <td class="px-6 py-6 align-top">
+                                    @forelse ($tindakLanjutsByUnit as $unitLabel => $tindakLanjuts)
+                                        <div class="mb-4 rounded-xl border border-slate-200 bg-white p-4">
+                                            <p class="text-xs font-bold uppercase tracking-wide"
+                                                style="color: #2377b9;">
+                                                {{ $unitLabel }}
+                                            </p>
+
+                                            @foreach ($tindakLanjuts as $tl)
+                                                @php
+                                                    $allowedDirektoratIds = ($butir?->butirDirektorats ?? collect())
+                                                        ->pluck('direktorat_id')
+                                                        ->map(fn($id) => (int) $id)
+                                                        ->toArray();
+
+                                                    $tlDirektoratId = $tl->unitKerja?->direktorat_id;
+
+                                                    $direktoratLabel =
+                                                        $tlDirektoratId &&
+                                                        in_array((int) $tlDirektoratId, $allowedDirektoratIds, true)
+                                                            ? $tl->unitKerja?->direktorat?->nama_direktorat ?? '-'
+                                                            : '-';
+                                                @endphp
+
+                                                <div class="mt-3 rounded-xl bg-slate-50 p-4">
+                                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        Direktorat
+                                                    </p>
+                                                    <p class="mt-1 text-xs text-slate-700">
+                                                        {{ $direktoratLabel }}
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        Tindak Lanjut #{{ $loop->iteration }}
+                                                    </p>
+                                                    <p class="mt-2 whitespace-pre-line text-xs text-slate-800">
+                                                        {{ $tl->tindak_lanjut ?? '-' }}
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        Deliverable
+                                                    </p>
+                                                    <p class="mt-2 whitespace-pre-line text-xs text-slate-800">
+                                                        {{ $tl->deliverables ?? '-' }}
+                                                    </p>
+
+                                                    <div
+                                                        class="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                                                        <p>
+                                                            Jatuh Tempo:
+                                                            <span class="font-bold text-slate-700">
+                                                                {{ $tl->jth_tempo ? \Carbon\Carbon::parse($tl->jth_tempo)->format('d/m/Y') : '-' }}
+                                                            </span>
+                                                        </p>
+
+                                                        <p>
+                                                            Diinput oleh:
+                                                            <span class="font-bold text-slate-700">
+                                                                {{ $tl->creator?->name ?? '-' }}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+
+                                                    <div class="mt-3">
+                                                        <p
+                                                            class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                            Dokumen Pendukung TL
+                                                        </p>
+
+                                                        @if ($tl->dokumen)
+                                                            <a href="{{ asset('storage/' . $tl->dokumen) }}"
+                                                                target="_blank"
+                                                                class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                                style="background-color: #2377b9;">
+                                                                Download Dokumen
+                                                            </a>
+                                                        @else
+                                                            <p class="mt-1 text-xs text-slate-400">-</p>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @empty
+                                        <p class="text-xs text-slate-400">Belum ada tindak lanjut.</p>
+                                    @endforelse
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
                                     <span class="inline-flex rounded-xl px-3 py-1 text-xs font-bold text-white"
-                                        style="background-color: #6bb17e;">
-                                        Reviu Tindak Lanjut
+                                        style="background-color: {{ $statusTl === 'diusulkan_tuntas' ? '#6bb17e' : '#64748b' }};">
+                                        {{ $statusTlLabel }}
                                     </span>
 
-                                    <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        Tindak Lanjut
-                                    </p>
-                                    <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
-                                        {{ $tindakLanjut?->tindak_lanjut ?? '-' }}
+                                    <p class="mt-3 text-xs text-slate-500">
+                                        {{ $progressTlLabel }}
                                     </p>
 
-                                    <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        Deliverables Tindak Lanjut
-                                    </p>
-                                    <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
-                                        {{ $tindakLanjut?->deliverables ?? '-' }}
-                                    </p>
+                                    <div class="mt-5">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Status Reviu
+                                        </p>
+
+                                        <span class="mt-2 inline-flex rounded-xl px-3 py-1 text-xs font-bold text-white"
+                                            style="background-color: #2377b9;">
+                                            {{ ucwords(str_replace('_', ' ', $review->status)) }}
+                                        </span>
+                                    </div>
 
                                     <p class="mt-4 text-xs text-slate-500">
-                                        Jatuh Tempo:
-                                        <span class="font-bold">
-                                            {{ $tindakLanjut?->jth_tempo ? \Carbon\Carbon::parse($tindakLanjut->jth_tempo)->format('d/m/Y') : '-' }}
+                                        Reviewer:
+                                        <span class="font-bold text-slate-700">
+                                            {{ $review->creator?->name ?? ($record?->creator?->name ?? '-') }}
                                         </span>
                                     </p>
 
-                                    <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        Dokumen
-                                    </p>
-
-                                    @if ($dokumenAda)
-                                        <a href="{{ route('ragab.reviu.dokumen', $review->id) }}"
-                                            class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
-                                            style="background-color: #2377b9;">
-                                            Download Dokumen
-                                        </a>
-                                    @else
-                                        <p class="mt-2 text-xs text-slate-400">-</p>
+                                    @if ($review->hasil_review)
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Hasil Reviu
+                                        </p>
+                                        <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
+                                            {{ $review->hasil_review }}
+                                        </p>
                                     @endif
-                                </td>
 
-                                <td class="px-6 py-6 align-top">
-                                    <span class="inline-flex rounded-xl px-3 py-1 text-xs font-bold text-white"
-                                        style="background-color: #2377b9;">
-                                        {{ ucwords(str_replace('_', ' ', $review->status)) }}
-                                    </span>
+                                    @if ($review->deliverables)
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Deliverables Reviu
+                                        </p>
+                                        <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
+                                            {{ $review->deliverables }}
+                                        </p>
+                                    @endif
 
-                                    <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        Hasil Reviu
-                                    </p>
-                                    <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
-                                        {{ $review->hasil_review ?? '-' }}
-                                    </p>
+                                    @if ($review->dokumen)
+                                        <div class="mt-4">
+                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                Dokumen Reviu
+                                            </p>
 
-                                    <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        Deliverables Reviu
-                                    </p>
-                                    <p class="mt-2 max-w-lg text-xs text-slate-800">
-                                        {{ $review->deliverables ?? '-' }}
-                                    </p>
+                                            <a href="{{ route('ragab.reviu.dokumen', $review->id) }}"
+                                                class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                style="background-color: #2377b9;">
+                                                Download Dokumen Reviu
+                                            </a>
+                                        </div>
+                                    @endif
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
@@ -168,19 +324,23 @@
                                                 class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400">
                                                 Sudah Direviu
                                             </button>
+                                        @elseif (!$canReview)
+                                            <button type="button" disabled
+                                                class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400">
+                                                Menunggu TL Lengkap
+                                            </button>
                                         @else
                                             <button type="button"
                                                 @click="selectedReview = {
                                                     id: {{ $review->id }},
                                                     id_butir_ragab: @js($review->id_butir_ragab),
-                                                    tahap_review: @js($review->tahap_review),
                                                     status: @js($review->status),
                                                     hasil_review: @js($review->hasil_review ?? ''),
                                                     deliverables: @js($review->deliverables ?? '')
                                                 }; openModal = true"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
-                                                style="background-color: #2377b9;">
-                                                Detail / Reviu
+                                                style="background-color: #FFA500;">
+                                                Reviu
                                             </button>
                                         @endif
                                     </div>
@@ -190,7 +350,7 @@
                             <tr>
                                 <td colspan="4" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada data reviu tindak lanjut RAGAB.
+                                        Belum ada butir Keputusan RAGAB yang memiliki tindak lanjut.
                                     </p>
                                 </td>
                             </tr>
@@ -227,7 +387,7 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            <span>Form Reviu Tindak Lanjut RAGAB</span>
+                            Form Reviu Tindak Lanjut Butir Keputusan RAGAB
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
@@ -235,7 +395,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            Isi hasil reviu dan ubah status sesuai hasil pemeriksaan.
+                            Reviu hanya dapat disimpan setelah semua PIC Unit menginput tindak lanjut.
                         </p>
                     </div>
 
@@ -255,15 +415,17 @@
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
                                 Hasil Reviu
                             </label>
+
                             <textarea name="hasil_review" rows="4" required x-model="selectedReview.hasil_review"
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor surat reviu Dewas (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi hasil reviu..."></textarea>
+                                placeholder="Masukkan hasil reviu..."></textarea>
                         </div>
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
                                 Deliverables Reviu
                             </label>
+
                             <textarea name="deliverables" rows="3" x-model="selectedReview.deliverables"
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 placeholder="Opsional. Masukkan deliverables hasil reviu..."></textarea>
@@ -282,19 +444,19 @@
                             </p>
                         </div>
 
-                        <div class="grid gap-5 md:grid-cols-2">
-                            <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                    Status Reviu
-                                </label>
-                                <select name="status" x-model="selectedReview.status" required
-                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    <option value="belum_ditanggapi">Belum Direviu</option>
-                                    <option value="dalam_proses_reviu_dewan_pengawas">Dalam Proses Reviu Dewan Pengawas
-                                    </option>
-                                    <option value="selesai_tuntas">Selesai Tuntas</option>
-                                </select>
-                            </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Status Reviu
+                            </label>
+
+                            <select name="status" x-model="selectedReview.status" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="belum_ditanggapi">Belum Direviu</option>
+                                <option value="dalam_proses_reviu_dewan_pengawas">
+                                    Dalam Proses Reviu Dewan Pengawas
+                                </option>
+                                <option value="selesai_tuntas">Selesai Tuntas</option>
+                            </select>
                         </div>
                     </div>
 

@@ -11,105 +11,136 @@
         @foreach ($records as $record)
             @foreach ($record->butirRagab as $butir)
                 @php
-                    $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
-                    $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
-                    $komitePic = $butir->butirPics->where('jenis_pic', 'komite')->first();
+                    $allowedDirektoratIds = ($butir->butirDirektorats ?? collect())
+                        ->pluck('direktorat_id')
+                        ->map(fn($id) => (int) $id)
+                        ->toArray();
 
-                    $tindakLanjuts = $butir->tindakLanjuts;
+                    $getDirektoratLabel = function ($tl) use ($allowedDirektoratIds) {
+                        $tlDirektoratId = $tl?->unitKerja?->direktorat_id;
+
+                        return $tlDirektoratId && in_array((int) $tlDirektoratId, $allowedDirektoratIds, true)
+                            ? $tl?->unitKerja?->direktorat?->nama_direktorat ?? '-'
+                            : '-';
+                    };
+
+                    $tindakLanjuts = $butir->tindakLanjuts
+                        ->sortBy(function ($tl) use ($getDirektoratLabel) {
+                            $direktoratLabel = $getDirektoratLabel($tl);
+
+                            $direktoratSortKey = $direktoratLabel === '-' ? 'ZZZZZZ' : $direktoratLabel;
+
+                            return $direktoratSortKey .
+                                '|' .
+                                ($tl->unitKerja?->kode_unit ?? 'ZZZ') .
+                                '|' .
+                                str_pad((string) $tl->id, 10, '0', STR_PAD_LEFT);
+                        })
+                        ->values(); 
 
                     if ($tindakLanjuts->count() === 0) {
                         $tindakLanjuts = collect([null]);
                     }
+
+                    $direktoratRowspans = $tindakLanjuts->map(fn($tl) => $getDirektoratLabel($tl))->countBy();
+
+                    $printedDirektorats = [];
+
+                    if ($tindakLanjuts->count() === 0) {
+                        $tindakLanjuts = collect([null]);
+                    }
+
+                    $review =
+                        $butir->reviewTindakLanjut ?? $butir->reviews?->where('tahap_review', 'tindak_lanjut')->first();
+
+                    $statusTl =
+                        $review?->status ??
+                        ($butir->tindakLanjuts->count() > 0 ? 'belum_ditanggapi' : 'belum_ditindaklanjuti');
+
+                    $statusTlLabel = match ($statusTl) {
+                        'belum_ditindaklanjuti' => 'Belum Ditindaklanjuti',
+                        'belum_ditanggapi' => 'Belum Direviu',
+                        'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu',
+                        'selesai_tuntas' => 'Selesai Tuntas',
+                        'tuntas' => 'Tuntas',
+                        default => ucwords(str_replace('_', ' ', $statusTl)),
+                    };
                 @endphp
 
                 @foreach ($tindakLanjuts as $tl)
                     @php
-                        $reviewTl = $tl
-                            ? $tl->reviews
-                                ->where('tahap_review', 'tindak_lanjut')
-                                ->sortByDesc('id')
-                                ->first()
-                            : null;
+                        $allowedDirektoratIds = ($butir->butirDirektorats ?? collect())
+                            ->pluck('direktorat_id')
+                            ->map(fn($id) => (int) $id)
+                            ->toArray();
 
-                        $statusTl = $reviewTl?->status ?? ($tl ? 'belum_ditanggapi' : 'belum_ditindaklanjuti');
+                        $tlDirektoratId = $tl?->unitKerja?->direktorat_id;
 
-                        $statusTlLabel = match ($statusTl) {
-                            'belum_ditindaklanjuti' => 'Belum Ditindaklanjuti',
-                            'belum_ditanggapi' => 'Belum Direviu',
-                            'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
-                            'selesai_tuntas' => 'Selesai Tuntas',
-                            'selesai' => 'Selesai',
-                            default => ucwords(str_replace('_', ' ', $statusTl)),
-                        };
+                        $direktoratLabel = $getDirektoratLabel($tl);
                     @endphp
 
                     <tr>
                         @foreach ($selectedFields as $field)
                             @if ($field === 'surat')
                                 <td>
-                                    {{ $record->nomor_surat }}
+                                    {{ $record->nomor_surat ?? '-' }}
 
                                     {{ $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d/m/Y') : '-' }}
 
-                                    {{ $record->perihal_surat }}
+                                    {{ $record->perihal_surat ?? '-' }}
                                 </td>
-
-                            @elseif ($field === 'id_butir')
+                            @elseif ($field === 'tgl_agenda')
                                 <td>
-                                    {{ $butir->id_butir_ragab }}
-                                </td>
+                                    {{ $butir->tanggal_ragab ? \Carbon\Carbon::parse($butir->tanggal_ragab)->format('d/m/Y') : '-' }}
 
-                            @elseif ($field === 'isi_butir')
+                                    {{ $butir->agenda_ragab ?? '-' }}
+                                </td>
+                            @elseif ($field === 'keputusan')
                                 <td>
-                                    {{ $butir->butir_ragab }}
+                                    {{ $butir->keputusan_ragab ?? '-' }}
                                 </td>
+                            @elseif ($field === 'direktorat')
+                                @if (!in_array($direktoratLabel, $printedDirektorats, true))
+                                    <td rowspan="{{ $direktoratRowspans[$direktoratLabel] ?? 1 }}">
+                                        {{ $direktoratLabel }}
+                                    </td>
 
-                            @elseif ($field === 'pic_unit')
+                                    @php
+                                        $printedDirektorats[] = $direktoratLabel;
+                                    @endphp
+                                @endif
+                            @elseif ($field === 'unit_pic')
                                 <td>
-                                    PIC UNIT KERJA UTAMA:
-                                    {{ $picUtama?->unitKerja?->kode_unit ?? '-' }}
-
-                                    PIC UNIT KERJA PENDUKUNG:
-                                    @if ($picPendukung->count() > 0)
-                                        {{ $picPendukung->map(fn ($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
-                                    @else
-                                        -
-                                    @endif
+                                    {{ $tl?->unitKerja?->kode_unit ?? '-' }}
                                 </td>
-
-                            @elseif ($field === 'pic_utama')
-                                <td>
-                                    {{ $picUtama?->unitKerja?->kode_unit ?? '-' }}
-                                </td>
-
-                            @elseif ($field === 'pic_pendukung')
-                                <td>
-                                    @if ($picPendukung->count() > 0)
-                                        {{ $picPendukung->map(fn ($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-
                             @elseif ($field === 'tindak_lanjut')
                                 <td>
                                     {{ $tl?->tindak_lanjut ?? '-' }}
                                 </td>
-
                             @elseif ($field === 'deliverable')
                                 <td>
                                     {{ $tl?->deliverables ?? '-' }}
                                 </td>
-
                             @elseif ($field === 'dokumen')
                                 <td>
-                                    @if ($tl?->dokumen)
-                                        {{ asset('storage/' . $tl->dokumen) }}
-                                    @else
-                                        -
-                                    @endif
-                                </td>
+                                    @php
+                                        $dokumens = collect();
 
+                                        if ($record->dokumen) {
+                                            $dokumens->push(asset('storage/' . $record->dokumen));
+                                        }
+
+                                        if ($record->dokumen_memo) {
+                                            $dokumens->push(asset('storage/' . $record->dokumen_memo));
+                                        }
+
+                                        if ($tl?->dokumen) {
+                                            $dokumens->push(asset('storage/' . $tl->dokumen));
+                                        }
+                                    @endphp
+
+                                    {{ $dokumens->count() > 0 ? $dokumens->implode("\n") : '-' }}
+                                </td>
                             @elseif ($field === 'jatuh_tempo')
                                 <td>
                                     @if ($tl?->jth_tempo)
@@ -120,22 +151,14 @@
                                         -
                                     @endif
                                 </td>
-
-                            @elseif ($field === 'komite')
-                                <td>
-                                    {{ $komitePic?->komite?->kode_komite ?? '-' }}
-                                </td>
-
                             @elseif ($field === 'hasil_reviu')
                                 <td>
-                                    {{ $reviewTl?->hasil_review ?? '-' }}
+                                    {{ $review?->hasil_review ?? '-' }}
                                 </td>
-
                             @elseif ($field === 'status')
                                 <td>
                                     {{ $statusTlLabel }}
                                 </td>
-
                             @else
                                 <td>-</td>
                             @endif

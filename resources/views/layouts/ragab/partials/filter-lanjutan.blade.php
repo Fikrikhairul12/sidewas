@@ -95,7 +95,7 @@
                     <select name="komite_id"
                         class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Semua Komite</option>
-                        @foreach ($komites as $komite)
+                        @foreach (($komites ?? collect()) as $komite)
                             <option value="{{ $komite->id }}" @selected(request('komite_id') == $komite->id)>
                                 {{ $komite->kode_komite }} - {{ $komite->nama_komite }}
                             </option>

@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    protected string $connectionName = 'mysql_snp';
+
+    public function up(): void
+    {
+        Schema::connection($this->connectionName)->table('tb_record', function (Blueprint $table) {
+            $table->text('dokumen_memo')->nullable()->after('dokumen');
+        });
+
+        Schema::connection($this->connectionName)->table('tb_review', function (Blueprint $table) {
+            $table->text('dokumen_memo')->nullable()->after('dokumen');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::connection($this->connectionName)->table('tb_review', function (Blueprint $table) {
+            $table->dropColumn('dokumen_memo');
+        });
+
+        Schema::connection($this->connectionName)->table('tb_record', function (Blueprint $table) {
+            $table->dropColumn('dokumen_memo');
+        });
+    }
+};

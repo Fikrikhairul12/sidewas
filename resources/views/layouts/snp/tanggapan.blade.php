@@ -304,7 +304,7 @@
                     <div class="grid gap-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Tanggapan
+                                Tanggapan SNP
                             </label>
                             <textarea name="tanggapan" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"

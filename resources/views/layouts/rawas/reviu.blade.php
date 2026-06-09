@@ -2,15 +2,15 @@
     <div x-data="{ openModal: false, selectedReview: null }" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                RAWAS
+                Keputusan RAWAS
             </p>
 
             <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                Reviu RAWAS
+                Reviu Tindak Lanjut Keputusan RAWAS
             </h1>
 
             <p class="mt-2 text-sm text-slate-500">
-                Halaman ini digunakan komite untuk mereviu tindak lanjut RAWAS.
+                Halaman ini digunakan komite untuk mereviu tindak lanjut Keputusan RAWAS.
             </p>
         </div>
 
@@ -31,14 +31,14 @@
             'action' => route('rawas.reviu.index'),
             'statusOptions' => $statusOptions,
             'keywordPlaceholder' =>
-                'Cari ID RAWAS, ID butir, nomor surat, perihal, tindak lanjut, atau hasil reviu...',
+                'Cari ID Keputusan RAWAS, ID butir, nomor surat, perihal, tindak lanjut, atau hasil reviu...',
         ])
 
         {{-- DAFTAR REVIU RAWAS --}}
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div class="border-b border-blue-50 px-6 py-5">
                 <h2 class="text-lg font-bold text-slate-800">
-                    Daftar Reviu RAWAS
+                    Daftar Reviu Tindak Lanjut Keputusan RAWAS
                 </h2>
                 <p class="mt-1 text-sm text-slate-500">
                     Data yang ditampilkan adalah reviu tindak lanjut sesuai komite user.
@@ -50,13 +50,13 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi RAWAS
+                                Informasi Keputusan RAWAS
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Tahap Reviu
+                                Tahap Reviu Tindak Lanjut
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Reviu
+                                Reviu Tindak Lanjut
                             </th>
                             <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Aksi
@@ -179,7 +179,7 @@
                                                     deliverables: @js($review->deliverables ?? '')
                                                 }; openModal = true"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
-                                                style="background-color: #2377b9;">
+                                                style="background-color: #FFA500;">
                                                 Detail / Reviu
                                             </button>
                                         @endif
@@ -190,7 +190,7 @@
                             <tr>
                                 <td colspan="4" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada data reviu tindak lanjut RAWAS.
+                                        Belum ada data reviu tindak lanjut Keputusan RAWAS.
                                     </p>
                                 </td>
                             </tr>

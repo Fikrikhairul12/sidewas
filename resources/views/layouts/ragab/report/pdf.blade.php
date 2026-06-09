@@ -43,16 +43,8 @@
             text-align: center;
         }
 
-        .top {
-            vertical-align: top;
-        }
-
         .pre-line {
             white-space: pre-line;
-        }
-
-        .small {
-            font-size: 7px;
         }
 
         a {
@@ -76,11 +68,6 @@
             background: #2377b9;
         }
 
-        .status-tl {
-            background: #c8e079;
-            color: #000;
-        }
-
         .status-selesai {
             background: #6bb17e;
         }
@@ -101,12 +88,10 @@
             width: 100%;
             text-align: center;
             z-index: -1000;
-
             font-family: Arial, Helvetica, sans-serif;
             font-size: 85px;
             font-weight: bold;
             color: rgba(0, 0, 0, 0.08);
-
             transform: rotate(-30deg);
             transform-origin: center;
             letter-spacing: 4px;
@@ -123,17 +108,17 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 10%;">NOMOR, TANGGAL & PERIHAL SURAT</th>
-                <th style="width: 6%;">ID BUTIR RAGAB</th>
-                <th style="width: 12%;">ISI BUTIR RAGAB</th>
-                <th style="width: 8%;">PIC UNIT KERJA</th>
-                <th style="width: 13%;">TINDAK LANJUT DIREKSI</th>
-                <th style="width: 7%;">DELIVERABLE</th>
+                <th style="width: 11%;">NOMOR, TANGGAL & PERIHAL SURAT</th>
+                <th style="width: 9%;">TGL & AGENDA RAGAB</th>
+                <th style="width: 13%;">KEPUTUSAN RAGAB</th>
+                <th style="width: 8%;">DIREKTORAT</th>
+                <th style="width: 7%;">UNIT PIC</th>
+                <th style="width: 13%;">TINDAK LANJUT KEPUTUSAN RAGAB</th>
+                <th style="width: 8%;">DELIVERABLE</th>
                 <th style="width: 8%;">DOKUMEN PENDUKUNG</th>
-                <th style="width: 9%;">TGL. JATUH TEMPO</th>
-                <th style="width: 8%;">PIC KOMITE DEWAN PENGAWAS</th>
-                <th style="width: 11%;">HASIL REVIU DEWAN PENGAWAS</th>
-                <th style="width: 8%;">STATUS TINDAK LANJUT</th>
+                <th style="width: 7%;">TGL. JATUH TEMPO</th>
+                <th style="width: 10%;">HASIL REVIU TINDAK LANJUT KEPUTUSAN RAGAB</th>
+                <th style="width: 6%;">STATUS TINDAK LANJUT</th>
             </tr>
         </thead>
 
@@ -151,54 +136,101 @@
 
                 @foreach ($record->butirRagab as $butir)
                     @php
-                        $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
-                        $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
-                        $komitePic = $butir->butirPics->where('jenis_pic', 'komite')->first();
+                        $allowedDirektoratIds = ($butir->butirDirektorats ?? collect())
+                            ->pluck('direktorat_id')
+                            ->map(fn($id) => (int) $id)
+                            ->toArray();
 
-                        $tindakLanjuts = $butir->tindakLanjuts->values();
+                        $getDirektoratLabel = function ($tl) use ($allowedDirektoratIds) {
+                            $tlDirektoratId = $tl?->unitKerja?->direktorat_id;
+
+                            return $tlDirektoratId && in_array((int) $tlDirektoratId, $allowedDirektoratIds, true)
+                                ? $tl?->unitKerja?->direktorat?->nama_direktorat ?? '-'
+                                : '-';
+                        };
+
+                        $tindakLanjuts = $butir->tindakLanjuts
+                            ->sortBy(function ($tl) use ($getDirektoratLabel) {
+                                $direktoratLabel = $getDirektoratLabel($tl);
+
+                                $direktoratSortKey = $direktoratLabel === '-' ? 'ZZZZZZ' : $direktoratLabel;
+
+                                return $direktoratSortKey .
+                                    '|' .
+                                    ($tl->unitKerja?->kode_unit ?? 'ZZZ') .
+                                    '|' .
+                                    str_pad((string) $tl->id, 10, '0', STR_PAD_LEFT);
+                            })
+                            ->values();
+
+                        if ($tindakLanjuts->count() === 0) {
+                            $tindakLanjuts = collect([null]);
+                        }
+
+                        $direktoratRowspans = $tindakLanjuts->map(fn($tl) => $getDirektoratLabel($tl))->countBy();
+
+                        $printedDirektorats = [];
+
+                        if ($tindakLanjuts->count() === 0) {
+                            $tindakLanjuts = collect([null]);
+                        }
+
                         $jumlahBarisButir = max(1, $tindakLanjuts->count());
+
+                        $review =
+                            $butir->reviewTindakLanjut ??
+                            $butir->reviews?->where('tahap_review', 'tindak_lanjut')->first();
+
+                        $statusTl =
+                            $review?->status ??
+                            ($butir->tindakLanjuts->count() > 0 ? 'belum_ditanggapi' : 'belum_ditindaklanjuti');
+
+                        $statusTlClass = match ($statusTl) {
+                            'belum_ditindaklanjuti', 'belum_ditanggapi' => 'status-belum',
+                            'dalam_proses_reviu_dewan_pengawas' => 'status-reviu',
+                            'selesai_tuntas', 'tuntas' => 'status-selesai',
+                            default => 'status-belum',
+                        };
+
+                        $statusTlLabel = match ($statusTl) {
+                            'belum_ditindaklanjuti' => 'Belum Ditindaklanjuti',
+                            'belum_ditanggapi' => 'Belum Direviu',
+                            'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu',
+                            'selesai_tuntas' => 'Selesai Tuntas',
+                            'tuntas' => 'Tuntas',
+                            default => ucwords(str_replace('_', ' ', $statusTl)),
+                        };
                     @endphp
 
-                    @for ($i = 0; $i < $jumlahBarisButir; $i++)
+                    @foreach ($tindakLanjuts as $i => $tl)
                         @php
-                            $tl = $tindakLanjuts[$i] ?? null;
+                            $allowedDirektoratIds = ($butir->butirDirektorats ?? collect())
+                                ->pluck('direktorat_id')
+                                ->map(fn($id) => (int) $id)
+                                ->toArray();
 
-                            $reviewTl = $tl
-                                ? $tl->reviews
-                                    ->where('tahap_review', 'tindak_lanjut')
-                                    ->sortByDesc('id')
-                                    ->first()
-                                : null;
-
-                            $statusTl = $reviewTl?->status ?? ($tl ? 'belum_ditanggapi' : 'belum_ditindaklanjuti');
-
-                            $statusTlClass = match ($statusTl) {
-                                'belum_ditindaklanjuti' => 'status-belum',
-                                'belum_ditanggapi' => 'status-belum',
-                                'dalam_proses_reviu_dewan_pengawas' => 'status-reviu',
-                                'dalam_proses_tindak_lanjut_direksi' => 'status-tl',
-                                'selesai_tuntas', 'selesai' => 'status-selesai',
-                                default => 'status-belum',
-                            };
-
-                            $statusTlLabel = match ($statusTl) {
-                                'belum_ditindaklanjuti' => 'Belum Ditindaklanjuti',
-                                'belum_ditanggapi' => 'Belum Direviu',
-                                'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
-                                'dalam_proses_tindak_lanjut_direksi' => 'Dalam Proses Tindak Lanjut Direksi',
-                                'selesai_tuntas' => 'Selesai Tuntas',
-                                'selesai' => 'Selesai',
-                                default => ucwords(str_replace('_', ' ', $statusTl)),
-                            };
+                            $tlDirektoratId = $tl?->unitKerja?->direktorat_id;
+                            $direktoratLabel = $getDirektoratLabel($tl);
                         @endphp
 
                         <tr>
                             @if ($isFirstRecordRow)
-                                <td rowspan="{{ $totalRowsRecord }}" class="top pre-line">
-                                    {{ $record->nomor_surat }}
+                                <td rowspan="{{ $totalRowsRecord }}" class="pre-line">
+                                    {{ $record->nomor_surat ?? '-' }}
                                     {{ $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-' }}
 
-                                    {{ $record->perihal_surat }}
+                                    {{ $record->perihal_surat ?? '-' }}
+                                    <br>
+                                    @if ($record->dokumen)
+                                        <a href="{{ asset('storage/' . $record->dokumen) }}">Dokumen Surat</a>
+                                    @endif
+
+                                    @if ($record->dokumen_memo)
+                                        {{-- @if ($record->dokumen)
+                                            <br>
+                                        @endif --}}
+                                        <a href="{{ asset('storage/' . $record->dokumen_memo) }}">Dokumen Memo</a>
+                                    @endif
                                 </td>
 
                                 @php
@@ -207,49 +239,49 @@
                             @endif
 
                             @if ($i === 0)
-                                <td rowspan="{{ $jumlahBarisButir }}" class="center top pre-line">
-                                    {{ $butir->id_butir_ragab }}
+                                <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                    {{ $butir->tanggal_ragab ? \Carbon\Carbon::parse($butir->tanggal_ragab)->format('d-M-Y') : '-' }}
+
+                                    {{ $butir->agenda_ragab ?? '-' }}
                                 </td>
 
-                                <td rowspan="{{ $jumlahBarisButir }}" class="top pre-line">
-                                    {{ $butir->butir_ragab }}
-                                </td>
-
-                                <td rowspan="{{ $jumlahBarisButir }}" class="top pre-line">
-                                    PIC UNIT KERJA UTAMA:
-                                    {{ $picUtama?->unitKerja?->kode_unit ?? '-' }}
-
-                                    PIC UNIT KERJA PENDUKUNG:
-                                    @if ($picPendukung->count() > 0)
-                                        {{ $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
-                                    @else
-                                        -
-                                    @endif
+                                <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                    {{ $butir->keputusan_ragab ?? '-' }}
                                 </td>
                             @endif
 
-                            {{-- TINDAK LANJUT DIREKSI --}}
-                            <td class="top pre-line">
+                            @if (!in_array($direktoratLabel, $printedDirektorats, true))
+                                <td rowspan="{{ $direktoratRowspans[$direktoratLabel] ?? 1 }}" class="center pre-line">
+                                    {{ $direktoratLabel }}
+                                </td>
+
+                                @php
+                                    $printedDirektorats[] = $direktoratLabel;
+                                @endphp
+                            @endif
+
+                            <td class="center pre-line">
+                                {{ $tl?->unitKerja?->kode_unit ?? '-' }}
+                            </td>
+
+                            <td class="pre-line">
                                 {{ $tl?->tindak_lanjut ?? '-' }}
                             </td>
 
-                            {{-- DELIVERABLE --}}
-                            <td class="top pre-line">
+                            <td class="pre-line">
                                 {{ $tl?->deliverables ?? '-' }}
                             </td>
 
-                            {{-- DOKUMEN PENDUKUNG --}}
-                            <td class="center">
+                            <td class="center pre-line">
                                 @if ($tl?->dokumen)
-                                    <a href="{{ asset('storage/' . $tl->dokumen) }}">
-                                        Dokumen Tindak Lanjut
-                                    </a>
-                                @else
+                                    <a href="{{ asset('storage/' . $tl->dokumen) }}">Dokumen TL</a>
+                                @endif
+
+                                @if (!$record->dokumen && !$record->dokumen_memo && !$tl?->dokumen)
                                     -
                                 @endif
                             </td>
 
-                            {{-- TANGGAL JATUH TEMPO --}}
                             <td class="center pre-line">
                                 @if ($tl?->jth_tempo)
                                     {{ \Carbon\Carbon::parse($tl->jth_tempo)->format('d-M-Y') }}
@@ -261,24 +293,18 @@
                             </td>
 
                             @if ($i === 0)
-                                <td rowspan="{{ $jumlahBarisButir }}" class="center top pre-line">
-                                    {{ $komitePic?->komite?->kode_komite ?? '-' }}
+                                <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                    {{ $review?->hasil_review ?? '-' }}
+                                </td>
+
+                                <td rowspan="{{ $jumlahBarisButir }}" class="center">
+                                    <span class="status-badge {{ $statusTlClass }}">
+                                        {{ $statusTlLabel }}
+                                    </span>
                                 </td>
                             @endif
-
-                            {{-- HASIL REVIU --}}
-                            <td class="top pre-line">
-                                {{ $reviewTl?->hasil_review ?? '-' }}
-                            </td>
-
-                            {{-- STATUS --}}
-                            <td class="center">
-                                <span class="status-badge {{ $statusTlClass }}">
-                                    {{ $statusTlLabel }}
-                                </span>
-                            </td>
                         </tr>
-                    @endfor
+                    @endforeach
                 @endforeach
             @endforeach
         </tbody>

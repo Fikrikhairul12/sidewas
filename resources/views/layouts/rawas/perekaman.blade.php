@@ -5,11 +5,11 @@
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                        RAWAS
+                        Keputusan RAWAS
                     </p>
 
                     <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                        Perekaman RAWAS
+                        Perekaman Keputusan RAWAS
                     </h1>
 
                     <p class="mt-2 text-sm text-slate-500">
@@ -136,7 +136,7 @@
                 'dalam_proses' => 'Dalam Proses',
                 'selesai' => 'Selesai',
             ],
-            'keywordPlaceholder' => 'Cari ID RAWAS, ID butir, nomor surat, perihal, atau isi butir...',
+            'keywordPlaceholder' => 'Cari ID Keputusan RAWAS, ID butir, nomor surat, perihal, atau isi butir...',
         ])
 
         {{-- Table --}}
@@ -148,7 +148,7 @@
                         Riwayat Perekaman
                     </h2>
                     <p class="mt-1 text-sm text-slate-500">
-                        Daftar RAWAS yang sudah pernah direkam ke sistem.
+                        Daftar Keputusan RAWAS yang sudah pernah direkam ke sistem.
                     </p>
                 </div>
 
@@ -162,7 +162,7 @@
                                 Informasi Surat
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Butir RAWAS
+                                Butir Keputusan RAWAS
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Cluster
@@ -203,7 +203,7 @@
 
                                         <div class="mt-3">
                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                Dokumen Surat
+                                                Dokumen Memo
                                             </p>
 
                                             @if ($record->dokumen)
@@ -441,7 +441,7 @@
                             <tr class="py-3 border-b-4 border-slate-200 transition hover:bg-blue-50/40">
                                 <td colspan="5" class="px-6 py-14 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada data perekaman RAWAS.
+                                        Belum ada data perekaman Keputusan RAWAS.
                                     </p>
                                     <p class="mt-1 text-xs text-slate-400">
                                         Klik tombol Tambah Perekaman untuk menambahkan data pertama.
@@ -525,11 +525,11 @@
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
-                            Tambah Perekaman RAWAS
+                            Tambah Perekaman Keputusan RAWAS
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            ID RAWAS, tanggal jatuh tempo, dan status draft akan dibuat otomatis.
+                            ID Keputusan RAWAS, tanggal jatuh tempo, dan status draft akan dibuat otomatis.
                         </p>
                     </div>
 
@@ -588,7 +588,7 @@
 
                         <div class="lg:col-span-2">
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Dokumen Surat
+                                Dokumen Memo
                             </label>
 
                             <input type="file" name="dokumen"
@@ -664,13 +664,13 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Tambah Butir RAWAS
+                            Tambah Butir Keputusan RAWAS
                         </p>
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
                             Surat <span x-text="selectedRecord?.id_rawas"></span>
                         </h2>
                         <p class="mt-1 text-sm text-slate-500">
-                            ID Butir RAWAS akan dibuat otomatis.
+                            ID Butir Keputusan RAWAS akan dibuat otomatis.
                         </p>
                     </div>
 
@@ -686,11 +686,11 @@
                     <div class="grid gap-5 lg:grid-cols-2">
                         <div class="lg:col-span-2">
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Isi Butir RAWAS
+                                Isi Butir Keputusan RAWAS
                             </label>
                             <textarea name="butir_rawas" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan isi butir RAWAS..."></textarea>
+                                placeholder="Masukkan isi butir Keputusan RAWAS..."></textarea>
                         </div>
 
                         <div>

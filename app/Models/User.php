@@ -373,59 +373,6 @@ class User extends Authenticatable
             || $this->hasRoleType('pic_ragab');
     }
 
-    public function canCreateRagabTindakLanjutForButir(RagabButir $butir): bool
-    {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
-        $hasAllowedRole = $this->hasRoleType('pic_ragab')
-            || $this->hasRoleType('moderator_ragab');
-
-        if (!$hasAllowedRole) {
-            return false;
-        }
-
-        $userUnitKerjaIds = $this->unitKerjaIds();
-
-        if (empty($userUnitKerjaIds)) {
-            return false;
-        }
-
-        $picUnitKerjaIds = $butir->butirPics()
-            ->whereIn('jenis_pic', ['utama', 'pendukung'])
-            ->whereNotNull('unit_kerja_id')
-            ->pluck('unit_kerja_id')
-            ->toArray();
-
-        return count(array_intersect($userUnitKerjaIds, $picUnitKerjaIds)) > 0;
-    }
-
-    public function canAccessRagabReview(): bool
-    {
-        return $this->isSuperAdmin()
-            || $this->hasRoleType('admin_ragab')
-            || $this->hasRoleType('moderator_ragab')
-            || $this->hasRoleType('komite_ragab');
-    }
-
-    public function canReviewRagabByKomite(?int $komiteId): bool
-    {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
-        if (!$this->hasRoleType('pic_ragab') && !$this->hasRoleType('moderator_ragab')) {
-            return false;
-        }
-
-        if (empty($komiteId)) {
-            return false;
-        }
-
-        return in_array($komiteId, $this->komiteIds());
-    }
-
     public function canAccessRawasPerekaman(): bool
     {
         return $this->isSuperAdmin()
@@ -647,4 +594,48 @@ class User extends Authenticatable
             || $this->hasRoleType('admin_djsn')
             || $this->isSuperAdmin();
     }
+
+    public function canCreateRagabTindakLanjutForButir(RagabButir $butir): bool
+    {
+        if ($this->isSuperAdmin() || $this->hasRoleType('admin_ragab') || $this->hasRoleType('moderator_ragab')) {
+            return true;
+        }
+
+        if (!$this->hasRoleType('pic_ragab')) {
+            return false;
+        }
+
+        $userUnitKerjaIds = $this->unitKerjaIds();
+
+        if (empty($userUnitKerjaIds)) {
+            return false;
+        }
+
+        $picUnitKerjaIds = $butir->butirPics()
+            ->where('jenis_pic', 'unit')
+            ->whereNotNull('unit_kerja_id')
+            ->pluck('unit_kerja_id')
+            ->toArray();
+
+        return count(array_intersect($userUnitKerjaIds, $picUnitKerjaIds)) > 0;
+    }
+
+    public function canAccessRagabReview(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_ragab')
+            || $this->hasRoleType('moderator_ragab')
+            || $this->hasRoleType('pic_ragab');
+    }
+
+    // * Method ini boleh tetap ada untuk kompatibilitas lama, tapi RAGAB baru tidak bergantung komite.
+    public function canReviewRagabByKomite(?int $komiteId): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_ragab')
+            || $this->hasRoleType('moderator_ragab')
+            || $this->hasRoleType('pic_ragab');
+    }
+
 }
+

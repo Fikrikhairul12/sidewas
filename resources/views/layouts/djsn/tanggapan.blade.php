@@ -5,15 +5,15 @@
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                        DJSN
+                        Rekomendasi DJSN
                     </p>
 
                     <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                        Tanggapan DJSN
+                        Tanggapan Rekomendasi DJSN
                     </h1>
 
                     <p class="mt-2 text-sm text-slate-500">
-                        Halaman ini digunakan untuk memberikan tanggapan terhadap butir DJSN yang menjadi tanggung jawab
+                        Halaman ini digunakan untuk memberikan tanggapan terhadap butir Rekomendasi DJSN yang menjadi tanggung jawab
                         PIC.
                     </p>
                 </div>
@@ -39,7 +39,7 @@
                 'belum' => 'Belum Ditanggapi',
                 'sudah' => 'Sudah Ditanggapi',
             ],
-            'keywordPlaceholder' => 'Cari ID DJSN, ID butir, nomor surat, perihal, isi butir, atau tanggapan...',
+            'keywordPlaceholder' => 'Cari ID Rekomendasi DJSN, ID butir, nomor surat, perihal, isi butir, atau tanggapan...',
         ])
 
         {{-- TABLE --}}
@@ -48,7 +48,7 @@
                 class="flex flex-col gap-3 border-b border-blue-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-lg font-bold text-slate-800">
-                        Daftar Butir DJSN
+                        Daftar Butir Rekomendasi DJSN
                     </h2>
                     <p class="mt-1 text-sm text-slate-500">
                         Setiap butir hanya bisa memiliki satu tanggapan.
@@ -61,10 +61,10 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi DJSN
+                                Informasi Rekomendasi DJSN
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Butir DJSN
+                                Butir Rekomendasi DJSN
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 PIC
@@ -231,7 +231,7 @@
                             <tr>
                                 <td colspan="5" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada butir DJSN yang dapat ditanggapi.
+                                        Belum ada butir Rekomendasi DJSN yang dapat ditanggapi.
                                     </p>
                                 </td>
                             </tr>
@@ -268,7 +268,7 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Form Tanggapan DJSN
+                            Form Tanggapan Rekomendasi DJSN
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
@@ -276,7 +276,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            Satu butir DJSN hanya dapat memiliki satu tanggapan.
+                            Satu butir Rekomendasi DJSN hanya dapat memiliki satu tanggapan.
                         </p>
                     </div>
 
@@ -304,7 +304,7 @@
                     <div class="grid gap-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Tanggapan
+                                Tanggapan Rekomendasi DJSN
                             </label>
                             <textarea name="tanggapan" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
