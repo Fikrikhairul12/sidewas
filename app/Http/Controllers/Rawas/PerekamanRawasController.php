@@ -30,9 +30,9 @@ class PerekamanRawasController extends Controller
 
         $recordsQuery = RawasRecord::query()
             ->with([
-                'cluster',
-                'subCluster',
                 'creator',
+                'butirRawas.cluster',
+                'butirRawas.subCluster',
                 'butirRawas.butirPics.unitKerja.direktorat',
                 'butirRawas.butirPics.komite',
             ])
@@ -51,11 +51,15 @@ class PerekamanRawasController extends Controller
         }
 
         if ($request->filled('cluster_id')) {
-            $recordsQuery->where('cluster_id', $request->cluster_id);
+            $recordsQuery->whereHas('butirRawas', function ($butirQuery) use ($request) {
+                $butirQuery->where('cluster_id', $request->cluster_id);
+            });
         }
 
         if ($request->filled('sub_cluster_id')) {
-            $recordsQuery->where('sub_cluster_id', $request->sub_cluster_id);
+            $recordsQuery->whereHas('butirRawas', function ($butirQuery) use ($request) {
+                $butirQuery->where('sub_cluster_id', $request->sub_cluster_id);
+            });
         }
 
         if ($request->filled('keyword')) {
@@ -67,40 +71,9 @@ class PerekamanRawasController extends Controller
                     ->orWhere('perihal_surat', 'like', "%{$keyword}%")
                     ->orWhereHas('butirRawas', function ($butirQuery) use ($keyword) {
                         $butirQuery->where('id_butir_rawas', 'like', "%{$keyword}%")
-                            ->orWhere('butir_rawas', 'like', "%{$keyword}%");
+                            ->orWhere('agenda_rawas', 'like', "%{$keyword}%")
+                            ->orWhere('keputusan_rawas', 'like', "%{$keyword}%");
                     });
-            });
-        }
-
-        if ($request->filled('direktorat_id')) {
-            $unitKerjaIds = UnitKerja::whereHas('direktorat', $request->direktorat_id)
-                ->pluck('id')
-                ->toArray();
-
-            $recordsQuery->whereIn('unit_kerja_id', function ($query) use ($unitKerjaIds) {
-                $query->where('jenis_pic', 'utama')
-                    ->whereIn('unit_kerja_id', $unitKerjaIds);
-            });
-        }
-
-        if ($request->filled('unit_kerja_utama_id')) {
-            $recordsQuery->whereHas('butirRawas.butirPics', function ($query) use ($request) {
-                $query->where('jenis_pic', 'utama')
-                    ->where('unit_kerja_id', $request->unit_kerja_utama_id);
-            });
-        }
-
-        if ($request->filled('unit_kerja_pendukung_id')) {
-            $recordsQuery->whereHas('butirRawas.butirPics', function ($query) use ($request) {
-                $query->where('jenis_pic', 'pendukung')
-                    ->where('unit_kerja_id', $request->unit_kerja_pendukung_id);
-            });
-        }
-
-        if ($request->filled('komite_id')) {
-            $recordsQuery->whereHas('butirRawas.butirPics', function ($query) use ($request) {
-                $query->where('jenis_pic', 'komite')
-                    ->where('komite_id', $request->komite_id);
             });
         }
 
@@ -113,21 +86,47 @@ class PerekamanRawasController extends Controller
             ->orderBy('nama_cluster')
             ->get();
 
-        $direktorats = Direktorat::with('unitKerja')
-            ->orderBy('nama_direktorat')
-            ->get();
+        $dewasDirektorat = Direktorat::where('nama_direktorat', 'like', '%Dewan Pengawas%')
+            ->first();
 
-        $unitKerjas = UnitKerja::with('direktorat')
+        $unitKerjas = UnitKerja::query()
             ->orderBy('nama_unit')
             ->get();
 
         $komites = Komite::orderBy('nama_komite')->get();
 
+        $picOptions = collect()
+            ->merge(
+                $unitKerjas->map(function ($unit) {
+                    return [
+                        'value' => 'unit:' . $unit->id,
+                        'label' => ($unit->kode_unit ?? '-') . ' - ' . $unit->nama_unit,
+                        'sub_label' => 'Dewan Pengawas',
+                        'type' => 'Direktorat',
+                    ];
+                })
+            )
+            ->merge(
+                $komites->map(function ($komite) {
+                    return [
+                        'value' => 'komite:' . $komite->id,
+                        'label' => ($komite->kode_komite ?? '-') . ' - ' . $komite->nama_komite,
+                        'sub_label' => 'Dewan Pengawas',
+                        'type' => 'Direktorat',
+                    ];
+                })
+            )
+            ->values();
+
+        $direktorats = $dewasDirektorat ? collect([$dewasDirektorat]) : collect();
+
         $statistik = [
             'total' => RawasRecord::count(),
-            'selesai' => RawasRecord::where('status', 'selesai')->count(),
-            'proses' => RawasRecord::where('status', 'dalam_proses')->count(),
             'draft' => RawasRecord::where('status', 'draft')->count(),
+            'terbit' => RawasRecord::where('status', 'terbit')->count(),
+            'dalam_proses' => RawasRecord::where('status', 'dalam_proses')->count(),
+            'diusulkan_tuntas' => RawasRecord::where('status', 'diusulkan_tuntas')->count(),
+            'tuntas' => RawasRecord::where('status', 'tuntas')->count(),
         ];
 
         return view('layouts.rawas.perekaman', compact(
@@ -136,6 +135,7 @@ class PerekamanRawasController extends Controller
             'direktorats',
             'unitKerjas',
             'komites',
+            'picOptions',
             'statistik'
         ));
     }
@@ -152,25 +152,21 @@ class PerekamanRawasController extends Controller
             'nomor_surat' => ['required', 'string', 'max:255'],
             'tanggal_surat' => ['required', 'date'],
             'perihal_surat' => ['required', 'string'],
-            'cluster_id' => ['required', 'integer'],
-            'sub_cluster_id' => ['required', 'integer'],
-            'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+            'dokumen_memo' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
         ]);
 
         DB::connection('mysql_rawas')->transaction(function () use ($request, $validated) {
-            $dokumenPath = null;
+            $dokumenMemoPath = null;
 
-            if ($request->hasFile('dokumen')) {
-                $dokumenPath = $request->file('dokumen')->store('dokumen/record-rawas', 'public');
+            if ($request->hasFile('dokumen_memo')) {
+                $dokumenMemoPath = $request->file('dokumen_memo')->store('dokumen/memo-rawas', 'public');
             }
 
             $record = RawasRecord::create([
-                'cluster_id' => $validated['cluster_id'],
-                'sub_cluster_id' => $validated['sub_cluster_id'],
                 'nomor_surat' => $validated['nomor_surat'],
                 'tanggal_surat' => $validated['tanggal_surat'],
                 'perihal_surat' => $validated['perihal_surat'],
-                'dokumen' => $dokumenPath,
+                'dokumen_memo' => $dokumenMemoPath,
                 'status' => 'draft',
             ]);
 
@@ -203,46 +199,50 @@ class PerekamanRawasController extends Controller
         }
 
         $validated = $request->validate([
-            'butir_rawas' => ['required', 'string'],
-
-            'unit_kerja_utama_id' => ['required', 'integer'],
-
-            'unit_kerja_pendukung_id' => ['nullable', 'array'],
-            'unit_kerja_pendukung_id.*' => ['nullable', 'integer'],
-
-            'komite_id' => ['required', 'integer'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_cluster,id'],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_sub_cluster,id'],
+            'tanggal_rawas' => ['required', 'date'],
+            'agenda_rawas' => ['required', 'string'],
+            'keputusan_rawas' => ['required', 'string'],
+            'pic_ids' => ['required', 'array', 'min:1'],
+            'pic_ids.*' => ['required', 'string'],
         ]);
 
         DB::connection('mysql_rawas')->transaction(function () use ($request, $validated, $record) {
             $butir = RawasButir::create([
                 'id_rawas' => $record->id_rawas,
-                'butir_rawas' => $validated['butir_rawas'],
+                'cluster_id' => $validated['cluster_id'],
+                'sub_cluster_id' => $validated['sub_cluster_id'],
+                'tanggal_rawas' => $validated['tanggal_rawas'],
+                'agenda_rawas' => $validated['agenda_rawas'],
+                'keputusan_rawas' => $validated['keputusan_rawas'],
             ]);
 
-            RawasButirPic::create([
-                'id_butir_rawas' => $butir->id_butir_rawas,
-                'unit_kerja_id' => $validated['unit_kerja_utama_id'],
-                'komite_id' => null,
-                'jenis_pic' => 'utama',
-            ]);
+            foreach ($validated['pic_ids'] as $picValue) {
+                if (!str_contains($picValue, ':')) {
+                    continue;
+                }
 
-            foreach (($validated['unit_kerja_pendukung_id'] ?? []) as $unitKerjaPendukungId) {
-                if (!empty($unitKerjaPendukungId)) {
-                    RawasButirPic::create([
+                [$jenisPic, $picId] = explode(':', $picValue, 2);
+
+                if ($jenisPic === 'unit') {
+                    RawasButirPic::firstOrCreate([
                         'id_butir_rawas' => $butir->id_butir_rawas,
-                        'unit_kerja_id' => $unitKerjaPendukungId,
+                        'unit_kerja_id' => (int) $picId,
                         'komite_id' => null,
-                        'jenis_pic' => 'pendukung',
+                        'jenis_pic' => 'unit',
+                    ]);
+                }
+
+                if ($jenisPic === 'komite') {
+                    RawasButirPic::firstOrCreate([
+                        'id_butir_rawas' => $butir->id_butir_rawas,
+                        'unit_kerja_id' => null,
+                        'komite_id' => (int) $picId,
+                        'jenis_pic' => 'komite',
                     ]);
                 }
             }
-
-            RawasButirPic::create([
-                'id_butir_rawas' => $butir->id_butir_rawas,
-                'unit_kerja_id' => null,
-                'komite_id' => $validated['komite_id'],
-                'jenis_pic' => 'komite',
-            ]);
 
             if ($record->status === 'draft') {
                 $record->update([
@@ -276,17 +276,22 @@ class PerekamanRawasController extends Controller
 
     public function downloadDokumen(RawasRecord $record)
     {
+        return $this->downloadDokumenMemo($record);
+    }
+
+    public function downloadDokumenMemo(RawasRecord $record)
+    {
         $user = User::find(Auth::id());
 
         if (!$user || !$user->canAccessRawasPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen.');
         }
 
-        if (!$record->dokumen) {
+        if (!$record->dokumen_memo) {
             abort(404, 'Dokumen tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $record->dokumen);
+        $filePath = storage_path('app/public/' . $record->dokumen_memo);
 
         if (!file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
@@ -314,8 +319,8 @@ class PerekamanRawasController extends Controller
 
                 $recordKey = $record->id_rawas;
 
-                if ($record->dokumen && Storage::disk('public')->exists($record->dokumen)) {
-                    Storage::disk('public')->delete($record->dokumen);
+                if ($record->dokumen_memo && Storage::disk('public')->exists($record->dokumen_memo)) {
+                    Storage::disk('public')->delete($record->dokumen_memo);
                 }
 
                 $record->delete();

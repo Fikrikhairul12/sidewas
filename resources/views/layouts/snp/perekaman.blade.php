@@ -390,6 +390,24 @@
                                             @endif
                                         </div>
 
+                                        <div class="mt-3">
+                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                Dokumen Memo
+                                            </p>
+
+                                            @if ($record->dokumen_memo)
+                                                <a href="{{ route('snp.perekaman.dokumen-memo', $record->id) }}"
+                                                    class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                    style="background-color: #2377b9;">
+                                                    Download Memo
+                                                </a>
+                                            @else
+                                                <p class="mt-1 text-xs text-slate-400">
+                                                    -
+                                                </p>
+                                            @endif
+                                        </div>
+
                                         <div class="mt-4 rounded-xl bg-slate-50 p-4">
                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                                 Jatuh Tempo
@@ -553,7 +571,8 @@
                                             ][$record->status] ?? 'text-white';
                                     @endphp
 
-                                    <span class="inline-flex text-center rounded-full px-4 py-1.5 text-xs font-bold {{ $teksColor }}"
+                                    <span
+                                        class="inline-flex text-center rounded-full px-4 py-1.5 text-xs font-bold {{ $teksColor }}"
                                         style="background-color: {{ $statusColor }};">
                                         {{ $statusLabel }}
                                     </span>
@@ -762,6 +781,19 @@
                             </label>
 
                             <input type="file" name="dokumen"
+                                class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Opsional. Format: PDF, Word, Excel, JPG, PNG. Maksimal 5 MB.
+                            </p>
+                        </div>
+
+                        <div class="lg:col-span-2">
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Dokumen Memo
+                            </label>
+
+                            <input type="file" name="dokumen_memo"
                                 class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
 
                             <p class="mt-1 text-xs text-slate-500">

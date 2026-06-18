@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
 use App\Models\Komite;
 use App\Models\SnpCluster;
+use App\Models\SnpKompilasi;
 use App\Models\UnitKerja;
 use App\Models\LogActivity;
 use App\Models\SnpReview;
@@ -30,20 +31,16 @@ class ReviuSnpController extends Controller
         $query = SnpReview::with([
             'butir.record.cluster',
             'butir.record.subCluster',
+            'butir.tanggapan.creator',
+            'butir.tanggapan.butirPic.unitKerja',
+            'butir.tindakLanjuts.creator',
+            'butir.tindakLanjuts.butirPic.unitKerja',
             'tanggapan.creator',
             'tindakLanjut.creator',
+            'kompilasiTanggapan',
+            'kompilasiTindakLanjut',
             'komite',
-        ])
-            ->where(function ($q) {
-                $q->where(function ($tanggapanQuery) {
-                    $tanggapanQuery->where('tahap_review', 'tanggapan')
-                        ->whereNotNull('id_tanggapan');
-                })
-                    ->orWhere(function ($tlQuery) {
-                        $tlQuery->where('tahap_review', 'tindak_lanjut')
-                            ->whereNotNull('id_tindak_lanjut');
-                    });
-            });
+        ]);
 
         if (!$user->isSuperAdmin()) {
             $query->whereIn('komite_id', $komiteIds);
@@ -156,7 +153,7 @@ class ReviuSnpController extends Controller
 
         $statusOptions = [
             'belum_ditanggapi' => 'Belum Ditanggapi',
-            'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
+            'dalam_proses_reviu_dewas' => 'Dalam Proses Reviu Dewas',
             'dalam_proses_tindak_lanjut_direksi' => 'Dalam Proses Tindak Lanjut Direksi',
             'selesai_tuntas' => 'Selesai Tuntas',
         ];
@@ -185,6 +182,8 @@ class ReviuSnpController extends Controller
             'tanggapan',
             'tindakLanjut',
             'butir.record',
+            'kompilasiTanggapan',
+            'kompilasiTindakLanjut',
         ]);
 
         if (
@@ -194,20 +193,14 @@ class ReviuSnpController extends Controller
             return back()->with('error', 'Reviu ini sudah selesai diproses dan tidak dapat diubah.');
         }
 
-        if (
-            ($review->tahap_review === 'tanggapan' && empty($review->id_tanggapan)) ||
-            ($review->tahap_review === 'tindak_lanjut' && empty($review->id_tindak_lanjut))
-        ) {
-            return back()->with('error', 'Data reviu tidak valid.');
-        }
-
         $validated = $request->validate([
             'hasil_review' => ['required', 'string'],
             'deliverables' => ['nullable', 'string'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+            'dokumen_memo' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
             'status' => [
                 'required',
-                'in:belum_ditanggapi,dalam_proses_reviu_dewan_pengawas,dalam_proses_tindak_lanjut_direksi,selesai_tuntas',
+                'in:belum_ditanggapi,dalam_proses_reviu_dewas,dalam_proses_tindak_lanjut_direksi,selesai_tuntas',
             ],
             'status_pengajuan_tgl' => ['nullable', 'in:pending,disetujui,ditolak'],
         ]);
@@ -215,9 +208,12 @@ class ReviuSnpController extends Controller
         DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $review, $user) {
             $oldReview = $review->toArray();
             $oldTanggapan = $review->tanggapan?->toArray();
+            $oldKompilasiTanggapan = $review->kompilasiTanggapan?->toArray();
+            $oldKompilasiTindakLanjut = $review->kompilasiTindakLanjut?->toArray();
             $oldRecord = $review->butir?->record?->toArray();
 
             $dokumenPath = $review->dokumen;
+            $dokumenMemoPath = $review->dokumen_memo ?? null;
 
             if ($request->hasFile('dokumen')) {
                 if ($review->dokumen && Storage::disk('public')->exists($review->dokumen)) {
@@ -227,21 +223,29 @@ class ReviuSnpController extends Controller
                 $dokumenPath = $request->file('dokumen')->store('dokumen/reviu-snp', 'public');
             }
 
+            if ($request->hasFile('dokumen_memo')) {
+                if ($review->dokumen_memo && Storage::disk('public')->exists($review->dokumen_memo)) {
+                    Storage::disk('public')->delete($review->dokumen_memo);
+                }
+
+                $dokumenMemoPath = $request->file('dokumen_memo')->store('dokumen/memo-reviu-snp', 'public');
+            }
+
             $review->update([
                 'hasil_review' => $validated['hasil_review'],
                 'deliverables' => $validated['deliverables'] ?? null,
                 'dokumen' => $dokumenPath,
+                'dokumen_memo' => $dokumenMemoPath,
                 'status' => $validated['status'],
             ]);
 
             if (
-                $review->tahap_review === 'tanggapan'
-                && $validated['status'] === 'dalam_proses_tindak_lanjut_direksi'
+                $validated['status'] === 'dalam_proses_tindak_lanjut_direksi'
                 && $review->butir
                 && $review->butir->record
             ) {
                 $review->butir->record->update([
-                    'status' => 'dalam_proses',
+                    'status' => 'proses',
                 ]);
             }
 
@@ -256,19 +260,22 @@ class ReviuSnpController extends Controller
                 ]);
             }
 
-            if ($review->tahap_review === 'tanggapan' && $review->tanggapan) {
-                $review->tanggapan->update([
-                    'status_pengajuan_tgl' => $validated['status_pengajuan_tgl'] ?? 'pending',
+            if ($review->tahap_review === 'tanggapan' && $review->kompilasiTanggapan) {
+                $statusPengajuanTanggal = $validated['status_pengajuan_tgl'] ?? 'pending';
+
+                $review->kompilasiTanggapan->update([
+                    'status_pengajuan_tgl' => $statusPengajuanTanggal,
                 ]);
 
                 if (
-                    ($validated['status_pengajuan_tgl'] ?? null) === 'disetujui'
-                    && !empty($review->tanggapan->ubah_tgl)
+                    $statusPengajuanTanggal === 'disetujui'
+                    && !empty($review->kompilasiTanggapan->ubah_tgl)
                     && $review->butir
                     && $review->butir->record
                 ) {
                     $review->butir->record->update([
-                        'jth_tempo' => $review->tanggapan->ubah_tgl,
+                        'jth_tempo' => $review->kompilasiTanggapan->ubah_tgl,
+                        'updated_by' => $user->id,
                     ]);
                 }
             }
@@ -288,11 +295,15 @@ class ReviuSnpController extends Controller
                 'old_values' => [
                     'review' => $oldReview,
                     'tanggapan' => $oldTanggapan,
+                    'kompilasi_tanggapan' => $oldKompilasiTanggapan,
+                    'kompilasi_tindak_lanjut' => $oldKompilasiTindakLanjut,
                     'record' => $oldRecord,
                 ],
                 'new_values' => [
                     'review' => $review->fresh()->toArray(),
                     'tanggapan' => $review->tanggapan?->fresh()?->toArray(),
+                    'kompilasi_tanggapan' => $review->kompilasiTanggapan?->fresh()?->toArray(),
+                    'kompilasi_tindak_lanjut' => $review->kompilasiTindakLanjut?->fresh()?->toArray(),
                     'record' => $review->butir?->record?->fresh()?->toArray(),
                 ],
                 'ip_address' => $request->ip(),
@@ -313,23 +324,49 @@ class ReviuSnpController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen ini.');
         }
 
-        $review->load(['tanggapan', 'tindakLanjut']);
+        $review->load([
+            'kompilasiTanggapan',
+            'kompilasiTindakLanjut',
+        ]);
 
-        $dokumen = null;
+        $kompilasi = null;
 
         if ($review->tahap_review === 'tanggapan') {
-            $dokumen = $review->tanggapan?->dokumen;
+            $kompilasi = $review->kompilasiTanggapan;
         }
 
         if ($review->tahap_review === 'tindak_lanjut') {
-            $dokumen = $review->tindakLanjut?->dokumen;
+            $kompilasi = $review->kompilasiTindakLanjut;
         }
 
+        $dokumen = $kompilasi?->dokumen;
+
         if (!$dokumen) {
-            abort(404, 'Dokumen tidak ditemukan.');
+            abort(404, 'Dokumen kompilasi tidak ditemukan.');
         }
 
         $filePath = storage_path('app/public/' . $dokumen);
+
+        if (!file_exists($filePath)) {
+            abort(404, 'File tidak ditemukan di storage.');
+        }
+
+        return response()->download($filePath);
+    }
+
+    public function downloadDokumenMemo(SnpReview $review)
+    {
+        $user = User::find(Auth::id());
+
+        if (!$user || !$user->canReviewSnpByKomite($review->komite_id)) {
+            abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen memo reviu.');
+        }
+
+        if (!$review->dokumen_memo) {
+            abort(404, 'Dokumen memo reviu tidak ditemukan.');
+        }
+
+        $filePath = storage_path('app/public/' . $review->dokumen_memo);
 
         if (!file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');

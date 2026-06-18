@@ -16,6 +16,7 @@ use App\Http\Controllers\Rawas\PerekamanRawasController;
 use App\Http\Controllers\Rawas\ReportRawasController;
 use App\Http\Controllers\Rawas\ReviuRawasController;
 use App\Http\Controllers\Rawas\TindakLanjutRawasController;
+use App\Http\Controllers\Snp\KompilasiSnpController;
 use App\Http\Controllers\Snp\PerekamanSnpController;
 use App\Http\Controllers\Snp\ReportSnpController;
 use App\Http\Controllers\Snp\ReviuSnpController;
@@ -49,6 +50,22 @@ Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
     ->name('google.callback');
 
+// TODO: ADMINISTRASI
+Route::middleware(['auth', 'verified'])->group(function () {
+        Route::get('/administrasi/pengajuan', [PengajuanController::class, 'index'])
+            ->name('administrasi.pengajuan.index');
+
+        Route::patch('/administrasi/pengajuan/{deleteRequest}/verify', [PengajuanController::class, 'verify'])
+            ->name('administrasi.pengajuan.verify');
+
+        Route::patch('/administrasi/pengajuan/{deleteRequest}/approve', [PengajuanController::class, 'approve'])
+            ->name('administrasi.pengajuan.approve');
+
+        Route::patch('/administrasi/pengajuan/{deleteRequest}/reject', [PengajuanController::class, 'reject'])
+            ->name('administrasi.pengajuan.reject');
+    });
+
+// TODO: SNP
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/snp/perekaman', [PerekamanSnpController::class, 'index'])
         ->name('snp.perekaman');
@@ -62,22 +79,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/snp/perekaman/{record}/dokumen', [PerekamanSnpController::class, 'downloadDokumen'])
         ->name('snp.perekaman.dokumen');
 
+    Route::get('/snp/perekaman/{record}/dokumen-memo', [PerekamanSnpController::class, 'downloadDokumenMemo'])
+        ->name('snp.perekaman.dokumen-memo');
+
     Route::delete('/snp/perekaman/{record}/request-delete', [PerekamanSnpController::class, 'requestDelete'])
         ->name('snp.perekaman.destroy.request');
-});
-
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/administrasi/pengajuan', [PengajuanController::class, 'index'])
-        ->name('administrasi.pengajuan.index');
-
-    Route::patch('/administrasi/pengajuan/{deleteRequest}/verify', [PengajuanController::class, 'verify'])
-        ->name('administrasi.pengajuan.verify');
-
-    Route::patch('/administrasi/pengajuan/{deleteRequest}/approve', [PengajuanController::class, 'approve'])
-        ->name('administrasi.pengajuan.approve');
-
-    Route::patch('/administrasi/pengajuan/{deleteRequest}/reject', [PengajuanController::class, 'reject'])
-        ->name('administrasi.pengajuan.reject');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -89,6 +95,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/snp/kompilasi', [KompilasiSnpController::class, 'index'])
+        ->name('snp.kompilasi.index');
+
+    Route::post('/snp/kompilasi/{butir}', [KompilasiSnpController::class, 'store'])
+        ->name('snp.kompilasi.store');
+
+    Route::get('/snp/kompilasi/{kompilasi}/dokumen', [KompilasiSnpController::class, 'downloadDokumen'])
+        ->name('snp.kompilasi.dokumen');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/snp/reviu', [ReviuSnpController::class, 'index'])
         ->name('snp.reviu.index');
 
@@ -97,6 +114,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/snp/reviu/{review}/dokumen', [ReviuSnpController::class, 'downloadDokumen'])
         ->name('snp.reviu.dokumen');
+
+    Route::get('/snp/reviu/{review}/dokumen-memo', [ReviuSnpController::class, 'downloadDokumenMemo'])
+        ->name('snp.reviu.dokumen-memo');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -124,6 +144,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('snp.report.cetak-excel-custom');
 });
 
+// TODO: RAGAB
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/ragab/perekaman', [PerekamanRagabController::class, 'index'])
         ->name('ragab.perekaman');
@@ -180,6 +201,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('ragab.report.cetak-excel-custom');
 });
 
+// TODO: RAWAS
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/rawas/perekaman', [PerekamanRawasController::class, 'index'])
         ->name('rawas.perekaman');
@@ -192,6 +214,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/rawas/perekaman/{record}/dokumen', [PerekamanRawasController::class, 'downloadDokumen'])
         ->name('rawas.perekaman.dokumen');
+
+    Route::get('/rawas/perekaman/{record}/dokumen-memo', [PerekamanRawasController::class, 'downloadDokumenMemo'])
+        ->name('rawas.perekaman.dokumen-memo');
 
     Route::delete('/rawas/perekaman/{record}/request-delete', [PerekamanRawasController::class, 'requestDelete'])
         ->name('rawas.perekaman.destroy.request');
@@ -233,6 +258,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('rawas.report.cetak-excel-custom');
 });
 
+// TODO: DJSN
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/djsn/perekaman', [PerekamanDjsnController::class, 'index'])
         ->name('djsn.perekaman');

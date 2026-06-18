@@ -288,9 +288,10 @@
 
                                         <div class="mt-2 space-y-1">
                                             @forelse ($unitPics as $pic)
-                                                <p class="text-xs text-slate-700">
-                                                    {{ $pic->unitKerja?->kode_unit ?? '-' }} - {{ $pic->unitKerja?->nama_unit ?? '-' }}
-                                                </p>
+                                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold text-slate-700"
+                                                            style="background-color: #c8e079;">
+                                                    {{ $pic->unitKerja?->kode_unit ?? '-' }}
+                                                </span>
                                             @empty
                                                 <p class="text-xs text-slate-400">-</p>
                                             @endforelse

@@ -4,6 +4,7 @@
         butirSearch: '',
         selectedButirId: '',
         selectedButir: null,
+        selectedButirPicId: '',
         butirs: @js(
             $butirSiapTindakLanjut
                 ->map(
@@ -13,9 +14,25 @@
                         'id_rawas' => $butir->record?->id_rawas,
                         'nomor_surat' => $butir->record?->nomor_surat,
                         'perihal_surat' => $butir->record?->perihal_surat,
-                        'butir_rawas' => $butir->butir_rawas,
+                        'tanggal_rawas_label' => $butir->tanggal_rawas ? \Carbon\Carbon::parse($butir->tanggal_rawas)->format('d/m/Y') : '-',
+                        'agenda_rawas' => $butir->agenda_rawas,
+                        'keputusan_rawas' => $butir->keputusan_rawas,
+                        'cluster' => $butir->cluster?->nama_cluster,
+                        'sub_cluster' => $butir->subCluster?->nama_sub_cluster,
                         'jth_tempo' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('Y-m-d') : null,
                         'jth_tempo_label' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('d/m/Y') : '-',
+                        'unit_pics' => $butir->butirPics
+                            ->where('jenis_pic', 'unit')
+                            ->map(
+                                fn($pic) => [
+                                    'butir_pic_id' => $pic->id,
+                                    'kode_unit' => $pic->unitKerja?->kode_unit,
+                                    'nama_unit' => $pic->unitKerja?->nama_unit,
+                                    'direktorat' => 'Dewan Pengawas',
+                                ],
+                            )
+                            ->filter(fn($unit) => !empty($unit['butir_pic_id']))
+                            ->values(),
                     ],
                 )
                 ->values(),
@@ -33,20 +50,31 @@
                     String(butir.id_rawas || '').toLowerCase().includes(keyword) ||
                     String(butir.nomor_surat || '').toLowerCase().includes(keyword) ||
                     String(butir.perihal_surat || '').toLowerCase().includes(keyword) ||
-                    String(butir.butir_rawas || '').toLowerCase().includes(keyword);
+                    String(butir.tanggal_rawas_label || '').toLowerCase().includes(keyword) ||
+                    String(butir.agenda_rawas || '').toLowerCase().includes(keyword) ||
+                    String(butir.keputusan_rawas || '').toLowerCase().includes(keyword) ||
+                    String(butir.cluster || '').toLowerCase().includes(keyword) ||
+                    String(butir.sub_cluster || '').toLowerCase().includes(keyword);
             });
         },
 
         selectButir(butir) {
             this.selectedButir = butir;
             this.selectedButirId = butir.id;
+            this.selectedButirPicId = '';
             this.butirSearch = `${butir.id_butir_rawas} - ${butir.nomor_surat ?? '-'}`;
         },
 
         resetButir() {
             this.selectedButir = null;
             this.selectedButirId = '';
+            this.selectedButirPicId = '';
             this.butirSearch = '';
+        },
+
+        openCreate() {
+            this.resetButir();
+            this.openModal = true;
         }
     }" class="space-y-6">
 
@@ -66,7 +94,7 @@
                     </p>
                 </div>
 
-                <button type="button" @click="openModal = true"
+                <button type="button" @click="openCreate()"
                     class="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
                     style="background-color: #2377b9;">
                     Tambah Tindak Lanjut
@@ -130,16 +158,13 @@
                                 $item = $row['item'];
                                 $record = $butir?->record;
 
-                                $reviewTerakhir = $item
-                                    ? $item->reviews
-                                        ->where('tahap_review', 'tindak_lanjut')
-                                        ->sortByDesc('id')
-                                        ->first()
-                                    : null;
+                                $reviewTerakhir = $butir?->reviewTindakLanjut;
 
                                 $komitePic = $butir?->butirPics
                                     ?->where('jenis_pic', 'komite')
                                     ->first();
+
+                                $unitPics = $butir?->butirPics?->where('jenis_pic', 'unit') ?? collect();
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -161,20 +186,35 @@
                                         Butir: {{ $butir?->id_butir_rawas ?? '-' }}
                                     </p>
 
-                                    <p
-                                        class="mt-3 max-w-md whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $butir?->butir_rawas ?? '-' }}
+                                    <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Tanggal & Agenda RAWAS
                                     </p>
 
-                                    <div class="mt-4">
-                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Komite
-                                        </p>
+                                    <p class="mt-1 max-w-md whitespace-pre-line text-xs text-slate-800">
+                                        {{ $butir?->tanggal_rawas ? \Carbon\Carbon::parse($butir->tanggal_rawas)->format('d/m/Y') : '-' }}
+                                        <br>
+                                        {{ $butir?->agenda_rawas ?? '-' }}
+                                    </p>
 
-                                        <p class="mt-1 text-xs text-slate-700">
-                                            {{ $komitePic?->komite?->kode_komite ?? '-' }}
-                                        </p>
-                                    </div>
+                                    <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Keputusan RAWAS
+                                    </p>
+
+                                    <p class="mt-1 max-w-md whitespace-pre-line text-xs text-slate-800">
+                                        {{ $butir?->keputusan_rawas ?? '-' }}
+                                    </p>
+
+                                    <p class="mt-3 text-xs text-slate-500">
+                                        Direktorat:
+                                        <span class="font-bold text-slate-700">Dewan Pengawas</span>
+                                    </p>
+
+                                    <p class="mt-1 text-xs text-slate-500">
+                                        Cluster:
+                                        <span class="font-bold text-slate-700">
+                                            {{ $butir?->cluster?->nama_cluster ?? '-' }}
+                                        </span>
+                                    </p>
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
@@ -183,6 +223,23 @@
                                             style="background-color: #6bb17e;">
                                             Sudah Ditindaklanjuti
                                         </span>
+
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Tindak Lanjut
+                                        </p>
+
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            PIC Unit
+                                        </p>
+
+                                        <p class="mt-1 text-xs text-slate-800">
+                                            {{ $item->butirPic?->unitKerja?->kode_unit ?? '-' }} -
+                                            {{ $item->butirPic?->unitKerja?->nama_unit ?? '-' }}
+                                        </p>
+
+                                        <p class="mt-1 text-xs text-slate-500">
+                                            Direktorat - Dewan Pengawas
+                                        </p>
 
                                         <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
                                             Tindak Lanjut
@@ -238,8 +295,23 @@
                                         </span>
 
                                         <p class="mt-4 text-xs text-slate-500">
-                                            Butir ini sudah tersedia dan menunggu tindak lanjut.
+                                            Butir ini sudah tersedia dan menunggu tindak lanjut dari PIC Unit.
                                         </p>
+
+                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            PIC Unit Terdaftar
+                                        </p>
+
+                                        <div class="mt-2 flex flex-wrap gap-2">
+                                            @forelse ($unitPics as $pic)
+                                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold text-slate-700"
+                                                    style="background-color: #c8e079;">
+                                                    {{ $pic->unitKerja?->kode_unit ?? '-' }}
+                                                </span>
+                                            @empty
+                                                <span class="text-xs text-slate-400">-</span>
+                                            @endforelse
+                                        </div>
 
                                         <p class="mt-4 text-xs text-slate-500">
                                             Jatuh Tempo:
@@ -414,8 +486,8 @@
                             <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
                                 <div class="border-b border-slate-200 p-3">
                                     <input type="text" x-model="butirSearch"
-                                        @input="selectedButir = null; selectedButirId = ''"
-                                        placeholder="Ketik ID butir, ID RAWAS, nomor surat, atau isi butir..."
+                                        @input="selectedButir = null; selectedButirId = ''; selectedButirPicId = ''"
+                                        placeholder="Ketik ID butir, ID RAWAS, nomor surat, agenda, keputusan, cluster, atau sub-cluster..."
                                         class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 </div>
 
@@ -432,12 +504,15 @@
 
                                                     <p class="text-xs text-slate-500">
                                                         <span x-text="butir.id_rawas"></span>
-                                                        <span> • </span>
+                                                        <span> - </span>
                                                         <span x-text="butir.nomor_surat ?? '-'"></span>
                                                     </p>
 
                                                     <p class="mt-2 text-sm font-semibold uppercase leading-relaxed text-slate-800"
-                                                        x-text="butir.butir_rawas"></p>
+                                                        x-text="butir.agenda_rawas ?? '-'"></p>
+
+                                                    <p class="mt-1 line-clamp-2 text-xs text-slate-500"
+                                                        x-text="butir.keputusan_rawas ?? '-'"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
                                                         Jatuh Tempo:
@@ -466,6 +541,12 @@
                                         x-text="selectedButir.id_butir_rawas"></p>
 
                                     <p class="mt-2 text-sm text-slate-700">
+                                        Tanggal & Agenda:
+                                        <span class="font-bold"
+                                            x-text="`${selectedButir.tanggal_rawas_label} - ${selectedButir.agenda_rawas ?? '-'}`"></span>
+                                    </p>
+
+                                    <p class="mt-2 text-sm text-slate-700">
                                         Jatuh tempo tindak lanjut:
                                         <span class="font-bold" x-text="selectedButir.jth_tempo_label"></span>
                                     </p>
@@ -483,6 +564,24 @@
                                 </p>
                             @endif
                         </div>
+
+                        <template x-if="selectedButir">
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                    PIC Unit Penginput Tindak Lanjut
+                                </label>
+
+                                <select name="butir_pic_id" x-model="selectedButirPicId" required
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="">Pilih PIC Unit</option>
+
+                                    <template x-for="unit in selectedButir.unit_pics" :key="unit.butir_pic_id">
+                                        <option :value="unit.butir_pic_id"
+                                            x-text="`${unit.kode_unit ?? '-'} - ${unit.nama_unit ?? '-'} | Direktorat - Dewan Pengawas`"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </template>
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">

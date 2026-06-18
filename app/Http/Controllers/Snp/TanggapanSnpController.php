@@ -5,13 +5,14 @@ namespace App\Http\Controllers\Snp;
 use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
 use App\Models\Komite;
-use App\Models\SnpCluster;
-use App\Models\UnitKerja;
 use App\Models\LogActivity;
 use App\Models\SnpButir;
-use App\Models\SnpTanggapan;
-use App\Models\User;
+use App\Models\SnpCluster;
+use App\Models\SnpKompilasi;
 use App\Models\SnpReview;
+use App\Models\SnpTanggapan;
+use App\Models\UnitKerja;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,11 +29,12 @@ class TanggapanSnpController extends Controller
         }
 
         $query = SnpButir::with([
-            'record.cluster',
+            'record.cluster',   
             'record.subCluster',
             'butirPics.unitKerja.direktorat',
             'butirPics.komite',
             'tanggapan.creator',
+            'tanggapan.butirPic.unitKerja',
         ])
             ->whereHas('record');
 
@@ -161,22 +163,33 @@ class TanggapanSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateSnpTanggapanForButir($butir)) {
-            abort(403, 'Anda tidak memiliki akses untuk memberi tanggapan pada butir ini.');
+        if (!$user || !$user->canAccessSnpTanggapan()) {
+            abort(403, 'Anda tidak memiliki akses untuk memberi tanggapan SNP.');
         }
 
-        if ($butir->tanggapan()->exists()) {
-            return back()->with('error', 'Butir SNP ini sudah memiliki tanggapan.');
-        }
+        $butir->load(['record', 'butirPics', 'tanggapan']);
 
         $validated = $request->validate([
+            'butir_pic_id' => ['required', 'integer'],
             'tanggapan' => ['required', 'string'],
             'deliverables' => ['required', 'string'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
-            'ubah_tgl' => ['nullable', 'date'],
         ]);
 
-        DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $butir, $user) {
+        $butirPic = $butir->butirPics()
+            ->whereIn('jenis_pic', ['utama', 'pendukung'])
+            ->where('id', $validated['butir_pic_id'])
+            ->first();
+
+        if (!$butirPic) {
+            return back()->with('error', 'PIC Unit yang dipilih tidak valid untuk butir SNP ini.');
+        }
+
+        if ($butir->tanggapan()->where('butir_pic_id', $butirPic->id)->exists()) {
+            return back()->with('error', 'Unit kerja Anda sudah memberi tanggapan untuk butir SNP ini.');
+        }
+
+        DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $butir, $butirPic, $user) {
             $dokumenPath = null;
 
             if ($request->hasFile('dokumen')) {
@@ -185,28 +198,42 @@ class TanggapanSnpController extends Controller
 
             $tanggapan = SnpTanggapan::create([
                 'id_butir_snp' => $butir->id_butir_snp,
+                'butir_pic_id' => $butirPic->id,
                 'tanggapan' => $validated['tanggapan'],
                 'deliverables' => $validated['deliverables'],
                 'dokumen' => $dokumenPath,
-                'ubah_tgl' => $validated['ubah_tgl'] ?? null,
-                'status_pengajuan_tgl' => 'pending',
             ]);
 
-            $komitePic = $butir->butirPics()
-                ->where('jenis_pic', 'komite')
-                ->whereNotNull('komite_id')
-                ->first();
+            $picIds = $butir->butirPics()
+                ->whereIn('jenis_pic', ['utama', 'pendukung'])
+                ->whereNotNull('unit_kerja_id')
+                ->pluck('id')
+                ->map(fn($id) => (int) $id)
+                ->toArray();
 
-            $review = SnpReview::create([
-                'id_butir_snp' => $butir->id_butir_snp,
-                'id_tanggapan' => $tanggapan->id,
-                'id_tindak_lanjut' => null,
-                'tahap_review' => 'tanggapan',
-                'komite_id' => $komitePic?->komite_id,
-                'hasil_review' => null,
-                'deliverables' => null,
-                'status' => 'belum_ditanggapi',
-            ]);
+            $tanggapanPicIds = $butir->tanggapan()
+                ->whereNotNull('butir_pic_id')
+                ->pluck('butir_pic_id')
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->toArray();
+
+            $allPicSudahTanggapan = count($picIds) > 0
+                && empty(array_diff($picIds, $tanggapanPicIds));
+
+            if ($allPicSudahTanggapan) {
+                SnpKompilasi::firstOrCreate(
+                    [
+                        'id_butir_snp' => $butir->id_butir_snp,
+                        'tahap_kompilasi' => 'tanggapan',
+                    ],
+                    [
+                        'status' => 'belum_dikompilasi',
+                        'created_by' => $user->id,
+                        'updated_by' => $user->id,
+                    ]
+                );
+            }
 
             LogActivity::create([
                 'user_id' => $user->id,
@@ -215,12 +242,12 @@ class TanggapanSnpController extends Controller
                 'table_name' => 'tb_tanggapan',
                 'record_key' => $tanggapan->id_butir_snp,
                 'action' => 'create',
-                'description' => 'User membuat tanggapan SNP dan sistem membuat review awal.',
+                'description' => 'User membuat tanggapan SNP.',
                 'old_values' => null,
                 'new_values' => [
                     'butir' => $butir->load('record')->toArray(),
                     'tanggapan' => $tanggapan->toArray(),
-                    'review' => $review->toArray(),
+                    'kompilasi_ready' => $allPicSudahTanggapan,
                 ],
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),

@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Djsn;
 
 use App\Http\Controllers\Controller;
-use App\Models\DjsnRecord;
-use App\Models\User;
-use App\Models\UnitKerja;
-use App\Models\Direktorat;
-use App\Models\Komite;
 use App\Exports\DjsnReportExport;
+use App\Models\Direktorat;
+use App\Models\DjsnRecord;
+use App\Models\Komite;
+use App\Models\UnitKerja;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,9 +25,8 @@ class ReportDjsnController extends Controller
         }
 
         $recordsQuery = DjsnRecord::with([
-            'cluster',
-            'subCluster',
-            'butirDjsn',
+            'butirDjsn.cluster',
+            'butirDjsn.subCluster',
         ])
             ->withCount('butirDjsn');
 
@@ -126,8 +125,8 @@ class ReportDjsnController extends Controller
         ]);
 
         $records = DjsnRecord::with([
-            'cluster',
-            'subCluster',
+            'butirDjsn.cluster',
+            'butirDjsn.subCluster',
             'butirDjsn.butirPics.unitKerja',
             'butirDjsn.butirPics.komite',
             'butirDjsn.tanggapan.review',
@@ -199,12 +198,12 @@ class ReportDjsnController extends Controller
         $butirIds = $validated['butir_ids'];
 
         $records = DjsnRecord::with([
-            'cluster',
-            'subCluster',
             'butirDjsn' => function ($query) use ($butirIds) {
                 $query->whereIn('id', $butirIds)
                     ->orderBy('id');
             },
+            'butirDjsn.cluster',
+            'butirDjsn.subCluster',
             'butirDjsn.butirPics.unitKerja',
             'butirDjsn.butirPics.komite',
             'butirDjsn.tanggapan.review',
@@ -312,8 +311,8 @@ class ReportDjsnController extends Controller
         ]);
 
         $records = DjsnRecord::with([
-            'cluster',
-            'subCluster',
+            'butirDjsn.cluster',
+            'butirDjsn.subCluster',
             'butirDjsn.butirPics.unitKerja',
             'butirDjsn.butirPics.komite',
             'butirDjsn.tanggapan.review',
@@ -393,12 +392,12 @@ class ReportDjsnController extends Controller
         $butirIds = $validated['butir_ids'];
 
         $records = DjsnRecord::with([
-            'cluster',
-            'subCluster',
             'butirDjsn' => function ($query) use ($butirIds) {
                 $query->whereIn('id', $butirIds)
                     ->orderBy('id');
             },
+            'butirDjsn.cluster',
+            'butirDjsn.subCluster',
             'butirDjsn.butirPics.unitKerja',
             'butirDjsn.butirPics.komite',
             'butirDjsn.tanggapan.review',

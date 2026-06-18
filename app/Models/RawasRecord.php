@@ -21,7 +21,7 @@ class RawasRecord extends Model
         'nomor_surat',
         'tanggal_surat',
         'perihal_surat',
-        'dokumen',
+        'dokumen_memo',
         'jth_tempo',
         'status',
         'created_by',

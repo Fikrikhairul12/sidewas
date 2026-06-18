@@ -14,6 +14,8 @@ class SnpTindakLanjut extends Model
 
     protected $fillable = [
         'id_butir_snp',
+        'butir_pic_id',
+        'putaran_tl',
         'tindak_lanjut',
         'deliverables',
         'dokumen',
@@ -44,5 +46,10 @@ class SnpTindakLanjut extends Model
     public function updater()
     {
         return $this->belongsTo(User::class, 'updated_by', 'id');
+    }
+
+    public function butirPic()
+    {
+        return $this->belongsTo(SnpButirPic::class, 'butir_pic_id', 'id');
     }
 }

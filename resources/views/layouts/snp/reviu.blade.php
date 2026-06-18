@@ -31,7 +31,7 @@
             'action' => route('snp.reviu.index'),
             'statusOptions' => [
                 'belum_ditanggapi' => 'Belum Ditanggapi',
-                'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
+                'dalam_proses_reviu_dewas' => 'Dalam Proses Reviu Dewas',
                 'dalam_proses_tindak_lanjut_direksi' => 'Dalam Proses Tindak Lanjut Direksi',
                 'selesai_tuntas' => 'Selesai Tuntas',
             ],
@@ -73,13 +73,17 @@
                         @forelse ($reviews as $review)
                             @php
                                 $record = $review->butir?->record;
-                                $tanggapan = $review->tanggapan;
-                                $tindakLanjut = $review->tindakLanjut;
 
                                 $isTanggapan = $review->tahap_review === 'tanggapan';
                                 $isTindakLanjut = $review->tahap_review === 'tindak_lanjut';
 
-                                $dokumenAda = $isTanggapan ? $tanggapan?->dokumen : $tindakLanjut?->dokumen;
+                                $kompilasi = $isTanggapan
+                                    ? $review->kompilasiTanggapan
+                                    : $review->kompilasiTindakLanjut;
+
+                                $isiKompilasi = $kompilasi?->hasil_kompilasi;
+                                $deliverablesKompilasi = $kompilasi?->deliverables;
+                                $dokumenAda = $kompilasi?->dokumen;
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -117,28 +121,28 @@
                                             Tanggapan
                                         </p>
                                         <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
-                                            {{ $tanggapan?->tanggapan ?? '-' }}
+                                            {{ $isiKompilasi ?? '-' }}
                                         </p>
 
                                         <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
                                             Deliverables Tanggapan
                                         </p>
                                         <p class="mt-2 max-w-lg text-xs text-slate-800">
-                                            {{ $tanggapan?->deliverables ?? '-' }}
+                                            {{ $deliverablesKompilasi ?? '-' }}
                                         </p>
 
-                                        @if ($tanggapan?->ubah_tgl)
+                                        @if ($kompilasi?->ubah_tgl)
                                             <p class="mt-4 text-xs text-slate-500">
                                                 Status Pengajuan Tanggal:
                                                 <span class="font-bold">
-                                                    {{ ucwords(str_replace('_', ' ', $tanggapan?->status_pengajuan_tgl ?? '-')) }}
+                                                    {{ ucwords(str_replace('_', ' ', $kompilasi?->status_pengajuan_tgl ?? '-')) }}
                                                 </span>
                                             </p>
 
                                             <p class="mt-2 text-xs text-slate-500">
                                                 Tanggal Jatuh Tempo Diajukan:
                                                 <span class="font-bold text-slate-700">
-                                                    {{ \Carbon\Carbon::parse($tanggapan->ubah_tgl)->format('d/m/Y') }}
+                                                    {{ \Carbon\Carbon::parse($kompilasi->ubah_tgl)->format('d/m/Y') }}
                                                 </span>
                                             </p>
                                         @else
@@ -152,20 +156,20 @@
                                             Tindak Lanjut
                                         </p>
                                         <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
-                                            {{ $tindakLanjut?->tindak_lanjut ?? '-' }}
+                                            {{ $isiKompilasi ?? '-' }}
                                         </p>
 
                                         <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
                                             Deliverables Tindak Lanjut
                                         </p>
                                         <p class="mt-2 max-w-lg text-xs text-slate-800">
-                                            {{ $tindakLanjut?->deliverables ?? '-' }}
+                                            {{ $deliverablesKompilasi ?? '-' }}
                                         </p>
 
                                         <p class="mt-4 text-xs text-slate-500">
                                             Jatuh Tempo:
                                             <span class="font-bold">
-                                                {{ $tindakLanjut?->jth_tempo ? \Carbon\Carbon::parse($tindakLanjut->jth_tempo)->format('d/m/Y') : '-' }}
+                                                {{ $record?->jth_tempo ? \Carbon\Carbon::parse($record->jth_tempo)->format('d/m/Y') : '-' }}
                                             </span>
                                         </p>
                                     @endif
@@ -174,12 +178,24 @@
                                         Dokumen
                                     </p>
 
-                                    @if ($dokumenAda)
-                                        <a href="{{ route('snp.reviu.dokumen', $review->id) }}"
-                                            class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
-                                            style="background-color: #2377b9;">
-                                            Download Dokumen
-                                        </a>
+                                    @if ($dokumenAda || $review->dokumen_memo)
+                                        <div class="mt-2 flex flex-wrap gap-2">
+                                            @if ($dokumenAda)
+                                                <a href="{{ route('snp.reviu.dokumen', $review->id) }}"
+                                                    class="inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                    style="background-color: #2377b9;">
+                                                    Download Dokumen
+                                                </a>
+                                            @endif
+
+                                            @if ($review->dokumen_memo)
+                                                <a href="{{ route('snp.reviu.dokumen-memo', $review->id) }}"
+                                                    class="inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                    style="background-color: #2377b9;">
+                                                    Download Memo Reviu
+                                                </a>
+                                            @endif
+                                        </div>
                                     @else
                                         <p class="mt-2 text-xs text-slate-400">-</p>
                                     @endif
@@ -222,7 +238,7 @@
                                                     id_butir_snp: @js($review->id_butir_snp),
                                                     tahap_review: @js($review->tahap_review),
                                                     status: @js($review->status),
-                                                    status_pengajuan_tgl: @js($tanggapan?->status_pengajuan_tgl ?? 'pending'),
+                                                    status_pengajuan_tgl: @js($kompilasi?->status_pengajuan_tgl ?? 'pending'),
                                                     hasil_review: @js($review->hasil_review ?? ''),
                                                     deliverables: @js($review->deliverables ?? '')
                                                 }; openModal = true"
@@ -331,8 +347,21 @@
                             </p>
                         </div>
 
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Dokumen Memo Reviu
+                            </label>
+
+                            <input type="file" name="dokumen_memo"
+                                class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Opsional. Format PDF, Word, Excel, JPG, PNG. Maksimal 5 MB.
+                            </p>
+                        </div>
+
                         <div class="grid gap-5 md:grid-cols-2">
-                            <Template x-if="selectedReview?.tahap_review === 'tanggapan'">
+                            <template x-if="selectedReview?.tahap_review === 'tanggapan'">
                                 <div>
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">
                                         Status Pengajuan Ubah Tanggal
@@ -345,7 +374,7 @@
                                         <option value="ditolak">Ditolak</option>
                                     </select>
                                 </div>
-                            </Template>
+                            </template>
 
                             <div>
                                 <label class="mb-2 block text-sm font-semibold text-slate-700">
@@ -354,7 +383,7 @@
                                 <select name="status" x-model="selectedReview.status" required
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                     <option value="belum_ditanggapi">Belum Ditanggapi</option>
-                                    <option value="dalam_proses_reviu_dewan_pengawas">Dalam Proses Reviu Dewan Pengawas
+                                    <option value="dalam_proses_reviu_dewas">Dalam Proses Reviu Dewan Pengawas
                                     </option>
                                     <option value="dalam_proses_tindak_lanjut_direksi">Dalam Proses Tindak Lanjut
                                         Direksi</option>

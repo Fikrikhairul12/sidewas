@@ -57,7 +57,7 @@ class SnpButir extends Model
 
     public function tanggapan()
     {
-        return $this->hasOne(SnpTanggapan::class, 'id_butir_snp', 'id_butir_snp');
+        return $this->hasMany(SnpTanggapan::class, 'id_butir_snp', 'id_butir_snp');
     }
 
     public function tindakLanjuts()
@@ -70,6 +70,39 @@ class SnpButir extends Model
         return $this->hasMany(SnpReview::class, 'id_butir_snp', 'id_butir_snp');
     }
 
+    public function kompilasis()
+    {
+        return $this->hasMany(SnpKompilasi::class, 'id_butir_snp', 'id_butir_snp');
+    }
+
+    public function kompilasiTanggapans()
+    {
+        return $this->hasMany(SnpKompilasi::class, 'id_butir_snp', 'id_butir_snp')
+            ->where('tahap_kompilasi', 'tanggapan')
+            ->orderBy('putaran_tl');
+    }
+
+    public function kompilasiTindakLanjuts()
+    {
+        return $this->hasMany(SnpKompilasi::class, 'id_butir_snp', 'id_butir_snp')
+            ->where('tahap_kompilasi', 'tindak_lanjut')
+            ->orderBy('putaran_tl');
+    }
+
+    public function kompilasiTanggapan()
+    {
+        return $this->hasOne(SnpKompilasi::class, 'id_butir_snp', 'id_butir_snp')
+            ->where('tahap_kompilasi', 'tanggapan')
+            ->latestOfMany('id');
+    }
+
+    public function kompilasiTindakLanjut()
+    {
+        return $this->hasOne(SnpKompilasi::class, 'id_butir_snp', 'id_butir_snp')
+            ->where('tahap_kompilasi', 'tindak_lanjut')
+            ->latestOfMany('id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'id');
@@ -79,4 +112,9 @@ class SnpButir extends Model
     {
         return $this->belongsTo(User::class, 'updated_by', 'id');
     }
+
+    // public function kompilasis()
+    // {
+    //     return $this->hasMany(SnpKompilasi::class, 'id_butir_snp', 'id_butir_snp');
+    // }
 }

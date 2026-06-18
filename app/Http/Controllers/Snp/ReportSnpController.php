@@ -27,7 +27,7 @@ class ReportSnpController extends Controller
         $recordsQuery = SnpRecord::with([
             'cluster',
             'subCluster',
-            'butirSnp',
+            'butirSnp.butirPics.unitKerja',
         ])
             ->withCount('butirSnp');
 
@@ -130,8 +130,13 @@ class ReportSnpController extends Controller
             'subCluster',
             'butirSnp.butirPics.unitKerja',
             'butirSnp.butirPics.komite',
-            'butirSnp.tanggapan.review',
-            'butirSnp.tindakLanjuts.reviews',
+
+            'butirSnp.kompilasis',
+            'butirSnp.kompilasiTanggapan',
+            'butirSnp.kompilasiTindakLanjut',
+            'butirSnp.kompilasiTindakLanjuts',
+
+            'butirSnp.reviews.komite',
         ])
             ->whereIn('id', $validated['record_ids'])
             ->orderBy('id_snp')
@@ -165,6 +170,11 @@ class ReportSnpController extends Controller
             'butir_ids.*' => ['integer'],
             'fields' => ['required', 'array', 'min:1'],
             'fields.*' => ['string'],
+            'tanggapan_unit_kerja_ids' => ['nullable', 'array'],
+            'tanggapan_unit_kerja_ids.*' => ['integer'],
+
+            'tindak_lanjut_unit_kerja_ids' => ['nullable', 'array'],
+            'tindak_lanjut_unit_kerja_ids.*' => ['integer'],
         ], [
             'record_ids.required' => 'Pilih minimal satu surat SNP untuk dicetak.',
             'butir_ids.required' => 'Pilih minimal satu butir SNP untuk dicetak.',
@@ -178,9 +188,10 @@ class ReportSnpController extends Controller
             'pic_unit',
             'pic_utama',
             'pic_pendukung',
-            'tanggapan_tl',
-            'tanggapan',
-            'tindak_lanjut',
+            'tanggapan_unit',
+            'tindak_lanjut_unit',
+            'kompilasi_tanggapan',
+            'kompilasi_tindak_lanjut',
             'deliverable',
             'dokumen',
             'jatuh_tempo',
@@ -196,6 +207,9 @@ class ReportSnpController extends Controller
             return back()->with('error', 'Pilih minimal satu field report.');
         }
 
+        $tanggapanUnitKerjaIds = $validated['tanggapan_unit_kerja_ids'] ?? [];
+        $tindakLanjutUnitKerjaIds = $validated['tindak_lanjut_unit_kerja_ids'] ?? [];
+
         $butirIds = $validated['butir_ids'];
 
         $records = SnpRecord::with([
@@ -207,8 +221,21 @@ class ReportSnpController extends Controller
             },
             'butirSnp.butirPics.unitKerja',
             'butirSnp.butirPics.komite',
-            'butirSnp.tanggapan.review',
-            'butirSnp.tindakLanjuts.reviews',
+
+            // detail unit
+            'butirSnp.tanggapan.creator',
+            'butirSnp.tanggapan.butirPic.unitKerja',
+            'butirSnp.tindakLanjuts.creator',
+            'butirSnp.tindakLanjuts.butirPic.unitKerja',
+
+            // hasil kompilasi
+            'butirSnp.kompilasiTanggapan',
+            'butirSnp.kompilasiTindakLanjut',
+            'butirSnp.kompilasiTindakLanjuts',
+            'butirSnp.reviews.komite',
+
+            // reviu
+            'butirSnp.reviews.komite',
         ])
             ->whereIn('id', $validated['record_ids'])
             ->whereHas('butirSnp', function ($query) use ($butirIds) {
@@ -222,7 +249,12 @@ class ReportSnpController extends Controller
             'id_butir' => 'ID BUTIR SNP',
             'isi_butir' => 'ISI BUTIR SNP',
             'pic_unit' => 'PIC UNIT KERJA',
-            'tanggapan_tl' => 'TANGGAPAN & TINDAK LANJUT DIREKSI',
+            'pic_utama' => 'PIC UNIT KERJA UTAMA',
+            'pic_pendukung' => 'PIC UNIT KERJA PENDUKUNG',
+            'tanggapan_unit' => 'TANGGAPAN UNIT KERJA',
+            'tindak_lanjut_unit' => 'TINDAK LANJUT UNIT KERJA',
+            'kompilasi_tanggapan' => 'KOMPILASI TANGGAPAN',
+            'kompilasi_tindak_lanjut' => 'KOMPILASI TINDAK LANJUT',
             'deliverable' => 'DELIVERABLE',
             'dokumen' => 'DOKUMEN PENDUKUNG',
             'jatuh_tempo' => 'TGL. JATUH TEMPO',
@@ -239,7 +271,9 @@ class ReportSnpController extends Controller
             'selectedFields',
             'fieldLabels',
             'printedBy',
-            'printedAt'
+            'printedAt',
+            'tanggapanUnitKerjaIds',
+            'tindakLanjutUnitKerjaIds'
         ))
             ->setPaper('legal', 'landscape');
 
@@ -252,20 +286,21 @@ class ReportSnpController extends Controller
             'surat' => 'NOMOR, TANGGAL & PERIHAL SURAT',
             'id_butir' => 'ID BUTIR SNP',
             'isi_butir' => 'ISI BUTIR SNP',
+            'pic_unit' => 'PIC UNIT KERJA',
             'pic_utama' => 'PIC UNIT KERJA UTAMA',
             'pic_pendukung' => 'PIC UNIT KERJA PENDUKUNG',
-            'tanggapan' => 'TANGGAPAN DIREKSI',
-            'tindak_lanjut' => 'TINDAK LANJUT DIREKSI',
+
+            'tanggapan_unit' => 'TANGGAPAN UNIT KERJA',
+            'tindak_lanjut_unit' => 'TINDAK LANJUT UNIT KERJA',
+            'kompilasi_tanggapan' => 'KOMPILASI TANGGAPAN',
+            'kompilasi_tindak_lanjut' => 'KOMPILASI TINDAK LANJUT',
+
             'deliverable' => 'DELIVERABLE',
             'dokumen' => 'DOKUMEN PENDUKUNG',
             'jatuh_tempo' => 'TGL. JATUH TEMPO',
             'komite' => 'PIC KOMITE DEWAN PENGAWAS',
             'hasil_reviu' => 'HASIL REVIU DEWAN PENGAWAS',
-            'status' => 'STATUS TINDAK LANJUT',
-
-            // Optional, kalau PDF custom masih pakai gabungan
-            'pic_unit' => 'PIC UNIT KERJA',
-            'tanggapan_tl' => 'TANGGAPAN & TINDAK LANJUT DIREKSI',
+            'status' => 'STATUS',
         ];
     }
 
@@ -316,8 +351,10 @@ class ReportSnpController extends Controller
             'subCluster',
             'butirSnp.butirPics.unitKerja',
             'butirSnp.butirPics.komite',
-            'butirSnp.tanggapan.review',
-            'butirSnp.tindakLanjuts.reviews',
+            'butirSnp.kompilasiTanggapan',
+            'butirSnp.kompilasiTindakLanjut',
+            'butirSnp.kompilasiTindakLanjuts',
+            'butirSnp.reviews.komite',
         ])
             ->whereIn('id', $validated['record_ids'])
             ->orderBy('id_snp')
@@ -362,6 +399,11 @@ class ReportSnpController extends Controller
             'butir_ids.*' => ['integer'],
             'fields' => ['required', 'array', 'min:1'],
             'fields.*' => ['string'],
+            'tanggapan_unit_kerja_ids' => ['nullable', 'array'],
+            'tanggapan_unit_kerja_ids.*' => ['integer'],
+
+            'tindak_lanjut_unit_kerja_ids' => ['nullable', 'array'],
+            'tindak_lanjut_unit_kerja_ids.*' => ['integer'],
         ], [
             'record_ids.required' => 'Pilih minimal satu surat SNP untuk dicetak.',
             'butir_ids.required' => 'Pilih minimal satu butir SNP untuk dicetak.',
@@ -374,8 +416,10 @@ class ReportSnpController extends Controller
             'isi_butir',
             'pic_utama',
             'pic_pendukung',
-            'tanggapan',
-            'tindak_lanjut',
+            'tanggapan_unit',
+            'tindak_lanjut_unit',
+            'kompilasi_tanggapan',
+            'kompilasi_tindak_lanjut',
             'deliverable',
             'dokumen',
             'jatuh_tempo',
@@ -390,6 +434,9 @@ class ReportSnpController extends Controller
             return back()->with('error', 'Pilih minimal satu field report.');
         }
 
+        $tanggapanUnitKerjaIds = $validated['tanggapan_unit_kerja_ids'] ?? [];
+        $tindakLanjutUnitKerjaIds = $validated['tindak_lanjut_unit_kerja_ids'] ?? [];
+
         $butirIds = $validated['butir_ids'];
 
         $records = SnpRecord::with([
@@ -401,8 +448,19 @@ class ReportSnpController extends Controller
             },
             'butirSnp.butirPics.unitKerja',
             'butirSnp.butirPics.komite',
-            'butirSnp.tanggapan.review',
-            'butirSnp.tindakLanjuts.reviews',
+
+            // detail unit
+            'butirSnp.tanggapan.creator',
+            'butirSnp.tanggapan.butirPic.unitKerja',
+            'butirSnp.tindakLanjuts.creator',
+            'butirSnp.tindakLanjuts.butirPic.unitKerja',
+
+            // hasil kompilasi
+            'butirSnp.kompilasiTanggapan',
+            'butirSnp.kompilasiTindakLanjut',
+
+            // reviu
+            'butirSnp.reviews.komite',
         ])
             ->whereIn('id', $validated['record_ids'])
             ->whereHas('butirSnp', function ($query) use ($butirIds) {
@@ -414,7 +472,7 @@ class ReportSnpController extends Controller
         $fieldLabels = $this->reportFieldLabels();
 
         return Excel::download(
-            new SnpReportExport($records, $selectedFields, $fieldLabels),
+            new SnpReportExport($records, $selectedFields, $fieldLabels, $tanggapanUnitKerjaIds, $tindakLanjutUnitKerjaIds),
             'report-snp-dewas-custom.xlsx'
         );
     }

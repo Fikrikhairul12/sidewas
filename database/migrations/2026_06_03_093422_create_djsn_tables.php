@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     protected string $connectionName = 'mysql_djsn';
 
     public function up(): void
@@ -34,10 +33,6 @@ return new class extends Migration
         Schema::connection($this->connectionName)->create('tb_record', function (Blueprint $table) {
             $table->id();
             $table->string('id_djsn', 70)->unique();
-
-            $table->unsignedBigInteger('cluster_id')->nullable();
-            $table->unsignedBigInteger('sub_cluster_id')->nullable();
-
             $table->string('nomor_surat')->nullable();
             $table->date('tanggal_surat')->nullable();
             $table->text('perihal_surat')->nullable();
@@ -49,6 +44,27 @@ return new class extends Migration
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
 
+
+        });
+
+        Schema::connection($this->connectionName)->create('tb_butir_djsn', function (Blueprint $table) {
+            $table->id();
+            $table->string('id_butir_djsn', 90)->unique();
+            $table->string('id_djsn', 70);
+            $table->text('butir_djsn');
+            $table->unsignedBigInteger('cluster_id')->nullable();
+            $table->unsignedBigInteger('sub_cluster_id')->nullable();
+
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->timestamps();
+
+            $table->foreign('id_djsn')
+                ->references('id_djsn')
+                ->on('tb_record')
+                ->cascadeOnDelete()
+                ->cascadeOnUpdate();
+
             $table->foreign('cluster_id')
                 ->references('id')
                 ->on('tb_cluster')
@@ -59,23 +75,6 @@ return new class extends Migration
                 ->references('id')
                 ->on('tb_sub_cluster')
                 ->nullOnDelete()
-                ->cascadeOnUpdate();
-        });
-
-        Schema::connection($this->connectionName)->create('tb_butir_djsn', function (Blueprint $table) {
-            $table->id();
-            $table->string('id_butir_djsn', 90)->unique();
-            $table->string('id_djsn', 70);
-            $table->text('butir_djsn');
-
-            $table->unsignedBigInteger('created_by')->nullable();
-            $table->unsignedBigInteger('updated_by')->nullable();
-            $table->timestamps();
-
-            $table->foreign('id_djsn')
-                ->references('id_djsn')
-                ->on('tb_record')
-                ->cascadeOnDelete()
                 ->cascadeOnUpdate();
         });
 

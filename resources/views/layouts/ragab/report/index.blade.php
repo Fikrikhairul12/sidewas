@@ -153,7 +153,11 @@
                             <tr>
                                 <th
                                     class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
-                                    Pilih
+                                    <label class="inline-flex cursor-pointer items-center justify-center gap-2">
+                                        <input type="checkbox" id="selectAllReportRecords"
+                                            class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                        <span>Pilih Semua</span>
+                                    </label>
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
@@ -211,7 +215,7 @@
                                         <input type="checkbox" name="record_ids[]" value="{{ $record->id }}"
                                             data-record-label="{{ $record->nomor_surat ?? $record->id_ragab }}"
                                             data-butirs='@json($butirsForReport)'
-                                            class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                            class="record-report-checkbox rounded border-slate-300 text-blue-600 focus:ring-blue-500">
                                     </td>
 
                                     <td class="px-6 py-6 align-top">

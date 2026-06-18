@@ -26,11 +26,11 @@ class GoogleAuthController extends Controller
 
         $googleUser = Socialite::driver('google')->user();
 
-        if (!User::isAllowedEmailDomain($googleUser->getEmail())) {
-            return redirect()
-                ->route('login')
-                ->with('error', 'Login Google hanya diperbolehkan menggunakan email @bpjsketenagakerjaan.go.id.');
-        }
+        // if (!User::isAllowedEmailDomain($googleUser->getEmail())) {
+        //     return redirect()
+        //         ->route('login')
+        //         ->with('error', 'Login Google hanya diperbolehkan menggunakan email @bpjsketenagakerjaan.go.id.');
+        // }
 
         $user = User::where('google_id', $googleUser->getId())
             ->orWhere('email', $googleUser->getEmail())

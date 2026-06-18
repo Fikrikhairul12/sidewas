@@ -215,6 +215,17 @@
                                             {{ $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-' }}
 
                                             {{ $record->perihal_surat ?? '-' }}
+                                            <br>
+                                            @if ($record->dokumen)
+                                                <a href="{{ asset('storage/' . $record->dokumen) }}">Dokumen Surat</a>
+                                            @endif
+
+                                            @if ($record->dokumen_memo)
+                                                @if ($record->dokumen)
+                                                    
+                                                @endif
+                                                <a href="{{ asset('storage/' . $record->dokumen_memo) }}">Dokumen Memo</a>
+                                            @endif
                                         </td>
 
                                         @php
@@ -260,16 +271,7 @@
                                     </td>
                                 @elseif ($field === 'dokumen')
                                     <td class="center pre-line">
-                                        @if ($record->dokumen)
-                                            <a href="{{ asset('storage/' . $record->dokumen) }}">Dokumen Surat</a>
-                                        @endif
 
-                                        @if ($record->dokumen_memo)
-                                            @if ($record->dokumen)
-                                                <br>
-                                            @endif
-                                            <a href="{{ asset('storage/' . $record->dokumen_memo) }}">Dokumen Memo</a>
-                                        @endif
 
                                         @if ($tl?->dokumen)
                                             @if ($record->dokumen || $record->dokumen_memo)

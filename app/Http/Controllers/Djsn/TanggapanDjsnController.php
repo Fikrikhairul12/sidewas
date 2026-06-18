@@ -4,14 +4,14 @@ namespace App\Http\Controllers\Djsn;
 
 use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
-use App\Models\Komite;
-use App\Models\DjsnCluster;
-use App\Models\UnitKerja;
-use App\Models\LogActivity;
 use App\Models\DjsnButir;
-use App\Models\DjsnTanggapan;
-use App\Models\User;
+use App\Models\DjsnCluster;
 use App\Models\DjsnReview;
+use App\Models\DjsnTanggapan;
+use App\Models\Komite;
+use App\Models\LogActivity;
+use App\Models\UnitKerja;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,8 +28,9 @@ class TanggapanDjsnController extends Controller
         }
 
         $query = DjsnButir::with([
-            'record.cluster',
-            'record.subCluster',
+            'record',
+            'cluster',
+            'subCluster',
             'butirPics.unitKerja.direktorat',
             'butirPics.komite',
             'tanggapan.creator',
@@ -45,15 +46,11 @@ class TanggapanDjsnController extends Controller
         }
 
         if ($request->filled('cluster_id')) {
-            $query->whereHas('record', function ($recordQuery) use ($request) {
-                $recordQuery->where('cluster_id', $request->cluster_id);
-            });
+            $query->where('cluster_id', $request->cluster_id);
         }
 
         if ($request->filled('sub_cluster_id')) {
-            $query->whereHas('record', function ($recordQuery) use ($request) {
-                $recordQuery->where('sub_cluster_id', $request->sub_cluster_id);
-            });
+            $query->where('sub_cluster_id', $request->sub_cluster_id);
         }
 
         if ($request->filled('direktorat_id')) {

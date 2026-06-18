@@ -1,0 +1,26 @@
+# Consolidated migrations
+
+File yang dipakai:
+- 0001_01_01_000000_create_users_table.php
+- 0001_01_01_000001_create_cache_table.php
+- 0001_01_01_000002_create_jobs_table.php
+- 2026_05_07_000000_create_main_custom_tables.php
+- 2026_05_06_101519_create_snp_tables.php
+- 2026_05_22_110928_create_ragab_tables.php
+- 2026_06_02_103031_create_rawas_tables.php
+- 2026_06_03_093422_create_djsn_tables.php
+
+Migration lama yang sudah digabung dan sebaiknya dihapus:
+- 2026_05_05_015104_add_google_fields_to_users_table.php
+- 2026_05_07_133137_create_user_access_tables.php
+- 2026_05_07_133921_add_status_to_users_table.php
+- 2026_05_07_141525_add_status_to_users_table.php
+- 2026_05_07_160155_create_pic_master_tables.php
+- 2026_05_07_160209_create_log_activity_table.php
+- 2026_05_11_133514_update_jenis_pic_enum_on_tb_butir_pic.php
+- 2026_05_13_081714_create_delete_requests_table.php
+- 2026_05_13_135000_add_unique_id_butir_snp_to_tb_tanggapan.php
+- 2026_05_19_090410_add_dokumen_to_tb_record_table.php
+- 2026_05_24_190011_add_dokumen_to_snp_review_table.php
+- 2026_06_09_132746_add_dokumen_memo_to_snp_tables.php
+- 2026_06_09_154129_create_tb_kompilasi_and_update_snp_tanggapan_tindak_lanjut.php

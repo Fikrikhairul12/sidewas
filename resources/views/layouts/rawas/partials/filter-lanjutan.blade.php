@@ -23,10 +23,8 @@
     </button>
 
     <div x-show="openFilter" x-transition class="border-t border-blue-50 px-6 py-5" style="display: none;">
-
         <form method="GET" action="{{ $action }}">
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {{-- Status --}}
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700">Status</label>
                     <select name="status"
@@ -41,69 +39,30 @@
                     </select>
                 </div>
 
-                {{-- Direktorat --}}
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700">
-                        Direktorat Penanggung Jawab
+                        Direktorat
                     </label>
-                    <select name="direktorat_id"
-                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">Semua Direktorat</option>
-                        @foreach ($direktorats as $direktorat)
-                            <option value="{{ $direktorat->id }}" @selected(request('direktorat_id') == $direktorat->id)>
-                                {{ $direktorat->nama_direktorat }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <div class="rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm">
+                        Dewan Pengawas
+                    </div>
                 </div>
 
-                {{-- Unit Kerja Utama --}}
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700">
-                        Unit Kerja Utama
+                        Unit PIC
                     </label>
-                    <select name="unit_kerja_utama_id"
+                    <select name="unit_kerja_id"
                         class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">Semua Unit Kerja Utama</option>
+                        <option value="">Semua Unit PIC</option>
                         @foreach ($unitKerjas as $unit)
-                            <option value="{{ $unit->id }}" @selected(request('unit_kerja_utama_id') == $unit->id)>
+                            <option value="{{ $unit->id }}" @selected(request('unit_kerja_id', request('unit_kerja_pendukung_id')) == $unit->id)>
                                 {{ $unit->kode_unit }} - {{ $unit->nama_unit }}
                             </option>
                         @endforeach
                     </select>
                 </div>
 
-                {{-- PIC Pendukung --}}
-                <div>
-                    <label class="mb-2 block text-sm font-medium text-slate-700">
-                        PIC Pendukung
-                    </label>
-                    <select name="unit_kerja_pendukung_id"
-                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">Semua PIC Pendukung</option>
-                        @foreach ($unitKerjas as $unit)
-                            <option value="{{ $unit->id }}" @selected(request('unit_kerja_pendukung_id') == $unit->id)>
-                                {{ $unit->kode_unit }} - {{ $unit->nama_unit }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                {{-- Komite --}}
-                <div>
-                    <label class="mb-2 block text-sm font-medium text-slate-700">Komite</label>
-                    <select name="komite_id"
-                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">Semua Komite</option>
-                        @foreach ($komites as $komite)
-                            <option value="{{ $komite->id }}" @selected(request('komite_id') == $komite->id)>
-                                {{ $komite->kode_komite }} - {{ $komite->nama_komite }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                {{-- Cluster --}}
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700">Cluster</label>
                     <select name="cluster_id" x-model="selectedClusterId"
@@ -117,7 +76,6 @@
                     </select>
                 </div>
 
-                {{-- Sub Cluster --}}
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700">Sub Cluster</label>
                     <select name="sub_cluster_id"
@@ -135,21 +93,18 @@
                     </select>
                 </div>
 
-                {{-- Tanggal Mulai --}}
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700">Tanggal Mulai</label>
                     <input type="date" name="tanggal_mulai" value="{{ request('tanggal_mulai') }}"
                         class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
 
-                {{-- Tanggal Selesai --}}
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700">Tanggal Selesai</label>
                     <input type="date" name="tanggal_selesai" value="{{ request('tanggal_selesai') }}"
                         class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
 
-                {{-- Keyword --}}
                 <div class="md:col-span-2 xl:col-span-3">
                     <label class="mb-2 block text-sm font-medium text-slate-700">Kata Kunci</label>
                     <input type="text" name="keyword" value="{{ request('keyword') }}"

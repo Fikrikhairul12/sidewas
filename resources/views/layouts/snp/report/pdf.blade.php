@@ -163,7 +163,10 @@
                     $totalRowsRecord = 0;
 
                     foreach ($record->butirSnp as $butirHitung) {
-                        $totalRowsRecord += max(1, 1 + $butirHitung->tindakLanjuts->count());
+                        $jumlahKompilasiTl = $butirHitung->kompilasiTindakLanjuts?->count() ?? 0;
+
+                        // 1 baris tanggapan + minimal 1 baris TL
+                        $totalRowsRecord += 1 + max(1, $jumlahKompilasiTl);
                     }
 
                     $isFirstRecordRow = true;
@@ -175,9 +178,46 @@
                         $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
                         $komitePic = $butir->butirPics->where('jenis_pic', 'komite')->first();
 
-                        $tanggapan = $butir->tanggapan;
-                        $reviewTanggapan = $tanggapan?->review;
-                        $tindakLanjuts = $butir->tindakLanjuts;
+                        $kompilasiTanggapan =
+                            $butir->kompilasiTanggapan ??
+                            $butir->kompilasis->where('tahap_kompilasi', 'tanggapan')->sortByDesc('id')->first();
+
+                        $kompilasiTindakLanjuts = $butir->kompilasiTindakLanjuts;
+
+                        if (!$kompilasiTindakLanjuts || $kompilasiTindakLanjuts->count() === 0) {
+                            $kompilasiTindakLanjuts = $butir->kompilasis
+                                ->where('tahap_kompilasi', 'tindak_lanjut')
+                                ->sortBy('putaran_tl')
+                                ->values();
+                        }
+
+                        if ($kompilasiTindakLanjuts->count() === 0) {
+                            $kompilasiTindakLanjuts = collect([null]);
+                        }
+
+                        $reviewTanggapan = $butir->reviews
+                            ->where('tahap_review', 'tanggapan')
+                            ->sortByDesc('id')
+                            ->first();
+
+                        $reviewTerbaruButir = $butir->reviews->sortByDesc('id')->first();
+
+                        $reviewTlTerbaru = $butir->reviews
+                            ->where('tahap_review', 'tindak_lanjut')
+                            ->sortByDesc('id')
+                            ->first();
+
+                        $statusTerbaruButir =
+                            $reviewTerbaruButir?->status ??
+                            ($reviewTlTerbaru?->status ?? ($reviewTanggapan?->status ?? 'belum_ditanggapi'));
+
+                        $statusTerbaruButirClass = match ($statusTerbaruButir) {
+                            'belum_ditanggapi' => 'status-belum',
+                            'dalam_proses_reviu_dewas' => 'status-reviu',
+                            'dalam_proses_tindak_lanjut_direksi' => 'status-tl',
+                            'selesai_tuntas', 'selesai' => 'status-selesai',
+                            default => 'status-belum',
+                        };
 
                         $jatuhTempoAwal = $record->tanggal_surat
                             ? \Carbon\Carbon::parse($record->tanggal_surat)->addDays(30)
@@ -186,14 +226,14 @@
                         $jatuhTempoFinal = $jatuhTempoAwal;
 
                         if (
-                            $tanggapan &&
-                            $tanggapan->status_pengajuan_tgl === 'disetujui' &&
-                            !empty($tanggapan->ubah_tgl)
+                            $kompilasiTanggapan &&
+                            $kompilasiTanggapan->status_pengajuan_tgl === 'disetujui' &&
+                            !empty($kompilasiTanggapan->ubah_tgl)
                         ) {
-                            $jatuhTempoFinal = \Carbon\Carbon::parse($tanggapan->ubah_tgl);
+                            $jatuhTempoFinal = \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl);
                         }
 
-                        $jumlahBarisButir = max(1, 1 + $tindakLanjuts->count());
+                        $jumlahBarisButir = 1 + $kompilasiTindakLanjuts->count();
                     @endphp
 
                     {{-- Baris Tanggapan --}}
@@ -232,21 +272,17 @@
                         </td>
 
                         <td class="pre-line top">
-                            @if ($tanggapan)
-                                {{ $tanggapan->tanggapan }}
-                            @else
-                                -
-                            @endif
+                            {{ $kompilasiTanggapan?->hasil_kompilasi ?? '-' }}
                         </td>
 
                         <td class="pre-line top">
-                            {{ $tanggapan?->deliverables ?? '-' }}
+                            {{ $kompilasiTanggapan?->deliverables ?? '-' }}
                         </td>
 
                         <td class="center">
-                            @if ($tanggapan?->dokumen)
-                                <a href="{{ asset('storage/' . $tanggapan->dokumen) }}" class="pre-line">
-                                    Dokumen Tanggapan
+                            @if ($kompilasiTanggapan?->dokumen)
+                                <a href="{{ asset('storage/' . $kompilasiTanggapan->dokumen) }}" class="pre-line">
+                                    Dokumen Kompilasi Tanggapan
                                 </a>
                             @else
                                 -
@@ -256,12 +292,12 @@
                         <td class="pre-line top">
                             {{ $jatuhTempoAwal ? $jatuhTempoAwal->format('d-M-Y') : '-' }}
 
-                            @if ($tanggapan?->ubah_tgl)
+                            @if ($kompilasiTanggapan?->ubah_tgl)
                                 Pengajuan ubah tanggal:
-                                {{ \Carbon\Carbon::parse($tanggapan->ubah_tgl)->format('d-M-Y') }}
+                                {{ \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl)->format('d-M-Y') }}
 
                                 Status pengajuan:
-                                {{ ucwords(str_replace('_', ' ', $tanggapan->status_pengajuan_tgl ?? 'pending')) }}
+                                {{ ucwords(str_replace('_', ' ', $kompilasiTanggapan->status_pengajuan_tgl ?? 'pending')) }}
                             @endif
                         </td>
 
@@ -273,54 +309,49 @@
                             {{ $reviewTanggapan?->hasil_review ?? '-' }}
                         </td>
 
-                        <td class="center">
-                            @php
-                                $status = $reviewTanggapan?->status ?? 'belum_ditanggapi';
-
-                                $statusClass = match ($status) {
-                                    'belum_ditanggapi' => 'status-belum',
-                                    'dalam_proses_reviu_dewan_pengawas' => 'status-reviu',
-                                    'dalam_proses_tindak_lanjut_direksi' => 'status-tl',
-                                    'selesai_tuntas' => 'status-selesai',
-                                    default => 'status-belum',
-                                };
-                            @endphp
-
-                            <span class="status-badge {{ $statusClass }}">
-                                {{ ucwords(str_replace('_', ' ', $status)) }}
+                        <td class="center" rowspan="{{ $jumlahBarisButir }}">
+                            <span class="status-badge {{ $statusTerbaruButirClass }}">
+                                {{ ucwords(str_replace('_', ' ', $statusTerbaruButir)) }}
                             </span>
                         </td>
                     </tr>
 
-                    {{-- Baris Tindak Lanjut --}}
-                    @foreach ($tindakLanjuts as $tl)
+                    {{-- Baris Kompilasi Tindak Lanjut per Putaran --}}
+                    @foreach ($kompilasiTindakLanjuts as $kompilasiTl)
                         @php
-                            $reviewTl = $tl->reviews->where('tahap_review', 'tindak_lanjut')->sortByDesc('id')->first();
-
-                            $statusTl = $reviewTl?->status ?? '-';
-
-                            $statusTlClass = match ($statusTl) {
-                                'belum_ditanggapi' => 'status-belum',
-                                'dalam_proses_reviu_dewan_pengawas' => 'status-reviu',
-                                'dalam_proses_tindak_lanjut_direksi' => 'status-tl',
-                                'selesai_tuntas', 'selesai' => 'status-selesai',
-                                default => 'status-belum',
-                            };
+                            $reviewTl = $kompilasiTl
+                                ? $butir->reviews
+                                    ->where('tahap_review', 'tindak_lanjut')
+                                    ->where('putaran_tl', $kompilasiTl->putaran_tl)
+                                    ->sortByDesc('id')
+                                    ->first()
+                                : null;
                         @endphp
 
                         <tr>
                             <td class="pre-line top">
-                                {{ $tl->tindak_lanjut }}
+                                @if ($kompilasiTl)
+                                    {{-- Putaran {{ $kompilasiTl->putaran_tl }}: --}}
+                                    {{ $kompilasiTl->hasil_kompilasi ?? '-' }}
+                                @else
+                                    -
+                                @endif
                             </td>
 
                             <td class="pre-line top">
-                                {{ $tl->deliverables ?? '-' }}
+                                @if ($kompilasiTl)
+                                    {{-- Putaran {{ $kompilasiTl->putaran_tl }}: --}}
+                                    {{ $kompilasiTl->deliverables ?? '-' }}
+                                @else
+                                    -
+                                @endif
                             </td>
 
-                            <td class="center">
-                                @if ($tl->dokumen)
-                                    <a href="{{ asset('storage/' . $tl->dokumen) }}" class="pre-line">
-                                        Dokumen Tindak Lanjut
+                            <td class="center pre-line">
+                                @if ($kompilasiTl?->dokumen)
+                                    Putaran {{ $kompilasiTl->putaran_tl }}:
+                                    <a href="{{ asset('storage/' . $kompilasiTl->dokumen) }}">
+                                        Dokumen Kompilasi TL
                                     </a>
                                 @else
                                     -
@@ -333,16 +364,6 @@
 
                             <td class="pre-line top">
                                 {{ $reviewTl?->hasil_review ?? '-' }}
-                            </td>
-
-                            <td class="center">
-                                @if ($statusTl !== '-')
-                                    <span class="status-badge {{ $statusTlClass }}">
-                                        {{ ucwords(str_replace('_', ' ', $statusTl)) }}
-                                    </span>
-                                @else
-                                    -
-                                @endif
                             </td>
                         </tr>
                     @endforeach

@@ -16,8 +16,8 @@ class DjsnSubCluster extends Model
         return $this->belongsTo(DjsnCluster::class, 'cluster_id', 'id');
     }
 
-    public function records()
+    public function butirs()
     {
-        return $this->hasMany(DjsnRecord::class, 'sub_cluster_id', 'id');
+        return $this->hasMany(DjsnButir::class, 'sub_cluster_id', 'id');
     }
 }

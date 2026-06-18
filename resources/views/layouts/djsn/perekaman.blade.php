@@ -516,13 +516,32 @@
 
                                 {{-- Cluster --}}
                                 <td class="px-6 py-6 align-top">
-                                    <p class="max-w-xs text-sm font-bold leading-relaxed text-slate-800">
-                                        {{ $record->cluster?->nama_cluster ?? '-' }}
-                                    </p>
+                                    @php
+                                        $clusterItems = $record->butirDjsn
+                                            ->map(function ($butir) {
+                                                return [
+                                                    'cluster' => $butir->cluster?->nama_cluster,
+                                                    'sub_cluster' => $butir->subCluster?->nama_sub_cluster,
+                                                ];
+                                            })
+                                            ->filter(fn ($item) => !empty($item['cluster']) || !empty($item['sub_cluster']))
+                                            ->unique(fn ($item) => ($item['cluster'] ?? '-') . '|' . ($item['sub_cluster'] ?? '-'))
+                                            ->values();
+                                    @endphp
 
-                                    <p class="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
-                                        {{ $record->subCluster?->nama_sub_cluster ?? '-' }}
-                                    </p>
+                                    @forelse ($clusterItems as $clusterItem)
+                                        <div @class(['mt-3' => !$loop->first])>
+                                            <p class="max-w-xs text-sm font-bold leading-relaxed text-slate-800">
+                                                {{ $clusterItem['cluster'] ?? '-' }}
+                                            </p>
+
+                                            <p class="mt-1 max-w-xs text-sm leading-relaxed text-slate-500">
+                                                {{ $clusterItem['sub_cluster'] ?? '-' }}
+                                            </p>
+                                        </div>
+                                    @empty
+                                        <span class="text-sm text-slate-400">-</span>
+                                    @endforelse
                                 </td>
 
                                 {{-- Status --}}
@@ -769,34 +788,6 @@
                             </p>
                         </div>
 
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Cluster
-                            </label>
-                            <select name="cluster_id" x-model="selectedClusterId" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Pilih Cluster</option>
-                                @foreach ($clusters as $cluster)
-                                    <option value="{{ $cluster->id }}">
-                                        {{ $cluster->nama_cluster }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Sub-Cluster
-                            </label>
-                            <select name="sub_cluster_id" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Pilih Sub-Cluster</option>
-                                <template x-for="subCluster in filteredSubClusters" :key="subCluster.id">
-                                    <option :value="subCluster.id" x-text="subCluster.nama_sub_cluster"></option>
-                                </template>
-                            </select>
-                        </div>
-
                         <div class="lg:col-span-2">
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
                                 Status
@@ -861,6 +852,35 @@
                             <textarea name="butir_djsn" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 placeholder="Masukkan isi butir Rekomendasi DJSN..."></textarea>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Cluster
+                            </label>
+                            <select name="cluster_id" x-model="selectedClusterId" @change="selectedSubClusterId = ''"
+                                required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Pilih Cluster</option>
+                                @foreach ($clusters as $cluster)
+                                    <option value="{{ $cluster->id }}">
+                                        {{ $cluster->nama_cluster }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Sub-Cluster
+                            </label>
+                            <select name="sub_cluster_id" x-model="selectedSubClusterId" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Pilih Sub-Cluster</option>
+                                <template x-for="subCluster in filteredSubClusters" :key="subCluster.id">
+                                    <option :value="subCluster.id" x-text="subCluster.nama_sub_cluster"></option>
+                                </template>
+                            </select>
                         </div>
 
                         <div>

@@ -3,13 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\TracksUser;
-use Illuminate\Database\Eloquent\Model;
 use App\Models\DjsnButirPic;
-use App\Models\DjsnTindakLanjut;
-use App\Models\DjsnTanggapan;
-use App\Models\DjsnReview;
 use App\Models\DjsnRecord;
+use App\Models\DjsnReview;
+use App\Models\DjsnTanggapan;
+use App\Models\DjsnTindakLanjut;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 
 class DjsnButir extends Model
 {
@@ -22,6 +22,8 @@ class DjsnButir extends Model
         'id_butir_djsn',
         'id_djsn',
         'butir_djsn',
+        'cluster_id',
+        'sub_cluster_id',
         'created_by',
         'updated_by',
     ];
@@ -48,6 +50,16 @@ class DjsnButir extends Model
     public function record()
     {
         return $this->belongsTo(DjsnRecord::class, 'id_djsn', 'id_djsn');
+    }
+
+    public function cluster()
+    {
+        return $this->belongsTo(DjsnCluster::class, 'cluster_id', 'id');
+    }
+
+    public function subCluster()
+    {
+        return $this->belongsTo(DjsnSubCluster::class, 'sub_cluster_id', 'id');
     }
 
     public function butirPics()

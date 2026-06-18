@@ -200,6 +200,22 @@
                                         @php
                                             $butirsForReport = $record->butirSnp
                                                 ->map(function ($butir) {
+                                                    $unitOptions = $butir->butirPics
+                                                        ->whereIn('jenis_pic', ['utama', 'pendukung'])
+                                                        ->map(function ($pic) {
+                                                            return [
+                                                                'id' => $pic->unitKerja?->id,
+                                                                'label' => trim(
+                                                                    ($pic->unitKerja?->kode_unit ?? '-') .
+                                                                        ' - ' .
+                                                                        ($pic->unitKerja?->nama_unit ?? '-'),
+                                                                ),
+                                                            ];
+                                                        })
+                                                        ->filter(fn ($unit) => !empty($unit['id']))
+                                                        ->unique('id')
+                                                        ->values();
+
                                                     return [
                                                         'id' => $butir->id,
                                                         'id_butir_snp' => $butir->id_butir_snp,
@@ -207,6 +223,8 @@
                                                             $butir->butir_snp,
                                                             120,
                                                         ),
+                                                        'tanggapan_units' => $unitOptions,
+                                                        'tindak_lanjut_units' => $unitOptions,
                                                     ];
                                                 })
                                                 ->values();
@@ -316,6 +334,56 @@
                             </div>
                         </div>
 
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <div class="mb-2 flex items-center justify-between gap-3">
+                                    <label class="block text-sm font-semibold text-slate-700">
+                                        Filter Tanggapan dari Unit Kerja
+                                    </label>
+
+                                    <button type="button" id="selectAllTanggapanUnitBtn"
+                                        class="text-xs font-bold text-blue-600 hover:text-blue-700">
+                                        Pilih Semua
+                                    </button>
+                                </div>
+
+                                <div id="customReportTanggapanUnitList"
+                                    class="grid max-h-48 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                    <p class="text-sm text-slate-400">
+                                        Pilih butir SNP terlebih dahulu.
+                                    </p>
+                                </div>
+
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Dipakai kalau memilih kolom Tanggapan Unit Kerja.
+                                </p>
+                            </div>
+
+                            <div>
+                                <div class="mb-2 flex items-center justify-between gap-3">
+                                    <label class="block text-sm font-semibold text-slate-700">
+                                        Filter Tindak Lanjut dari Unit Kerja
+                                    </label>
+
+                                    <button type="button" id="selectAllTindakLanjutUnitBtn"
+                                        class="text-xs font-bold text-blue-600 hover:text-blue-700">
+                                        Pilih Semua
+                                    </button>
+                                </div>
+
+                                <div id="customReportTindakLanjutUnitList"
+                                    class="grid max-h-48 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                    <p class="text-sm text-slate-400">
+                                        Pilih butir SNP terlebih dahulu.
+                                    </p>
+                                </div>
+
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Dipakai kalau memilih kolom Tindak Lanjut Unit Kerja.
+                                </p>
+                            </div>
+                        </div>
+
                         <div>
                             <div class="flex items-center justify-between gap-3">
                                 <div>
@@ -340,8 +408,10 @@
                                     'isi_butir' => 'Isi Butir SNP',
                                     'pic_utama' => 'PIC Unit Kerja Utama',
                                     'pic_pendukung' => 'PIC Unit Kerja Pendukung',
-                                    'tanggapan' => 'Tanggapan Direksi',
-                                    'tindak_lanjut' => 'Tindak Lanjut Direksi',
+                                    'tanggapan_unit' => 'Tanggapan Unit Kerja',
+                                    'tindak_lanjut_unit' => 'Tindak Lanjut Unit Kerja',
+                                    'kompilasi_tanggapan' => 'Kompilasi Tanggapan',
+                                    'kompilasi_tindak_lanjut' => 'Kompilasi Tindak Lanjut',
                                     'deliverable' => 'Deliverable',
                                     'dokumen' => 'Dokumen Pendukung',
                                     'jatuh_tempo' => 'Tanggal Jatuh Tempo',

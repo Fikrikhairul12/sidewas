@@ -17,6 +17,8 @@
                         PIC.
                     </p>
                 </div>
+
+
             </div>
         </div>
 
@@ -51,7 +53,7 @@
                         Daftar Butir SNP
                     </h2>
                     <p class="mt-1 text-sm text-slate-500">
-                        Setiap butir hanya bisa memiliki satu tanggapan.
+                        Setiap PIC Unit hanya bisa memberi satu tanggapan untuk setiap butir SNP.
                     </p>
                 </div>
             </div>
@@ -81,11 +83,27 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($butirs as $butir)
                             @php
+                                $user = \App\Models\User::find(auth()->id());
+
                                 $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
                                 $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
-                                $canRespond =
-                                    \App\Models\User::find(auth()->id())?->canCreateSnpTanggapanForButir($butir) ??
-                                    false;
+
+                                $picUnits = $butir->butirPics->whereIn('jenis_pic', ['utama', 'pendukung']);
+                                $tanggapanList = $butir->tanggapan ?? collect();
+
+                                $tanggapanPicIds = $tanggapanList
+                                    ->pluck('butir_pic_id')
+                                    ->filter()
+                                    ->map(fn($id) => (int) $id)
+                                    ->toArray();
+
+                                $availablePicUnits = $picUnits
+                                    ->reject(fn($pic) => in_array((int) $pic->id, $tanggapanPicIds, true))
+                                    ->values();
+
+                                $semuaPicSudahTanggapan = $picUnits->count() > 0 && $availablePicUnits->count() === 0;
+
+                                $canRespond = $user?->canAccessSnpTanggapan() ?? false;
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -148,8 +166,7 @@
                                             <span
                                                 class="mt-2 inline-flex rounded-xl px-3 py-1 text-xs font-bold text-white"
                                                 style="background-color: #6bb17e;">
-                                                {{ $picUtama->unitKerja->kode_unit }} -
-                                                {{ $picUtama->unitKerja->nama_unit }}
+                                                {{ $picUtama->unitKerja->kode_unit }}
                                             </span>
                                         @else
                                             <p class="mt-1 text-sm text-slate-400">-</p>
@@ -180,20 +197,67 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    @if ($butir->tanggapan)
-                                        <span
-                                            class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
-                                            style="background-color: #6bb17e;">
-                                            Sudah Ditanggapi
-                                        </span>
+                                    @if ($tanggapanList->count() > 0)
+                                        @if ($semuaPicSudahTanggapan)
+                                            <span
+                                                class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
+                                                style="background-color: #2377b9;">
+                                                Tanggapan Akan Dilakukan Kompilasi
+                                            </span>
+                                        @else
+                                            <span
+                                                class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-slate-700"
+                                                style="background-color: #c8e079;">
+                                                Sebagian Sudah Menanggapi
+                                            </span>
+                                        @endif
 
-                                        <p class="whitespace-pre-line mt-3 text-xs text-slate-700">
-                                            {{ $butir->tanggapan->tanggapan }}
-                                        </p>
+                                        <div class="mt-4 space-y-4">
+                                            @foreach ($tanggapanList as $item)
+                                                <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                                                    <p class="text-xs font-bold uppercase tracking-wide"
+                                                        style="color: #2377b9;">
+                                                        {{ $item->butirPic?->unitKerja?->kode_unit ?? '-' }}
+                                                        -
+                                                        {{ $item->butirPic?->unitKerja?->nama_unit ?? '-' }}
+                                                    </p>
 
-                                        <p class="mt-2 text-xs text-slate-500">
-                                            Oleh: {{ $butir->tanggapan->creator?->name ?? '-' }}
-                                        </p>
+                                                    <p
+                                                        class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        Tanggapan
+                                                    </p>
+
+                                                    <p class="whitespace-pre-line mt-2 text-xs text-slate-700">
+                                                        {{ $item->tanggapan ?? '-' }}
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        Deliverables
+                                                    </p>
+
+                                                    <p class="whitespace-pre-line mt-2 text-xs text-slate-700">
+                                                        {{ $item->deliverables ?? '-' }}
+                                                    </p>
+
+                                                    <p class="mt-3 text-xs text-slate-500">
+                                                        Oleh:
+                                                        <span class="font-bold text-slate-700">
+                                                            {{ $item->creator?->name ?? '-' }}
+                                                        </span>
+                                                    </p>
+
+                                                    @if ($item->dokumen)
+                                                        <a href="{{ asset('storage/' . $item->dokumen) }}"
+                                                            target="_blank"
+                                                            class="mt-3 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                            style="background-color: #2377b9;">
+                                                            Download Dokumen
+                                                        </a>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
                                     @else
                                         <span
                                             class="inline-flex text-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
@@ -204,20 +268,30 @@
 
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex justify-center">
-                                        @if (!$butir->tanggapan && $canRespond)
+                                        @if ($availablePicUnits->count() > 0 && $canRespond)
                                             <button type="button"
                                                 @click="selectedButir = {
-                                                        id: {{ $butir->id }},
-                                                        id_butir_snp: @js($butir->id_butir_snp),
-                                                        id_snp: @js($butir->record?->id_snp)
-                                                    }; openModal = true"
+                                                    id: {{ $butir->id }},
+                                                    id_butir_snp: @js($butir->id_butir_snp),
+                                                    id_snp: @js($butir->record?->id_snp),
+                                                    pic_units: @js(
+                                                        $availablePicUnits
+                                                            ->map(function ($pic) {
+                                                                return [
+                                                                    'id' => $pic->id,
+                                                                    'label' => strtoupper($pic->jenis_pic) . ' - ' . ($pic->unitKerja?->kode_unit ?? '-') . ' - ' . ($pic->unitKerja?->nama_unit ?? '-'),
+                                                                ];
+                                                            })
+                                                            ->values(),
+                                                    )
+                                                }; openModal = true"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
-                                                style="background-color: #2377b9;">
+                                                style="background-color: #FFA500;">
                                                 Beri Tanggapan
                                             </button>
-                                        @elseif ($butir->tanggapan)
+                                        @elseif ($availablePicUnits->count() === 0)
                                             <span class="text-xs font-semibold text-slate-400">
-                                                Tanggapan sudah ada
+                                                Semua PIC sudah menanggapi
                                             </span>
                                         @else
                                             <span class="text-xs font-semibold text-slate-400">
@@ -276,7 +350,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            Satu butir SNP hanya dapat memiliki satu tanggapan.
+                            Setiap PIC Unit hanya dapat memberi satu tanggapan untuk butir SNP ini.
                         </p>
                     </div>
 
@@ -304,11 +378,30 @@
                     <div class="grid gap-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                PIC Unit yang Memberi Tanggapan
+                            </label>
+
+                            <select name="butir_pic_id" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Pilih PIC Unit</option>
+
+                                <template x-for="pic in selectedButir?.pic_units ?? []" :key="pic.id">
+                                    <option :value="pic.id" x-text="pic.label"></option>
+                                </template>
+                            </select>
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Pilih unit kerja PIC yang tanggapannya sedang diinput.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
                                 Tanggapan SNP
                             </label>
                             <textarea name="tanggapan" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor surat tanggapan (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tanggapan...">{{ old('tanggapan') }}</textarea>
+                                placeholder="Nomor memo tanggapan (ME/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tanggapan...">{{ old('tanggapan') }}</textarea>
                         </div>
 
                         <div>
@@ -322,7 +415,7 @@
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Dokumen Pendukung
+                                Dokumen Pendukung (Dokumen Memo & Deliverables)
                             </label>
                             <input type="file" name="dokumen"
                                 class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -331,16 +424,6 @@
                             </p>
                         </div>
 
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Ubah Tanggal Jatuh Tempo
-                            </label>
-                            <input type="date" name="ubah_tgl" value="{{ old('ubah_tgl') }}"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <p class="mt-1 text-xs text-slate-500">
-                                Opsional jika mengajukan perubahan tanggal.
-                            </p>
-                        </div>
                     </div>
 
                     <div class="mt-8 flex justify-end gap-3 border-t border-slate-100 pt-5">

@@ -131,7 +131,7 @@ class ReportRagabController extends Controller
             'printedAt'
         ))->setPaper('legal', 'landscape');
 
-        return $pdf->download('report-ragab.pdf');
+        return $pdf->stream('report-ragab.pdf');
     }
 
     public function cetakCustom(Request $request)

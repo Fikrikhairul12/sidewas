@@ -68,11 +68,6 @@
             background: #2377b9;
         }
 
-        .status-tl {
-            background: #c8e079;
-            color: #000;
-        }
-
         .status-selesai {
             background: #6bb17e;
         }
@@ -93,12 +88,10 @@
             width: 100%;
             text-align: center;
             z-index: -1000;
-
             font-family: Arial, Helvetica, sans-serif;
             font-size: 55px;
             font-weight: bold;
             color: rgba(0, 0, 0, 0.08);
-
             transform: rotate(-30deg);
             transform-origin: center;
             letter-spacing: 4px;
@@ -116,9 +109,7 @@
         <thead>
             <tr>
                 @foreach ($selectedFields as $field)
-                    <th>
-                        {{ $fieldLabels[$field] ?? strtoupper(str_replace('_', ' ', $field)) }}
-                    </th>
+                    <th>{{ $fieldLabels[$field] ?? strtoupper(str_replace('_', ' ', $field)) }}</th>
                 @endforeach
             </tr>
         </thead>
@@ -137,131 +128,105 @@
 
                 @foreach ($record->butirRawas as $butir)
                     @php
-                        $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
-                        $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
-                        $komitePic = $butir->butirPics->where('jenis_pic', 'komite')->first();
+                        $tindakLanjuts = $butir->tindakLanjuts
+                            ->sortBy([
+                                fn($tl) => $tl->butirPic?->unitKerja?->kode_unit ?? 'ZZZ',
+                                fn($tl) => $tl->id,
+                            ])
+                            ->values();
 
-                        $tindakLanjuts = $butir->tindakLanjuts->values();
+                        if ($tindakLanjuts->count() === 0) {
+                            $tindakLanjuts = collect([null]);
+                        }
+
                         $jumlahBarisButir = max(1, $tindakLanjuts->count());
+                        $review = $butir->reviewTindakLanjut;
+
+                        $statusTl =
+                            $review?->status ??
+                            ($butir->tindakLanjuts->count() > 0
+                                ? $butir->statusTindakLanjut()
+                                : 'belum_ditindaklanjuti');
+
+                        $statusTlClass = match ($statusTl) {
+                            'belum_ditindaklanjuti', 'belum_ditanggapi', 'dalam_proses_tindak_lanjut' => 'status-belum',
+                            'dalam_proses_reviu_dewan_pengawas' => 'status-reviu',
+                            'selesai_tuntas', 'tuntas' => 'status-selesai',
+                            default => 'status-belum',
+                        };
+
+                        $statusTlLabel = match ($statusTl) {
+                            'belum_ditindaklanjuti' => 'Belum Ditindaklanjuti',
+                            'dalam_proses_tindak_lanjut' => 'Dalam Proses Tindak Lanjut',
+                            'diusulkan_tuntas' => 'Diusulkan Tuntas',
+                            'belum_ditanggapi' => 'Belum Direviu',
+                            'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu',
+                            'selesai_tuntas' => 'Selesai Tuntas',
+                            'tuntas' => 'Tuntas',
+                            default => ucwords(str_replace('_', ' ', $statusTl)),
+                        };
                     @endphp
 
-                    @for ($i = 0; $i < $jumlahBarisButir; $i++)
-                        @php
-                            $tl = $tindakLanjuts[$i] ?? null;
-
-                            $reviewTl = $tl
-                                ? $tl->reviews
-                                    ->where('tahap_review', 'tindak_lanjut')
-                                    ->sortByDesc('id')
-                                    ->first()
-                                : null;
-
-                            $statusTl = $reviewTl?->status ?? ($tl ? 'belum_ditanggapi' : 'belum_ditindaklanjuti');
-
-                            $statusTlClass = match ($statusTl) {
-                                'belum_ditindaklanjuti' => 'status-belum',
-                                'belum_ditanggapi' => 'status-belum',
-                                'dalam_proses_reviu_dewan_pengawas' => 'status-reviu',
-                                'dalam_proses_tindak_lanjut_direksi' => 'status-tl',
-                                'selesai_tuntas', 'selesai' => 'status-selesai',
-                                default => 'status-belum',
-                            };
-
-                            $statusTlLabel = match ($statusTl) {
-                                'belum_ditindaklanjuti' => 'Belum Ditindaklanjuti',
-                                'belum_ditanggapi' => 'Belum Direviu',
-                                'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
-                                'dalam_proses_tindak_lanjut_direksi' => 'Dalam Proses Tindak Lanjut Direksi',
-                                'selesai_tuntas' => 'Selesai Tuntas',
-                                'selesai' => 'Selesai',
-                                default => ucwords(str_replace('_', ' ', $statusTl)),
-                            };
-                        @endphp
-
+                    @foreach ($tindakLanjuts as $i => $tl)
                         <tr>
                             @foreach ($selectedFields as $field)
                                 @if ($field === 'surat')
                                     @if ($isFirstRecordRow)
                                         <td rowspan="{{ $totalRowsRecord }}" class="pre-line">
-                                            {{ $record->nomor_surat }}
+                                            {{ $record->nomor_surat ?? '-' }}
                                             {{ $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-' }}
 
-                                            {{ $record->perihal_surat }}
+                                            {{ $record->perihal_surat ?? '-' }}
+                                            <br>
+                                            @if ($record->dokumen_memo)
+                                                <a href="{{ asset('storage/' . $record->dokumen_memo) }}">Dokumen Memo</a>
+                                            @endif
                                         </td>
 
                                         @php
                                             $isFirstRecordRow = false;
                                         @endphp
                                     @endif
+                                @elseif ($field === 'tgl_agenda')
+                                    @if ($i === 0)
+                                        <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                            {{ $butir->tanggal_rawas ? \Carbon\Carbon::parse($butir->tanggal_rawas)->format('d-M-Y') : '-' }}
 
-                                @elseif ($field === 'id_butir')
+                                            {{ $butir->agenda_rawas ?? '-' }}
+                                        </td>
+                                    @endif
+                                @elseif ($field === 'keputusan')
+                                    @if ($i === 0)
+                                        <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                            {{ $butir->keputusan_rawas ?? '-' }}
+                                        </td>
+                                    @endif
+                                @elseif ($field === 'direktorat')
                                     @if ($i === 0)
                                         <td rowspan="{{ $jumlahBarisButir }}" class="center pre-line">
-                                            {{ $butir->id_butir_rawas }}
+                                            Dewan Pengawas
                                         </td>
                                     @endif
-
-                                @elseif ($field === 'isi_butir')
-                                    @if ($i === 0)
-                                        <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
-                                            {{ $butir->butir_rawas }}
-                                        </td>
-                                    @endif
-
-                                @elseif ($field === 'pic_unit')
-                                    @if ($i === 0)
-                                        <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
-                                            PIC UNIT KERJA UTAMA:
-                                            {{ $picUtama?->unitKerja?->kode_unit ?? '-' }}
-
-                                            PIC UNIT KERJA PENDUKUNG:
-                                            @if ($picPendukung->count() > 0)
-                                                {{ $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
-                                            @else
-                                                -
-                                            @endif
-                                        </td>
-                                    @endif
-
-                                @elseif ($field === 'pic_utama')
-                                    @if ($i === 0)
-                                        <td rowspan="{{ $jumlahBarisButir }}" class="center pre-line">
-                                            {{ $picUtama?->unitKerja?->kode_unit ?? '-' }}
-                                        </td>
-                                    @endif
-
-                                @elseif ($field === 'pic_pendukung')
-                                    @if ($i === 0)
-                                        <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
-                                            @if ($picPendukung->count() > 0)
-                                                {{ $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
-                                            @else
-                                                -
-                                            @endif
-                                        </td>
-                                    @endif
-
+                                @elseif ($field === 'unit_pic')
+                                    <td class="center pre-line">
+                                        {{ $tl?->butirPic?->unitKerja?->kode_unit ?? '-' }}
+                                    </td>
                                 @elseif ($field === 'tindak_lanjut')
                                     <td class="pre-line">
                                         {{ $tl?->tindak_lanjut ?? '-' }}
                                     </td>
-
                                 @elseif ($field === 'deliverable')
                                     <td class="pre-line">
                                         {{ $tl?->deliverables ?? '-' }}
                                     </td>
-
                                 @elseif ($field === 'dokumen')
-                                    <td class="center">
+                                    <td class="center pre-line">
                                         @if ($tl?->dokumen)
-                                            <a href="{{ asset('storage/' . $tl->dokumen) }}" class="pre-line center">
-                                                Dokumen Tindak Lanjut
-                                            </a>
+                                            <a href="{{ asset('storage/' . $tl->dokumen) }}">Dokumen TL</a>
                                         @else
                                             -
                                         @endif
                                     </td>
-
                                 @elseif ($field === 'jatuh_tempo')
                                     <td class="center pre-line">
                                         @if ($tl?->jth_tempo)
@@ -272,32 +237,26 @@
                                             -
                                         @endif
                                     </td>
-
-                                @elseif ($field === 'komite')
+                                @elseif ($field === 'hasil_reviu')
                                     @if ($i === 0)
-                                        <td rowspan="{{ $jumlahBarisButir }}" class="center pre-line">
-                                            {{ $komitePic?->komite?->kode_komite ?? '-' }}
+                                        <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                            {{ $review?->hasil_review ?? '-' }}
                                         </td>
                                     @endif
-
-                                @elseif ($field === 'hasil_reviu')
-                                    <td class="pre-line">
-                                        {{ $reviewTl?->hasil_review ?? '-' }}
-                                    </td>
-
                                 @elseif ($field === 'status')
-                                    <td class="center">
-                                        <span class="status-badge {{ $statusTlClass }}">
-                                            {{ $statusTlLabel }}
-                                        </span>
-                                    </td>
-
+                                    @if ($i === 0)
+                                        <td rowspan="{{ $jumlahBarisButir }}" class="center">
+                                            <span class="status-badge {{ $statusTlClass }}">
+                                                {{ $statusTlLabel }}
+                                            </span>
+                                        </td>
+                                    @endif
                                 @else
                                     <td>-</td>
                                 @endif
                             @endforeach
                         </tr>
-                    @endfor
+                    @endforeach
                 @endforeach
             @endforeach
         </tbody>

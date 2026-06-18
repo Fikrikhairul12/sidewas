@@ -33,19 +33,49 @@ return new class extends Migration {
         Schema::connection($this->connectionName)->create('tb_record', function (Blueprint $table) {
             $table->id();
             $table->string('id_rawas', 50)->unique();
-
-            $table->unsignedBigInteger('cluster_id')->nullable();
-            $table->unsignedBigInteger('sub_cluster_id')->nullable();
-
             $table->string('nomor_surat')->nullable();
             $table->date('tanggal_surat')->nullable();
             $table->text('perihal_surat')->nullable();
-            $table->text('dokumen')->nullable();
+            $table->text('dokumen_memo')->nullable();
             $table->date('jth_tempo')->nullable();
-            $table->string('status', 50)->default('draft');
+
+            $table->enum('status', [
+                'draft',
+                'terbit',
+                'dalam_proses',
+                'diusulkan_tuntas',
+                'tuntas',
+            ])->default('draft');
+
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
+            $table->index('status');
+        });
+
+        Schema::connection($this->connectionName)->create('tb_butir_rawas', function (Blueprint $table) {
+            $table->id();
+            $table->string('id_butir_rawas', 70)->unique();
+            $table->string('id_rawas', 50);
+            $table->unsignedBigInteger('cluster_id')->nullable();
+            $table->unsignedBigInteger('sub_cluster_id')->nullable();
+            $table->date('tanggal_rawas')->nullable();
+            $table->text('agenda_rawas')->nullable();
+            $table->text('keputusan_rawas')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->timestamps();
+
+            $table->index('id_rawas');
+            $table->index('cluster_id');
+            $table->index('sub_cluster_id');
+            $table->index('tanggal_rawas');
+
+            $table->foreign('id_rawas')
+                ->references('id_rawas')
+                ->on('tb_record')
+                ->cascadeOnDelete()
+                ->cascadeOnUpdate();
 
             $table->foreign('cluster_id')
                 ->references('id')
@@ -60,30 +90,13 @@ return new class extends Migration {
                 ->cascadeOnUpdate();
         });
 
-        Schema::connection($this->connectionName)->create('tb_butir_rawas', function (Blueprint $table) {
-            $table->id();
-            $table->string('id_butir_rawas', 70)->unique();
-            $table->string('id_rawas', 50);
-            $table->text('butir_rawas');
-            $table->unsignedBigInteger('created_by')->nullable();
-            $table->unsignedBigInteger('updated_by')->nullable();
-            $table->timestamps();
-
-            $table->foreign('id_rawas')
-                ->references('id_rawas')
-                ->on('tb_record')
-                ->cascadeOnDelete()
-                ->cascadeOnUpdate();
-        });
-
         Schema::connection($this->connectionName)->create('tb_butir_pic', function (Blueprint $table) {
             $table->id();
             $table->string('id_butir_rawas', 70);
             $table->unsignedBigInteger('unit_kerja_id')->nullable();
             $table->unsignedBigInteger('komite_id')->nullable();
             $table->enum('jenis_pic', [
-                'utama',
-                'pendukung',
+                'unit',
                 'komite',
             ]);
             $table->unsignedBigInteger('created_by')->nullable();
@@ -111,6 +124,7 @@ return new class extends Migration {
         Schema::connection($this->connectionName)->create('tb_tindak_lanjut', function (Blueprint $table) {
             $table->id();
             $table->string('id_butir_rawas', 70);
+            $table->unsignedBigInteger('butir_pic_id')->nullable();
             $table->text('tindak_lanjut')->nullable();
             $table->text('deliverables')->nullable();
             $table->text('dokumen')->nullable();
@@ -120,11 +134,18 @@ return new class extends Migration {
             $table->timestamps();
 
             $table->index('id_butir_rawas');
+            $table->index('butir_pic_id');
 
             $table->foreign('id_butir_rawas')
                 ->references('id_butir_rawas')
                 ->on('tb_butir_rawas')
                 ->cascadeOnDelete()
+                ->cascadeOnUpdate();
+
+            $table->foreign('butir_pic_id')
+                ->references('id')
+                ->on('tb_butir_pic')
+                ->nullOnDelete()
                 ->cascadeOnUpdate();
         });
 

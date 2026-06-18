@@ -108,10 +108,10 @@ class User extends Authenticatable
             ->exists();
     }
 
-    public static function isAllowedEmailDomain(string $email): bool
-    {
-        return str_ends_with(strtolower($email), '@bpjsketenagakerjaan.go.id');
-    }
+    // public static function isAllowedEmailDomain(string $email): bool
+    // {
+    //     return str_ends_with(strtolower($email), '@bpjsketenagakerjaan.go.id');
+    // }
 
     public function hasRoleType(string $roleTypeName): bool
     {
@@ -248,7 +248,7 @@ class User extends Authenticatable
         }
 
         $picUnitKerjaIds = $butir->butirPics()
-            ->whereIn('jenis_pic', ['utama', 'pendukung'])
+            ->where('jenis_pic', 'unit')
             ->whereNotNull('unit_kerja_id')
             ->pluck('unit_kerja_id')
             ->toArray();
@@ -637,5 +637,26 @@ class User extends Authenticatable
             || $this->hasRoleType('pic_ragab');
     }
 
-}
+    public function hasUnitKerjaSbd(): bool
+    {
+        return $this->unitKerja()
+            ->wherePivot('status', 'active')
+            ->where(function ($query) {
+                $query->where('kode_unit', 'SBD')
+                    ->orWhere('nama_unit', 'like', '%Sekretariat Badan%')
+                    ->orWhere('nama_unit', 'like', '%Deputi Bidang Sekretariat Badan%');
+            })
+            ->exists();
+    }
 
+    public function canAccessSnpKompilasi(): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        return ($this->hasRoleType('admin_snp') || $this->hasRoleType('moderator_snp'))
+            && $this->hasUnitKerjaSbd();
+    }
+
+}

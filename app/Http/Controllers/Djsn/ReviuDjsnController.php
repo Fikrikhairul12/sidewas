@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Djsn;
 
 use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
-use App\Models\Komite;
 use App\Models\DjsnCluster;
-use App\Models\UnitKerja;
-use App\Models\LogActivity;
 use App\Models\DjsnReview;
+use App\Models\Komite;
+use App\Models\LogActivity;
+use App\Models\UnitKerja;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,8 +28,9 @@ class ReviuDjsnController extends Controller
         $komiteIds = $user->komiteIds();
 
         $query = DjsnReview::with([
-            'butir.record.cluster',
-            'butir.record.subCluster',
+            'butir.record',
+            'butir.cluster',
+            'butir.subCluster',
             'tanggapan.creator',
             'tindakLanjut.creator',
             'komite',
@@ -58,14 +59,14 @@ class ReviuDjsnController extends Controller
         }
 
         if ($request->filled('cluster_id')) {
-            $query->whereHas('butir.record', function ($recordQuery) use ($request) {
-                $recordQuery->where('cluster_id', $request->cluster_id);
+            $query->whereHas('butir', function ($butirQuery) use ($request) {
+                $butirQuery->where('cluster_id', $request->cluster_id);
             });
         }
 
         if ($request->filled('sub_cluster_id')) {
-            $query->whereHas('butir.record', function ($recordQuery) use ($request) {
-                $recordQuery->where('sub_cluster_id', $request->sub_cluster_id);
+            $query->whereHas('butir', function ($butirQuery) use ($request) {
+                $butirQuery->where('sub_cluster_id', $request->sub_cluster_id);
             });
         }
 

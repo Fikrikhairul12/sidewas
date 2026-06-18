@@ -15,6 +15,7 @@ class SnpReview extends Model
 
     protected $fillable = [
         'id_butir_snp',
+        'putaran_tl',
         'id_tanggapan',
         'id_tindak_lanjut',
         'tahap_review',
@@ -22,6 +23,7 @@ class SnpReview extends Model
         'hasil_review',
         'deliverables',
         'dokumen',
+        'dokumen_memo',
         'status',
         'created_by',
         'updated_by',
@@ -40,6 +42,19 @@ class SnpReview extends Model
     public function tindakLanjut()
     {
         return $this->belongsTo(SnpTindakLanjut::class, 'id_tindak_lanjut', 'id');
+    }
+
+    public function kompilasiTanggapan()
+    {
+        return $this->hasOne(SnpKompilasi::class, 'id_butir_snp', 'id_butir_snp')
+            ->where('tahap_kompilasi', 'tanggapan');
+    }
+
+    public function kompilasiTindakLanjut()
+    {
+        return $this->hasOne(SnpKompilasi::class, 'id_butir_snp', 'id_butir_snp')
+            ->where('tahap_kompilasi', 'tindak_lanjut')
+            ->latestOfMany('id');
     }
 
     public function komite()

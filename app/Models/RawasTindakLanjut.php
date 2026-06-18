@@ -15,6 +15,7 @@ class RawasTindakLanjut extends Model
 
     protected $fillable = [
         'id_butir_rawas',
+        'butir_pic_id',
         'tindak_lanjut',
         'deliverables',
         'dokumen',
@@ -30,6 +31,16 @@ class RawasTindakLanjut extends Model
     public function butir()
     {
         return $this->belongsTo(RawasButir::class, 'id_butir_rawas', 'id_butir_rawas');
+    }
+
+    public function butirPic()
+    {
+        return $this->belongsTo(RawasButirPic::class, 'butir_pic_id', 'id');
+    }
+
+    public function getUnitKerjaAttribute(): ?UnitKerja
+    {
+        return $this->butirPic?->unitKerja;
     }
 
     public function reviews()

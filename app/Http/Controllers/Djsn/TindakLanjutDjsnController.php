@@ -4,18 +4,18 @@ namespace App\Http\Controllers\Djsn;
 
 use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
-use App\Models\Komite;
-use App\Models\DjsnCluster;
-use App\Models\UnitKerja;
-use App\Models\LogActivity;
 use App\Models\DjsnButir;
+use App\Models\DjsnCluster;
 use App\Models\DjsnReview;
 use App\Models\DjsnTindakLanjut;
+use App\Models\Komite;
+use App\Models\LogActivity;
+use App\Models\UnitKerja;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 
 class TindakLanjutDjsnController extends Controller
@@ -29,8 +29,9 @@ class TindakLanjutDjsnController extends Controller
         }
 
         $butirsRiwayatQuery = DjsnButir::with([
-            'record.cluster',
-            'record.subCluster',
+            'record',
+            'cluster',
+            'subCluster',
             'record.creator',
             'butirPics.unitKerja.direktorat',
             'butirPics.komite',
@@ -46,15 +47,11 @@ class TindakLanjutDjsnController extends Controller
             });
 
         if ($request->filled('cluster_id')) {
-            $butirsRiwayatQuery->whereHas('butir.record', function ($recordQuery) use ($request) {
-                $recordQuery->where('cluster_id', $request->cluster_id);
-            });
+            $butirsRiwayatQuery->where('cluster_id', $request->cluster_id);
         }
 
         if ($request->filled('sub_cluster_id')) {
-            $butirsRiwayatQuery->whereHas('butir.record', function ($recordQuery) use ($request) {
-                $recordQuery->where('sub_cluster_id', $request->sub_cluster_id);
-            });
+            $butirsRiwayatQuery->where('sub_cluster_id', $request->sub_cluster_id);
         }
 
         if ($request->filled('direktorat_id')) {
@@ -69,7 +66,7 @@ class TindakLanjutDjsnController extends Controller
         }
 
         if ($request->filled('unit_kerja_utama_id')) {
-            $butirsRiwayatQuery->whereHas('butir.butirPics', function ($picQuery) use ($request) {
+            $butirsRiwayatQuery->whereHas('butirPics', function ($picQuery) use ($request) {
                 $picQuery->where('jenis_pic', 'utama')
                     ->where('unit_kerja_id', $request->unit_kerja_utama_id);
             });
@@ -92,7 +89,7 @@ class TindakLanjutDjsnController extends Controller
         if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_djsn')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
-            $butirsRiwayatQuery->whereHas('butir.butirPics', function ($picQuery) use ($userUnitKerjaIds) {
+            $butirsRiwayatQuery->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
                 $picQuery->whereIn('jenis_pic', ['utama', 'pendukung'])
                     ->whereIn('unit_kerja_id', $userUnitKerjaIds);
             });
@@ -234,6 +231,8 @@ class TindakLanjutDjsnController extends Controller
         );
         $butirSiapTindakLanjutQuery = DjsnButir::with([
             'record',
+            'cluster',
+            'subCluster',
             'butirPics.unitKerja',
             'butirPics.komite',
             'reviews',

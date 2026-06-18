@@ -11,6 +11,7 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
         selectedRecord: null,
 
         selectedClusterId: '',
+        selectedSubClusterId: '',
         selectedDirektoratUtamaId: '',
 
         picPendukungSearch: '',
@@ -21,6 +22,7 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
 
         openButirModalFor(record) {
             this.selectedRecord = record;
+            this.selectedClusterId = '';
             this.selectedDirektoratUtamaId = '';
             this.picPendukungSearch = '';
             this.selectedPicPendukung = [];
@@ -168,9 +170,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const customReportRecordIds = document.getElementById('customReportRecordIds');
     const customReportButirList = document.getElementById('customReportButirList');
     const customReportForm = document.getElementById('customReportForm');
+    const customReportTanggapanUnitList = document.getElementById('customReportTanggapanUnitList');
+    const customReportTindakLanjutUnitList = document.getElementById('customReportTindakLanjutUnitList');
 
     const selectAllCustomButirBtn = document.getElementById('selectAllCustomButirBtn');
     const selectAllCustomFieldsBtn = document.getElementById('selectAllCustomFieldsBtn');
+    const selectAllTanggapanUnitBtn = document.getElementById('selectAllTanggapanUnitBtn');
+    const selectAllTindakLanjutUnitBtn = document.getElementById('selectAllTindakLanjutUnitBtn');
 
     if (!customReportModal || !customReportRecordIds || !customReportButirList || !customReportForm) {
         return;
@@ -232,7 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.name = 'butir_ids[]';
                 input.value = butir.id;
                 input.checked = true;
+                input.dataset.tanggapanUnits = JSON.stringify(butir.tanggapan_units || []);
+                input.dataset.tindakLanjutUnits = JSON.stringify(butir.tindak_lanjut_units || []);
                 input.className = 'custom-butir-checkbox mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500';
+                input.addEventListener('change', renderUnitFilters);
 
                 const span = document.createElement('span');
                 span.className = 'text-slate-700';
@@ -261,6 +270,86 @@ document.addEventListener('DOMContentLoaded', () => {
                 </p>
             `;
         }
+
+        renderUnitFilters();
+    };
+
+    const parseUnits = (value) => {
+        try {
+            return JSON.parse(value || '[]');
+        } catch (error) {
+            return [];
+        }
+    };
+
+    const getSelectedButirUnits = (datasetKey) => {
+        const selectedButirs = customReportForm.querySelectorAll('.custom-butir-checkbox:checked');
+        const unitMap = new Map();
+
+        selectedButirs.forEach((checkbox) => {
+            parseUnits(checkbox.dataset[datasetKey]).forEach((unit) => {
+                if (!unit?.id || unitMap.has(String(unit.id))) {
+                    return;
+                }
+
+                unitMap.set(String(unit.id), unit);
+            });
+        });
+
+        return Array.from(unitMap.values())
+            .sort((first, second) => String(first.label || '').localeCompare(String(second.label || '')));
+    };
+
+    const renderUnitCheckboxList = (container, units, inputName, checkboxClass) => {
+        if (!container) {
+            return;
+        }
+
+        container.innerHTML = '';
+
+        if (units.length === 0) {
+            container.innerHTML = `
+                <p class="text-sm text-slate-400">
+                    Belum ada unit kerja dari butir terpilih.
+                </p>
+            `;
+            return;
+        }
+
+        units.forEach((unit) => {
+            const label = document.createElement('label');
+            label.className = 'flex cursor-pointer items-start gap-3 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 hover:bg-blue-50';
+
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.name = inputName;
+            input.value = unit.id;
+            input.checked = true;
+            input.className = `${checkboxClass} mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500`;
+
+            const span = document.createElement('span');
+            span.textContent = unit.label || '-';
+
+            label.appendChild(input);
+            label.appendChild(span);
+            container.appendChild(label);
+        });
+    };
+
+    function renderUnitFilters() {
+        renderUnitCheckboxList(
+            customReportTanggapanUnitList,
+            getSelectedButirUnits('tanggapanUnits'),
+            'tanggapan_unit_kerja_ids[]',
+            'custom-tanggapan-unit-checkbox',
+        );
+
+        renderUnitCheckboxList(
+            customReportTindakLanjutUnitList,
+            getSelectedButirUnits('tindakLanjutUnits'),
+            'tindak_lanjut_unit_kerja_ids[]',
+            'custom-tindak-lanjut-unit-checkbox',
+        );
     };
 
     const openCustomReportModal = () => {
@@ -307,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         selectAllCustomButirBtn.textContent = allChecked ? 'Pilih Semua Butir' : 'Hapus Pilihan Butir';
+        renderUnitFilters();
     });
 
     selectAllCustomFieldsBtn?.addEventListener('click', () => {
@@ -318,6 +408,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         selectAllCustomFieldsBtn.textContent = allChecked ? 'Pilih Semua Kolom' : 'Hapus Pilihan Kolom';
+    });
+
+    selectAllTanggapanUnitBtn?.addEventListener('click', () => {
+        const checkboxes = customReportForm.querySelectorAll('.custom-tanggapan-unit-checkbox');
+        const allChecked = Array.from(checkboxes).every((checkbox) => checkbox.checked);
+
+        checkboxes.forEach((checkbox) => {
+            checkbox.checked = !allChecked;
+        });
+
+        selectAllTanggapanUnitBtn.textContent = allChecked ? 'Pilih Semua' : 'Hapus Pilihan';
+    });
+
+    selectAllTindakLanjutUnitBtn?.addEventListener('click', () => {
+        const checkboxes = customReportForm.querySelectorAll('.custom-tindak-lanjut-unit-checkbox');
+        const allChecked = Array.from(checkboxes).every((checkbox) => checkbox.checked);
+
+        checkboxes.forEach((checkbox) => {
+            checkbox.checked = !allChecked;
+        });
+
+        selectAllTindakLanjutUnitBtn.textContent = allChecked ? 'Pilih Semua' : 'Hapus Pilihan';
     });
 
     customReportForm.addEventListener('submit', (event) => {
@@ -337,6 +449,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/**
+ * ============================================================
+ * REPORT - PILIH SEMUA RECORD
+ * ============================================================
+ * Dipakai di halaman report SNP/RAGAB/RAWAS/DJSN.
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    const selectAllCheckbox = document.getElementById('selectAllReportRecords');
+    const recordCheckboxes = document.querySelectorAll('.record-report-checkbox');
+
+    if (!selectAllCheckbox || recordCheckboxes.length === 0) {
+        return;
+    }
+
+    const refreshSelectAllState = () => {
+        const checkedCount = Array.from(recordCheckboxes).filter((checkbox) => checkbox.checked).length;
+
+        selectAllCheckbox.checked = checkedCount === recordCheckboxes.length;
+        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < recordCheckboxes.length;
+    };
+
+    selectAllCheckbox.addEventListener('change', () => {
+        recordCheckboxes.forEach((checkbox) => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+    });
+
+    recordCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', refreshSelectAllState);
+    });
+
+    refreshSelectAllState();
+});
 
 /**
  * ============================================================
@@ -390,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * Clone dari perekaman SNP.
  * Dipakai di resources/views/layouts/rawas/perekaman.blade.php
  */
-window.perekamanRawasModal = function (clusters = [], direktorats = []) {
+window.perekamanRawasModal = function (clusters = [], picOptions = []) {
     return {
         openCreateModal: false,
         openButirModal: false,
@@ -398,19 +543,18 @@ window.perekamanRawasModal = function (clusters = [], direktorats = []) {
         selectedRecord: null,
 
         selectedClusterId: '',
-        selectedDirektoratUtamaId: '',
+        selectedPicIds: [],
 
-        picPendukungSearch: '',
-        selectedPicPendukung: [],
+        picSearch: '',
 
         clusters: clusters,
-        direktorats: direktorats,
+        picOptions: picOptions,
 
         openButirModalFor(record) {
             this.selectedRecord = record;
-            this.selectedDirektoratUtamaId = '';
-            this.picPendukungSearch = '';
-            this.selectedPicPendukung = [];
+            this.selectedClusterId = '';
+            this.selectedPicIds = [];
+            this.picSearch = '';
             this.openButirModal = true;
         },
 
@@ -419,46 +563,32 @@ window.perekamanRawasModal = function (clusters = [], direktorats = []) {
             return cluster ? cluster.sub_clusters : [];
         },
 
-        get filteredUnitKerjaUtama() {
-            const direktorat = this.direktorats.find(item => String(item.id) === String(this.selectedDirektoratUtamaId));
-            return direktorat ? direktorat.unit_kerja : [];
-        },
-
-        get allUnitKerjaPendukung() {
-            return this.direktorats.flatMap(direktorat => {
-                return (direktorat.unit_kerja || []).map(unit => ({
-                    ...unit,
-                    direktorat_nama: direktorat.nama_direktorat,
-                }));
-            });
-        },
-
-        get filteredAllUnitKerjaPendukung() {
-            const keyword = this.picPendukungSearch.toLowerCase().trim();
+        get filteredPicOptions() {
+            const keyword = this.picSearch.toLowerCase().trim();
 
             if (!keyword) {
-                return this.allUnitKerjaPendukung;
+                return this.picOptions;
             }
 
-            return this.allUnitKerjaPendukung.filter(unit => {
-                const kode = String(unit.kode_unit || '').toLowerCase();
-                const nama = String(unit.nama_unit || '').toLowerCase();
-                const direktorat = String(unit.direktorat_nama || '').toLowerCase();
+            return this.picOptions.filter(pic => {
+                const label = String(pic.label || '').toLowerCase();
+                const subLabel = String(pic.sub_label || '').toLowerCase();
+                const type = String(pic.type || '').toLowerCase();
 
-                return kode.includes(keyword)
-                    || nama.includes(keyword)
-                    || direktorat.includes(keyword);
+                return label.includes(keyword)
+                    || subLabel.includes(keyword)
+                    || type.includes(keyword);
             });
         },
 
-        get selectedPicPendukungDetail() {
-            return this.allUnitKerjaPendukung.filter(unit => {
-                return this.selectedPicPendukung.includes(String(unit.id));
+        get selectedPicDetail() {
+            return this.picOptions.filter(pic => {
+                return this.selectedPicIds.includes(String(pic.value));
             });
         },
 
-        removePicPendukung(id) {
-            this.selectedPicPendukung = this.selectedPicPendukung.filter(item => String(item) !== String(id));
+        removePic(id) {
+            this.selectedPicIds = this.selectedPicIds.filter(item => String(item) !== String(id));
         },
     };
 };
@@ -488,6 +618,8 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
 
         openButirModalFor(record) {
             this.selectedRecord = record;
+            this.selectedClusterId = '';
+            this.selectedSubClusterId = '';
             this.selectedDirektoratUtamaId = '';
             this.picPendukungSearch = '';
             this.selectedPicPendukung = [];

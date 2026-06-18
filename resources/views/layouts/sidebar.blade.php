@@ -145,6 +145,12 @@
                     Tindak Lanjut SNP
                 </a>
 
+                <a href="{{ route('snp.kompilasi.index') }}"
+                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                    {{ request()->routeIs('snp.kompilasi.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                    Kompilasi SNP
+                </a>
+
                 <a href="{{ route('snp.reviu.index') }}"
                     class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('snp.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">

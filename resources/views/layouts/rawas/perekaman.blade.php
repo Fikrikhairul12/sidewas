@@ -1,5 +1,12 @@
 <x-app-layout>
-    <div x-data="perekamanRawasModal(@js($clusters), @js($direktorats))" class="space-y-6">
+    @php
+        $summaryTotal = $statistik['total'] ?? $records->total();
+        $summaryTerbit = $statistik['terbit'] ?? $records->getCollection()->where('status', 'terbit')->count();
+        $summaryProses = $statistik['dalam_proses'] ?? $statistik['proses'] ?? $records->getCollection()->where('status', 'dalam_proses')->count();
+        $summaryTuntas = $statistik['tuntas'] ?? $statistik['selesai'] ?? $records->getCollection()->whereIn('status', ['tuntas', 'selesai'])->count();
+    @endphp
+
+    <div x-data="perekamanRawasModal(@js($clusters), @js($picOptions))" class="space-y-6">
         {{-- Page Header --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -47,7 +54,7 @@
                     <div>
                         <p class="text-sm font-medium text-slate-500">Total Perekaman</p>
                         <p class="mt-2 text-3xl font-bold text-slate-800">
-                            {{ $statistik['total'] ?? 0 }}
+                            {{ $summaryTotal }}
                         </p>
                     </div>
 
@@ -63,18 +70,18 @@
                 </div>
             </div>
 
-            {{-- Selesai --}}
-            <div class="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
+            {{-- Terbit --}}
+            <div class="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-slate-500">Selesai</p>
-                        <p class="mt-2 text-3xl font-bold" style="color: #6bb17e;">
-                            {{ $statistik['selesai'] ?? 0 }}
+                        <p class="text-sm font-medium text-slate-500">Terbit</p>
+                        <p class="mt-2 text-3xl font-bold" style="color: #2377b9;">
+                            {{ $summaryTerbit }}
                         </p>
                     </div>
 
                     <div class="flex h-12 w-12 items-center justify-center rounded-xl text-white"
-                        style="background-color: #6bb17e;">
+                        style="background-color: #2377b9;">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
                             viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -89,7 +96,7 @@
                     <div>
                         <p class="text-sm font-medium text-slate-500">Dalam Proses</p>
                         <p class="mt-2 text-3xl font-bold text-slate-800">
-                            {{ $statistik['proses'] ?? 0 }}
+                            {{ $summaryProses }}
                         </p>
                     </div>
 
@@ -104,23 +111,21 @@
                 </div>
             </div>
 
-            {{-- Draft --}}
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            {{-- Tuntas --}}
+            <div class="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-slate-500">Draf</p>
-                        <p class="mt-2 text-3xl font-bold text-slate-700">
-                            {{ $statistik['draft'] ?? 0 }}
+                        <p class="text-sm font-medium text-slate-500">Tuntas</p>
+                        <p class="mt-2 text-3xl font-bold" style="color: #6bb17e;">
+                            {{ $summaryTuntas }}
                         </p>
                     </div>
 
-                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-xl text-white"
+                        style="background-color: #6bb17e;">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
                             viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M16.862 4.487 18.55 2.8a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
                     </div>
                 </div>
@@ -134,9 +139,10 @@
                 'draft' => 'Draft',
                 'terbit' => 'Terbit',
                 'dalam_proses' => 'Dalam Proses',
-                'selesai' => 'Selesai',
+                'diusulkan_tuntas' => 'Diusulkan Tuntas',
+                'tuntas' => 'Tuntas',
             ],
-            'keywordPlaceholder' => 'Cari ID Keputusan RAWAS, ID butir, nomor surat, perihal, atau isi butir...',
+            'keywordPlaceholder' => 'Cari ID Keputusan RAWAS, ID butir, nomor surat, perihal, agenda, keputusan, atau PIC...',
         ])
 
         {{-- Table --}}
@@ -206,11 +212,11 @@
                                                 Dokumen Memo
                                             </p>
 
-                                            @if ($record->dokumen)
-                                                <a href="{{ route('rawas.perekaman.dokumen', $record->id) }}"
+                                            @if ($record->dokumen_memo)
+                                                <a href="{{ route('rawas.perekaman.dokumen-memo', $record->id) }}"
                                                     class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
                                                     style="background-color: #2377b9;">
-                                                    Download Dokumen
+                                                    Download Memo
                                                 </a>
                                             @else
                                                 <p class="mt-1 text-xs text-slate-400">
@@ -241,6 +247,11 @@
                                     @if ($record->butirRawas->count() > 0)
                                         <div class="space-y-6">
                                             @foreach ($record->butirRawas as $butir)
+                                                @php
+                                                    $picUnit = $butir->butirPics->where('jenis_pic', 'unit');
+                                                    $komite = $butir->butirPics->where('jenis_pic', 'komite');
+                                                @endphp
+
                                                 <div
                                                     class="{{ !$loop->first ? 'mt-5 border-t border-slate-300 pt-5' : '' }}">
                                                     <p class="text-sm font-bold tracking-wide"
@@ -248,57 +259,51 @@
                                                         {{ $butir->id_butir_rawas }}
                                                     </p>
 
-                                                    <p
-                                                        class="mt-3 max-w-xl text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                                        {{ $butir->butir_rawas }}
-                                                    </p>
-
-                                                    @php
-                                                        $picUtama = $butir->butirPics
-                                                            ->where('jenis_pic', 'utama')
-                                                            ->first();
-
-                                                        $picPendukung = $butir->butirPics->where(
-                                                            'jenis_pic',
-                                                            'pendukung',
-                                                        );
-
-                                                        $komite = $butir->butirPics
-                                                            ->where('jenis_pic', 'komite')
-                                                            ->first();
-                                                    @endphp
-
-                                                    <div class="mt-5 space-y-4">
-                                                        {{-- PIC Utama --}}
+                                                    <div class="mt-3 space-y-3">
                                                         <div>
-                                                            <p
-                                                                class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                                PIC Utama
+                                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                                Tanggal & Agenda RAWAS
                                                             </p>
-
-                                                            @if ($picUtama?->unitKerja)
-                                                                <span
-                                                                    class="mt-2 inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
-                                                                    style="background-color: #6bb17e;">
-                                                                    {{ $picUtama->unitKerja->kode_unit }}
-                                                                    -
-                                                                    {{ $picUtama->unitKerja->nama_unit }}
-                                                                </span>
-                                                            @else
-                                                                <p class="mt-1 text-sm text-slate-400">-</p>
-                                                            @endif
+                                                            <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-800">
+                                                                {{ $butir->tanggal_rawas ? \Carbon\Carbon::parse($butir->tanggal_rawas)->format('d/m/Y') : '-' }}
+                                                            </p>
+                                                            <p class="mt-1 whitespace-pre-line text-xs font-medium leading-relaxed text-slate-800">
+                                                                {{ $butir->agenda_rawas ?? '-' }}
+                                                            </p>
                                                         </div>
 
-                                                        {{-- PIC Pendukung --}}
                                                         <div>
-                                                            <p
-                                                                class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                                PIC Pendukung
+                                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                                Keputusan RAWAS
+                                                            </p>
+                                                            <p class="mt-1 max-w-xl whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
+                                                                {{ $butir->keputusan_rawas ?? '-' }}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mt-5 space-y-4">
+                                                        {{-- Direktorat terkait --}}
+                                                        <div>
+                                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                                Direktorat Terkait
                                                             </p>
 
-                                                            @if ($picPendukung->count() > 0)
+                                                            <span
+                                                                class="mt-2 inline-flex rounded-full bg-blue-50 px-4 py-1.5 text-xs font-bold text-blue-700">
+                                                                Dewan Pengawas
+                                                            </span>
+                                                        </div>
+
+                                                        {{-- PIC Unit --}}
+                                                        <div>
+                                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                                PIC Unit
+                                                            </p>
+
+                                                            @if ($picUnit->count() > 0)
                                                                 <div class="mt-2 flex flex-wrap gap-2">
-                                                                    @foreach ($picPendukung as $pic)
+                                                                    @foreach ($picUnit as $pic)
                                                                         @if ($pic->unitKerja)
                                                                             <span
                                                                                 class="inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-slate-700"
@@ -320,16 +325,23 @@
                                                             <p
                                                                 class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                                                 Komite Dewas
+                                                                <span class="font-normal text-slate-400">(Opsional)</span>
                                                             </p>
 
-                                                            @if ($komite?->komite)
-                                                                <span
-                                                                    class="mt-2 inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
-                                                                    style="background-color: #2377b9;">
-                                                                    {{ $komite->komite->kode_komite }}
-                                                                    -
-                                                                    {{ $komite->komite->nama_komite }}
-                                                                </span>
+                                                            @if ($komite->count() > 0)
+                                                                <div class="mt-2 flex flex-wrap gap-2">
+                                                                    @foreach ($komite as $pic)
+                                                                        @if ($pic->komite)
+                                                                            <span
+                                                                                class="inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
+                                                                                style="background-color: #2377b9;">
+                                                                                {{ $pic->komite->kode_komite }}
+                                                                                -
+                                                                                {{ $pic->komite->nama_komite }}
+                                                                            </span>
+                                                                        @endif
+                                                                    @endforeach
+                                                                </div>
                                                             @else
                                                                 <p class="mt-1 text-sm text-slate-400">-</p>
                                                             @endif
@@ -345,13 +357,23 @@
 
                                 {{-- Cluster --}}
                                 <td class="px-6 py-6 align-top">
-                                    <p class="max-w-xs text-sm font-bold leading-relaxed text-slate-800">
-                                        {{ $record->cluster?->nama_cluster ?? '-' }}
-                                    </p>
+                                    @if ($record->butirRawas->count() > 0)
+                                        <div class="space-y-5">
+                                            @foreach ($record->butirRawas as $butir)
+                                                <div class="{{ !$loop->first ? 'border-t border-slate-200 pt-4' : '' }}">
+                                                    <p class="max-w-xs text-sm font-bold leading-relaxed text-slate-800">
+                                                        {{ $butir->cluster?->nama_cluster ?? '-' }}
+                                                    </p>
 
-                                    <p class="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
-                                        {{ $record->subCluster?->nama_sub_cluster ?? '-' }}
-                                    </p>
+                                                    <p class="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
+                                                        {{ $butir->subCluster?->nama_sub_cluster ?? '-' }}
+                                                    </p>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <p class="text-sm text-slate-400">-</p>
+                                    @endif
                                 </td>
 
                                 {{-- Status --}}
@@ -361,8 +383,9 @@
                                             [
                                                 'draft' => 'Draft',
                                                 'terbit' => 'Terbit',
-                                                'dalam_proses' => 'Proses',
-                                                'selesai' => 'Selesai',
+                                                'dalam_proses' => 'Dalam Proses',
+                                                'diusulkan_tuntas' => 'Diusulkan Tuntas',
+                                                'tuntas' => 'Tuntas',
                                             ][$record->status] ?? ucwords(str_replace('_', ' ', $record->status));
 
                                         $statusColor =
@@ -370,7 +393,8 @@
                                                 'draft' => '#64748b',
                                                 'terbit' => '#2377b9',
                                                 'dalam_proses' => '#c8e079',
-                                                'selesai' => '#6bb17e',
+                                                'diusulkan_tuntas' => '#f59e0b',
+                                                'tuntas' => '#6bb17e',
                                             ][$record->status] ?? '#64748b';
 
                                         $teksColor =
@@ -378,7 +402,8 @@
                                                 'draft' => 'text-white',
                                                 'terbit' => 'text-white',
                                                 'dalam_proses' => 'text-black',
-                                                'selesai' => 'text-white',
+                                                'diusulkan_tuntas' => 'text-white',
+                                                'tuntas' => 'text-white',
                                             ][$record->status] ?? 'text-white';
                                     @endphp
 
@@ -591,40 +616,12 @@
                                 Dokumen Memo
                             </label>
 
-                            <input type="file" name="dokumen"
+                            <input type="file" name="dokumen_memo"
                                 class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
 
                             <p class="mt-1 text-xs text-slate-500">
                                 Opsional. Format: PDF, Word, Excel, JPG, PNG. Maksimal 5 MB.
                             </p>
-                        </div>
-
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Cluster
-                            </label>
-                            <select name="cluster_id" x-model="selectedClusterId" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Pilih Cluster</option>
-                                @foreach ($clusters as $cluster)
-                                    <option value="{{ $cluster->id }}">
-                                        {{ $cluster->nama_cluster }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Sub-Cluster
-                            </label>
-                            <select name="sub_cluster_id" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Pilih Sub-Cluster</option>
-                                <template x-for="subCluster in filteredSubClusters" :key="subCluster.id">
-                                    <option :value="subCluster.id" x-text="subCluster.nama_sub_cluster"></option>
-                                </template>
-                            </select>
                         </div>
 
                         <div class="lg:col-span-2">
@@ -684,75 +681,72 @@
                     @csrf
 
                     <div class="grid gap-5 lg:grid-cols-2">
-                        <div class="lg:col-span-2">
+                        <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Isi Butir Keputusan RAWAS
+                                Tanggal RAWAS
                             </label>
-                            <textarea name="butir_rawas" rows="4" required
+                            <input type="date" name="tanggal_rawas" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Agenda RAWAS
+                            </label>
+                            <input type="text" name="agenda_rawas" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan isi butir Keputusan RAWAS..."></textarea>
-                        </div>
-
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Direktorat Penanggung Jawab
-                            </label>
-                            <select x-model="selectedDirektoratUtamaId" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Pilih Direktorat</option>
-                                @foreach ($direktorats as $direktorat)
-                                    <option value="{{ $direktorat->id }}">
-                                        {{ $direktorat->nama_direktorat }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                PIC Utama
-                            </label>
-                            <select name="unit_kerja_utama_id" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Pilih PIC Utama</option>
-                                <template x-for="unit in filteredUnitKerjaUtama" :key="unit.id">
-                                    <option :value="unit.id"
-                                        x-text="`${unit.kode_unit ?? '-'} - ${unit.nama_unit}`"></option>
-                                </template>
-                            </select>
+                                placeholder="Masukkan agenda RAWAS...">
                         </div>
 
                         <div class="lg:col-span-2">
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                PIC Pendukung
+                                Butir Keputusan RAWAS
+                            </label>
+                            <textarea name="keputusan_rawas" rows="4" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Masukkan butir keputusan RAWAS..."></textarea>
+                        </div>
+
+                        <div class="lg:col-span-2">
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Direktorat Terkait
+                            </label>
+                            <div
+                                class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
+                                Dewan Pengawas
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2">
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                PIC Unit / Komite
                             </label>
 
                             <div class="rounded-xl border border-slate-300 bg-white">
                                 {{-- Search --}}
                                 <div class="border-b border-slate-200 p-3">
-                                    <input type="text" x-model="picPendukungSearch"
-                                        placeholder="Cari kode/nama unit kerja, contoh: SDW, LND, KEU..."
+                                    <input type="text" x-model="picSearch"
+                                        placeholder="Cari PIC unit atau komite..."
                                         class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 </div>
 
                                 {{-- Selected chips --}}
-                                <div x-show="selectedPicPendukungDetail.length > 0"
+                                <div x-show="selectedPicDetail.length > 0"
                                     class="border-b border-slate-200 bg-slate-50 p-3">
                                     <p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        PIC Pendukung Terpilih
+                                        PIC Terpilih
                                     </p>
 
                                     <div class="flex flex-wrap gap-2">
-                                        <template x-for="unit in selectedPicPendukungDetail"
-                                            :key="`selected-${unit.id}`">
+                                        <template x-for="pic in selectedPicDetail" :key="`selected-${pic.value}`">
                                             <span
                                                 class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-slate-700"
                                                 style="background-color: #c8e079;">
-                                                <span x-text="`${unit.kode_unit ?? '-'} - ${unit.nama_unit}`"></span>
+                                                <span x-text="pic.label"></span>
 
-                                                <button type="button" @click="removePicPendukung(unit.id)"
+                                                <button type="button" @click="removePic(pic.value)"
                                                     class="font-bold text-slate-600 hover:text-red-600">
-                                                    ×
+                                                    x
                                                 </button>
                                             </span>
                                         </template>
@@ -762,53 +756,61 @@
                                 {{-- Checkbox list --}}
                                 <div class="max-h-64 overflow-y-auto p-3">
                                     <div class="grid gap-2 md:grid-cols-2">
-                                        <template x-for="unit in filteredAllUnitKerjaPendukung" :key="unit.id">
+                                        <template x-for="pic in filteredPicOptions" :key="pic.value">
                                             <label
                                                 class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-100 p-3 transition hover:bg-blue-50">
-                                                <input type="checkbox" :value="String(unit.id)"
-                                                    x-model="selectedPicPendukung"
+                                                <input type="checkbox" name="pic_ids[]" :value="String(pic.value)"
+                                                    x-model="selectedPicIds"
                                                     class="mt-1 rounded border-slate-300 text-blue-600 shadow-sm focus:ring-blue-500">
 
                                                 <span>
                                                     <span class="block text-sm font-semibold text-slate-800"
-                                                        x-text="`${unit.kode_unit ?? '-'} - ${unit.nama_unit}`"></span>
+                                                        x-text="pic.label"></span>
 
                                                     <span class="mt-1 block text-xs text-slate-500"
-                                                        x-text="unit.direktorat_nama"></span>
+                                                        x-text="`${pic.type} - ${pic.sub_label}`"></span>
                                                 </span>
                                             </label>
                                         </template>
                                     </div>
 
-                                    <div x-show="filteredAllUnitKerjaPendukung.length === 0"
+                                    <div x-show="filteredPicOptions.length === 0"
                                         class="py-8 text-center text-sm text-slate-400">
-                                        Unit kerja tidak ditemukan.
+                                        PIC tidak ditemukan.
                                     </div>
                                 </div>
                             </div>
 
                             <p class="mt-1 text-xs text-slate-500">
-                                Opsional. Ketik kode/nama unit, lalu centang unit kerja yang ingin dijadikan PIC
-                                pendukung.
+                                Pilih minimal satu PIC. Semua PIC ditampilkan sebagai Direktorat - Dewan Pengawas.
                             </p>
                         </div>
 
-                        <template x-for="picId in selectedPicPendukung" :key="`hidden-pic-${picId}`">
-                            <input type="hidden" name="unit_kerja_pendukung_id[]" :value="picId">
-                        </template>
-
-                        <div class="lg:col-span-2">
+                        <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Komite Dewas
+                                Cluster
                             </label>
-                            <select name="komite_id" required
+                            <select name="cluster_id" x-model="selectedClusterId" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Pilih Komite</option>
-                                @foreach ($komites as $komite)
-                                    <option value="{{ $komite->id }}">
-                                        {{ $komite->kode_komite }} - {{ $komite->nama_komite }}
+                                <option value="">Pilih Cluster</option>
+                                @foreach ($clusters as $cluster)
+                                    <option value="{{ $cluster->id }}">
+                                        {{ $cluster->nama_cluster }}
                                     </option>
                                 @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Sub-Cluster
+                            </label>
+                            <select name="sub_cluster_id" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Pilih Sub-Cluster</option>
+                                <template x-for="subCluster in filteredSubClusters" :key="subCluster.id">
+                                    <option :value="subCluster.id" x-text="subCluster.nama_sub_cluster"></option>
+                                </template>
                             </select>
                         </div>
                     </div>

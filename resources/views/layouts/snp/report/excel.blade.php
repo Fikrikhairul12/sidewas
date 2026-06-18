@@ -15,9 +15,39 @@
                     $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
                     $komitePic = $butir->butirPics->where('jenis_pic', 'komite')->first();
 
-                    $tanggapan = $butir->tanggapan;
-                    $reviewTanggapan = $tanggapan?->review;
-                    $tindakLanjuts = $butir->tindakLanjuts;
+                    $kompilasiTanggapan = $butir->kompilasiTanggapan;
+                    $kompilasiTindakLanjut = $butir->kompilasiTindakLanjut;
+
+                    $tanggapans = $butir->tanggapan ?? collect();
+                    if ($tanggapans instanceof \Illuminate\Database\Eloquent\Model) {
+                        $tanggapans = collect([$tanggapans]);
+                    }
+
+                    $tanggapanUnitKerjaIds = collect($tanggapanUnitKerjaIds ?? [])
+                        ->map(fn($id) => (int) $id)
+                        ->toArray();
+
+                    if (!empty($tanggapanUnitKerjaIds)) {
+                        $tanggapans = $tanggapans->filter(function ($item) use ($tanggapanUnitKerjaIds) {
+                            return in_array((int) $item->butirPic?->unit_kerja_id, $tanggapanUnitKerjaIds, true);
+                        });
+                    }
+
+                    $tindakLanjuts = $butir->tindakLanjuts ?? collect();
+
+                    $tindakLanjutUnitKerjaIds = collect($tindakLanjutUnitKerjaIds ?? [])
+                        ->map(fn($id) => (int) $id)
+                        ->toArray();
+
+                    if (!empty($tindakLanjutUnitKerjaIds)) {
+                        $tindakLanjuts = $tindakLanjuts->filter(function ($item) use ($tindakLanjutUnitKerjaIds) {
+                            return in_array((int) $item->butirPic?->unit_kerja_id, $tindakLanjutUnitKerjaIds, true);
+                        });
+                    }
+
+                    $reviewTanggapan = $butir->reviews->where('tahap_review', 'tanggapan')->sortByDesc('id')->first();
+
+                    $reviewTl = $butir->reviews->where('tahap_review', 'tindak_lanjut')->sortByDesc('id')->first();
 
                     $jatuhTempoAwal = $record->tanggal_surat
                         ? \Carbon\Carbon::parse($record->tanggal_surat)->addDays(30)
@@ -26,17 +56,16 @@
                     $jatuhTempoFinal = $jatuhTempoAwal;
 
                     if (
-                        $tanggapan
-                        && $tanggapan->status_pengajuan_tgl === 'disetujui'
-                        && !empty($tanggapan->ubah_tgl)
+                        $kompilasiTanggapan &&
+                        $kompilasiTanggapan->status_pengajuan_tgl === 'disetujui' &&
+                        !empty($kompilasiTanggapan->ubah_tgl)
                     ) {
-                        $jatuhTempoFinal = \Carbon\Carbon::parse($tanggapan->ubah_tgl);
+                        $jatuhTempoFinal = \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl);
                     }
 
-                    $statusTanggapan = $reviewTanggapan?->status ?? 'belum_ditanggapi';
+                    $status = $reviewTl?->status ?? ($reviewTanggapan?->status ?? 'belum_ditanggapi');
                 @endphp
 
-                {{-- Baris tanggapan --}}
                 <tr>
                     @foreach ($selectedFields as $field)
                         @if ($field === 'surat')
@@ -45,136 +74,129 @@
                                 {{ $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-' }}
                                 {{ $record->perihal_surat }}
                             </td>
-
                         @elseif ($field === 'id_butir')
                             <td>{{ $butir->id_butir_snp }}</td>
-
                         @elseif ($field === 'isi_butir')
                             <td>{{ $butir->butir_snp }}</td>
-
                         @elseif ($field === 'pic_utama')
                             <td>{{ $picUtama?->unitKerja?->kode_unit ?? '-' }}</td>
-
                         @elseif ($field === 'pic_pendukung')
                             <td>
                                 @if ($picPendukung->count() > 0)
-                                    {{ $picPendukung->map(fn ($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
+                                    {{ $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
                                 @else
                                     -
                                 @endif
                             </td>
+                        @elseif ($field === 'pic_unit')
+                            <td>
+                                PIC UNIT KERJA UTAMA:
+                                {{ $picUtama?->unitKerja?->kode_unit ?? '-' }}
 
-                        @elseif ($field === 'tanggapan')
-                            <td>{{ $tanggapan?->tanggapan ?? '-' }}</td>
+                                PIC UNIT KERJA PENDUKUNG:
+                                @if ($picPendukung->count() > 0)
+                                    {{ $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                        @elseif ($field === 'tanggapan_unit' || $field === 'tanggapan')
+                            <td>
+                                @forelse ($tanggapans as $tanggapan)
+                                    @if (!$loop->first)
+                                        --------------------
 
-                        @elseif ($field === 'tindak_lanjut')
-                            <td>-</td>
+                                    @endif
 
+                                    {{ $tanggapan->butirPic?->unitKerja?->kode_unit ?? '-' }}
+                                    -
+                                    {{ $tanggapan->butirPic?->unitKerja?->nama_unit ?? '-' }}
+
+                                    {{ $tanggapan->tanggapan ?? '-' }}
+
+                                @empty
+                                    -
+                                @endforelse
+                            </td>
+                        @elseif ($field === 'tindak_lanjut_unit' || $field === 'tindak_lanjut')
+                            <td>
+                                @forelse ($tindakLanjuts as $tl)
+                                    @if (!$loop->first)
+                                        --------------------
+
+                                    @endif
+
+                                    {{ $tl->butirPic?->unitKerja?->kode_unit ?? '-' }}
+                                    -
+                                    {{ $tl->butirPic?->unitKerja?->nama_unit ?? '-' }}
+
+                                    {{ $tl->tindak_lanjut ?? '-' }}
+
+                                @empty
+                                    -
+                                @endforelse
+                            </td>
+                        @elseif ($field === 'kompilasi_tanggapan')
+                            <td>{{ $kompilasiTanggapan?->hasil_kompilasi ?? '-' }}</td>
+                        @elseif ($field === 'kompilasi_tindak_lanjut')
+                            <td>{{ $kompilasiTindakLanjut?->hasil_kompilasi ?? '-' }}</td>
                         @elseif ($field === 'deliverable')
-                            <td>{{ $tanggapan?->deliverables ?? '-' }}</td>
+                            <td>
+                                Kompilasi Tanggapan:
+                                {{ $kompilasiTanggapan?->deliverables ?? '-' }}
 
+                                Kompilasi Tindak Lanjut:
+                                {{ $kompilasiTindakLanjut?->deliverables ?? '-' }}
+                            </td>
                         @elseif ($field === 'dokumen')
                             <td>
-                                @if ($tanggapan?->dokumen)
-                                    {{ asset('storage/' . $tanggapan->dokumen) }}
-                                @else
+                                @if ($kompilasiTanggapan?->dokumen)
+                                    Dokumen Kompilasi Tanggapan:
+                                    {{ asset('storage/' . $kompilasiTanggapan->dokumen) }}
+                                @endif
+
+                                @if ($kompilasiTindakLanjut?->dokumen)
+                                    Dokumen Kompilasi Tindak Lanjut:
+                                    {{ asset('storage/' . $kompilasiTindakLanjut->dokumen) }}
+                                @endif
+
+                                @if (!$kompilasiTanggapan?->dokumen && !$kompilasiTindakLanjut?->dokumen)
                                     -
                                 @endif
                             </td>
-
                         @elseif ($field === 'jatuh_tempo')
                             <td>
                                 Jatuh tempo awal:
                                 {{ $jatuhTempoAwal ? $jatuhTempoAwal->format('d-M-Y') : '-' }}
 
-                                @if ($tanggapan?->ubah_tgl)
+                                @if ($kompilasiTanggapan?->ubah_tgl)
                                     Pengajuan ubah tanggal:
-                                    {{ \Carbon\Carbon::parse($tanggapan->ubah_tgl)->format('d-M-Y') }}
+                                    {{ \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl)->format('d-M-Y') }}
 
                                     Status:
-                                    {{ ucwords(str_replace('_', ' ', $tanggapan->status_pengajuan_tgl ?? 'pending')) }}
+                                    {{ ucwords(str_replace('_', ' ', $kompilasiTanggapan->status_pengajuan_tgl ?? 'pending')) }}
                                 @endif
-                            </td>
 
+                                Jatuh tempo final:
+                                {{ $jatuhTempoFinal ? $jatuhTempoFinal->format('d-M-Y') : '-' }}
+                            </td>
                         @elseif ($field === 'komite')
                             <td>{{ $komitePic?->komite?->kode_komite ?? '-' }}</td>
-
                         @elseif ($field === 'hasil_reviu')
-                            <td>{{ $reviewTanggapan?->hasil_review ?? '-' }}</td>
+                            <td>
+                                Reviu Tanggapan:
+                                {{ $reviewTanggapan?->hasil_review ?? '-' }}
 
+                                Reviu Tindak Lanjut:
+                                {{ $reviewTl?->hasil_review ?? '-' }}
+                            </td>
                         @elseif ($field === 'status')
-                            <td>{{ ucwords(str_replace('_', ' ', $statusTanggapan)) }}</td>
-
+                            <td>{{ ucwords(str_replace('_', ' ', $status)) }}</td>
                         @else
                             <td>-</td>
                         @endif
                     @endforeach
                 </tr>
-
-                {{-- Baris tindak lanjut --}}
-                @foreach ($tindakLanjuts as $tl)
-                    @php
-                        $reviewTl = $tl->reviews
-                            ->where('tahap_review', 'tindak_lanjut')
-                            ->sortByDesc('id')
-                            ->first();
-
-                        $statusTl = $reviewTl?->status ?? '-';
-                    @endphp
-
-                    <tr>
-                        @foreach ($selectedFields as $field)
-                            @if ($field === 'surat')
-                                <td></td>
-
-                            @elseif ($field === 'id_butir')
-                                <td></td>
-
-                            @elseif ($field === 'isi_butir')
-                                <td></td>
-
-                            @elseif ($field === 'pic_utama')
-                                <td></td>
-
-                            @elseif ($field === 'pic_pendukung')
-                                <td></td>
-
-                            @elseif ($field === 'tanggapan')
-                                <td></td>
-
-                            @elseif ($field === 'tindak_lanjut')
-                                <td>{{ $tl->tindak_lanjut }}</td>
-
-                            @elseif ($field === 'deliverable')
-                                <td>{{ $tl->deliverables ?? '-' }}</td>
-
-                            @elseif ($field === 'dokumen')
-                                <td>
-                                    @if ($tl->dokumen)
-                                        {{ asset('storage/' . $tl->dokumen) }}
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-
-                            @elseif ($field === 'jatuh_tempo')
-                                <td>{{ $jatuhTempoFinal ? $jatuhTempoFinal->format('d-M-Y') : '-' }}</td>
-
-                            @elseif ($field === 'komite')
-                                <td></td>
-
-                            @elseif ($field === 'hasil_reviu')
-                                <td>{{ $reviewTl?->hasil_review ?? '-' }}</td>
-
-                            @elseif ($field === 'status')
-                                <td>{{ $statusTl !== '-' ? ucwords(str_replace('_', ' ', $statusTl)) : '-' }}</td>
-
-                            @else
-                                <td>-</td>
-                            @endif
-                        @endforeach
-                    </tr>
-                @endforeach
             @endforeach
         @endforeach
     </tbody>

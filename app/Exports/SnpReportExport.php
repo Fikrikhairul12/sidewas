@@ -10,12 +10,21 @@ class SnpReportExport implements FromView
     protected $records;
     protected array $selectedFields;
     protected array $fieldLabels;
+    protected array $tanggapanUnitKerjaIds;
+    protected array $tindakLanjutUnitKerjaIds;
 
-    public function __construct($records, array $selectedFields, array $fieldLabels)
-    {
+    public function __construct(
+        $records,
+        array $selectedFields,
+        array $fieldLabels,
+        array $tanggapanUnitKerjaIds = [],
+        array $tindakLanjutUnitKerjaIds = []
+    ) {
         $this->records = $records;
         $this->selectedFields = $selectedFields;
         $this->fieldLabels = $fieldLabels;
+        $this->tanggapanUnitKerjaIds = $tanggapanUnitKerjaIds;
+        $this->tindakLanjutUnitKerjaIds = $tindakLanjutUnitKerjaIds;
     }
 
     public function view(): View
@@ -24,6 +33,8 @@ class SnpReportExport implements FromView
             'records' => $this->records,
             'selectedFields' => $this->selectedFields,
             'fieldLabels' => $this->fieldLabels,
+            'tanggapanUnitKerjaIds' => $this->tanggapanUnitKerjaIds,
+            'tindakLanjutUnitKerjaIds' => $this->tindakLanjutUnitKerjaIds,
         ]);
     }
 }

@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Djsn;
 
 use App\Http\Controllers\Controller;
+use App\Models\DeleteRequest;
 use App\Models\Direktorat;
 use App\Models\Komite;
-use App\Models\LogActivity;
 use App\Models\DjsnButir;
 use App\Models\DjsnButirPic;
 use App\Models\DjsnCluster;
 use App\Models\DjsnRecord;
+use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
-use App\Models\DeleteRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class PerekamanDjsnController extends Controller
@@ -30,9 +30,9 @@ class PerekamanDjsnController extends Controller
 
         $recordsQuery = DjsnRecord::query()
             ->with([
-                'cluster',
-                'subCluster',
                 'creator',
+                'butirDjsn.cluster',
+                'butirDjsn.subCluster',
                 'butirDjsn.butirPics.unitKerja.direktorat',
                 'butirDjsn.butirPics.komite',
             ])
@@ -66,11 +66,15 @@ class PerekamanDjsnController extends Controller
         |--------------------------------------------------------------------------
         */
         if ($request->filled('cluster_id')) {
-            $recordsQuery->where('cluster_id', $request->cluster_id);
+            $recordsQuery->whereHas('butirDjsn', function ($butirQuery) use ($request) {
+                $butirQuery->where('cluster_id', $request->cluster_id);
+            });
         }
 
         if ($request->filled('sub_cluster_id')) {
-            $recordsQuery->where('sub_cluster_id', $request->sub_cluster_id);
+            $recordsQuery->whereHas('butirDjsn', function ($butirQuery) use ($request) {
+                $butirQuery->where('sub_cluster_id', $request->sub_cluster_id);
+            });
         }
 
         /*
@@ -199,8 +203,6 @@ class PerekamanDjsnController extends Controller
             'nomor_surat' => ['required', 'string', 'max:255'],
             'tanggal_surat' => ['required', 'date'],
             'perihal_surat' => ['required', 'string'],
-            'cluster_id' => ['required', 'integer'],
-            'sub_cluster_id' => ['required', 'integer'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
         ]);
 
@@ -212,8 +214,6 @@ class PerekamanDjsnController extends Controller
             }
 
             $record = DjsnRecord::create([
-                'cluster_id' => $validated['cluster_id'],
-                'sub_cluster_id' => $validated['sub_cluster_id'],
                 'nomor_surat' => $validated['nomor_surat'],
                 'tanggal_surat' => $validated['tanggal_surat'],
                 'perihal_surat' => $validated['perihal_surat'],
@@ -251,6 +251,8 @@ class PerekamanDjsnController extends Controller
 
         $validated = $request->validate([
             'butir_djsn' => ['required', 'string'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id'],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id'],
 
             'unit_kerja_utama_id' => ['required', 'integer'],
 
@@ -264,6 +266,8 @@ class PerekamanDjsnController extends Controller
             $butir = DjsnButir::create([
                 'id_djsn' => $record->id_djsn,
                 'butir_djsn' => $validated['butir_djsn'],
+                'cluster_id' => $validated['cluster_id'],
+                'sub_cluster_id' => $validated['sub_cluster_id'],
             ]);
 
             DjsnButirPic::create([
@@ -334,8 +338,8 @@ class PerekamanDjsnController extends Controller
             DB::connection('mysql_djsn')->transaction(function () use ($request, $record, $user) {
                 $oldData = $record->load([
                     'butirDjsn.butirPics',
-                    'cluster',
-                    'subCluster',
+                    'butirDjsn.cluster',
+                    'butirDjsn.subCluster',
                 ])->toArray();
 
                 $recordKey = $record->id_djsn;

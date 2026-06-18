@@ -15,8 +15,6 @@ class DjsnRecord extends Model
 
     protected $fillable = [
         'id_djsn',
-        'cluster_id',
-        'sub_cluster_id',
         'nomor_surat',
         'tanggal_surat',
         'perihal_surat',
@@ -54,16 +52,6 @@ class DjsnRecord extends Model
         $nomorSurat = trim($nomorSurat);
 
         return $nomorSurat . '-DJSN';
-    }
-
-    public function cluster()
-    {
-        return $this->belongsTo(DjsnCluster::class, 'cluster_id', 'id');
-    }
-
-    public function subCluster()
-    {
-        return $this->belongsTo(DjsnSubCluster::class, 'sub_cluster_id', 'id');
     }
 
     public function butirDjsn()

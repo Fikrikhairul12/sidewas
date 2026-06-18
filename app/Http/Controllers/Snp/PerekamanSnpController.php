@@ -10,6 +10,10 @@ use App\Models\SnpButir;
 use App\Models\SnpButirPic;
 use App\Models\SnpCluster;
 use App\Models\SnpRecord;
+use App\Models\SnpTanggapan;
+use App\Models\SnpTindakLanjut;
+use App\Models\SnpReview;
+use App\Models\SnpKompilasi;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Models\DeleteRequest;
@@ -202,13 +206,19 @@ class PerekamanSnpController extends Controller
             'cluster_id' => ['required', 'integer'],
             'sub_cluster_id' => ['required', 'integer'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+            'dokumen_memo' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
         ]);
 
         DB::connection('mysql_snp')->transaction(function () use ($request, $validated) {
             $dokumenPath = null;
+            $dokumenMemoPath = null;
 
             if ($request->hasFile('dokumen')) {
                 $dokumenPath = $request->file('dokumen')->store('dokumen/record-snp', 'public');
+            }
+
+            if ($request->hasFile('dokumen_memo')) {
+                $dokumenMemoPath = $request->file('dokumen_memo')->store('dokumen/memo-snp', 'public');
             }
 
             $record = SnpRecord::create([
@@ -218,6 +228,7 @@ class PerekamanSnpController extends Controller
                 'tanggal_surat' => $validated['tanggal_surat'],
                 'perihal_surat' => $validated['perihal_surat'],
                 'dokumen' => $dokumenPath,
+                'dokumen_memo' => $dokumenMemoPath,
                 'status' => 'draft',
             ]);
 
@@ -344,6 +355,69 @@ class PerekamanSnpController extends Controller
                     Storage::disk('public')->delete($record->dokumen);
                 }
 
+                if ($record->dokumen_memo && Storage::disk('public')->exists($record->dokumen_memo)) {
+                    Storage::disk('public')->delete($record->dokumen_memo);
+                }
+
+                $record->load([
+                    'butirSnp.butirPics',
+                ]);
+
+                $butirIds = $record->butirSnp
+                    ->pluck('id_butir_snp')
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
+                if (!empty($butirIds)) {
+                    $tanggapans = SnpTanggapan::whereIn('id_butir_snp', $butirIds)->get();
+
+                    foreach ($tanggapans as $tanggapan) {
+                        if ($tanggapan->dokumen && Storage::disk('public')->exists($tanggapan->dokumen)) {
+                            Storage::disk('public')->delete($tanggapan->dokumen);
+                        }
+                    }
+
+                    $tindakLanjuts = SnpTindakLanjut::whereIn('id_butir_snp', $butirIds)->get();
+
+                    foreach ($tindakLanjuts as $tl) {
+                        if ($tl->dokumen && Storage::disk('public')->exists($tl->dokumen)) {
+                            Storage::disk('public')->delete($tl->dokumen);
+                        }
+                    }
+
+                    $reviews = SnpReview::whereIn('id_butir_snp', $butirIds)->get();
+
+                    foreach ($reviews as $review) {
+                        if ($review->dokumen && Storage::disk('public')->exists($review->dokumen)) {
+                            Storage::disk('public')->delete($review->dokumen);
+                        }
+
+                        if ($review->dokumen_memo && Storage::disk('public')->exists($review->dokumen_memo)) {
+                            Storage::disk('public')->delete($review->dokumen_memo);
+                        }
+                    }
+
+                    $kompilasis = SnpKompilasi::whereIn('id_butir_snp', $butirIds)->get();
+
+                    foreach ($kompilasis as $kompilasi) {
+                        if ($kompilasi->dokumen && Storage::disk('public')->exists($kompilasi->dokumen)) {
+                            Storage::disk('public')->delete($kompilasi->dokumen);
+                        }
+                    }
+
+                    SnpReview::whereIn('id_butir_snp', $butirIds)->delete();
+                    SnpKompilasi::whereIn('id_butir_snp', $butirIds)->delete();
+                    SnpTindakLanjut::whereIn('id_butir_snp', $butirIds)->delete();
+                    SnpTanggapan::whereIn('id_butir_snp', $butirIds)->delete();
+
+                    foreach ($record->butirSnp as $butir) {
+                        $butir->butirPics()->delete();
+                    }
+
+                    $record->butirSnp()->delete();
+                }
+
                 $record->delete();
 
                 LogActivity::create([
@@ -432,6 +506,27 @@ class PerekamanSnpController extends Controller
         }
 
         $filePath = storage_path('app/public/' . $record->dokumen);
+
+        if (!file_exists($filePath)) {
+            abort(404, 'File tidak ditemukan di storage.');
+        }
+
+        return response()->download($filePath);
+    }
+
+    public function downloadDokumenMemo(SnpRecord $record)
+    {
+        $user = User::find(Auth::id());
+
+        if (!$user || !$user->canAccessSnpPerekaman()) {
+            abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen memo.');
+        }
+
+        if (!$record->dokumen_memo) {
+            abort(404, 'Dokumen memo tidak ditemukan.');
+        }
+
+        $filePath = storage_path('app/public/' . $record->dokumen_memo);
 
         if (!file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');

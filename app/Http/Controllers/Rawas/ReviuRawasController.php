@@ -3,9 +3,8 @@
 namespace App\Http\Controllers\Rawas;
 
 use App\Http\Controllers\Controller;
-use App\Models\Direktorat;
-use App\Models\Komite;
 use App\Models\LogActivity;
+use App\Models\RawasButir;
 use App\Models\RawasCluster;
 use App\Models\RawasReview;
 use App\Models\UnitKerja;
@@ -25,19 +24,59 @@ class ReviuRawasController extends Controller
             abort(403, 'Anda tidak memiliki akses ke halaman reviu RAWAS.');
         }
 
-        $komiteIds = $user->komiteIds();
+        $butirsForReviewQuery = RawasButir::with([
+            'record',
+            'butirPics.unitKerja',
+        ])
+            ->whereHas('record')
+            ->whereHas('tindakLanjuts');
+
+        if (!$this->canReviewAllRawas($user)) {
+            $butirsForReviewQuery->whereHas('record', function ($recordQuery) use ($user) {
+                $recordQuery->where('created_by', $user->id);
+            });
+        }
+
+        $butirsForReview = $butirsForReviewQuery->get();
+
+        DB::connection('mysql_rawas')->transaction(function () use ($butirsForReview) {
+            foreach ($butirsForReview as $butir) {
+                RawasReview::firstOrCreate(
+                    [
+                        'id_butir_rawas' => $butir->id_butir_rawas,
+                        'tahap_review' => 'tindak_lanjut',
+                    ],
+                    [
+                        'id_tindak_lanjut' => null,
+                        'komite_id' => null,
+                        'hasil_review' => null,
+                        'deliverables' => null,
+                        'dokumen' => null,
+                        'status' => 'belum_ditanggapi',
+                        'created_by' => $butir->record?->created_by,
+                        'updated_by' => $butir->record?->created_by,
+                    ]
+                );
+            }
+        });
 
         $query = RawasReview::with([
-            'butir.record.cluster',
-            'butir.record.subCluster',
-            'tindakLanjut.creator',
-            'komite',
+            'butir.record.creator',
+            'butir.cluster',
+            'butir.subCluster',
+            'butir.butirPics.unitKerja.direktorat',
+            'butir.tindakLanjuts.creator',
+            'butir.tindakLanjuts.butirPic.unitKerja.direktorat',
+            'creator',
+            'updater',
         ])
             ->where('tahap_review', 'tindak_lanjut')
-            ->whereNotNull('id_tindak_lanjut');
+            ->whereHas('butir.tindakLanjuts');
 
-        if (!$user->isSuperAdmin()) {
-            $query->whereIn('komite_id', $komiteIds);
+        if (!$this->canReviewAllRawas($user)) {
+            $query->whereHas('butir.record', function ($recordQuery) use ($user) {
+                $recordQuery->where('created_by', $user->id);
+            });
         }
 
         if ($request->filled('tanggal_mulai')) {
@@ -49,44 +88,30 @@ class ReviuRawasController extends Controller
         }
 
         if ($request->filled('cluster_id')) {
-            $query->whereHas('butir.record', function ($recordQuery) use ($request) {
-                $recordQuery->where('cluster_id', $request->cluster_id);
+            $query->whereHas('butir', function ($butirQuery) use ($request) {
+                $butirQuery->where('cluster_id', $request->cluster_id);
             });
         }
 
         if ($request->filled('sub_cluster_id')) {
-            $query->whereHas('butir.record', function ($recordQuery) use ($request) {
-                $recordQuery->where('sub_cluster_id', $request->sub_cluster_id);
+            $query->whereHas('butir', function ($butirQuery) use ($request) {
+                $butirQuery->where('sub_cluster_id', $request->sub_cluster_id);
             });
         }
 
         if ($request->filled('direktorat_id')) {
-            $unitKerjaIds = UnitKerja::where('direktorat_id', $request->direktorat_id)
-                ->pluck('id')
-                ->toArray();
-
-            $query->whereHas('butir.butirPics', function ($picQuery) use ($unitKerjaIds) {
-                $picQuery->where('jenis_pic', 'utama')
-                    ->whereIn('unit_kerja_id', $unitKerjaIds);
+            $query->whereHas('butir.butirPics', function ($picQuery) {
+                $picQuery->where('jenis_pic', 'unit');
             });
         }
 
-        if ($request->filled('unit_kerja_utama_id')) {
-            $query->whereHas('butir.butirPics', function ($picQuery) use ($request) {
-                $picQuery->where('jenis_pic', 'utama')
-                    ->where('unit_kerja_id', $request->unit_kerja_utama_id);
-            });
-        }
+        $unitKerjaId = $request->input('unit_kerja_id', $request->input('unit_kerja_pendukung_id'));
 
-        if ($request->filled('unit_kerja_pendukung_id')) {
-            $query->whereHas('butir.butirPics', function ($picQuery) use ($request) {
-                $picQuery->where('jenis_pic', 'pendukung')
-                    ->where('unit_kerja_id', $request->unit_kerja_pendukung_id);
+        if (!empty($unitKerjaId)) {
+            $query->whereHas('butir.butirPics', function ($picQuery) use ($unitKerjaId) {
+                $picQuery->where('jenis_pic', 'unit')
+                    ->where('unit_kerja_id', $unitKerjaId);
             });
-        }
-
-        if ($request->filled('komite_id')) {
-            $query->where('komite_id', $request->komite_id);
         }
 
         if ($request->filled('status')) {
@@ -105,17 +130,21 @@ class ReviuRawasController extends Controller
 
                     ->orWhereHas('butir', function ($butirQuery) use ($keyword) {
                         $butirQuery->where('id_butir_rawas', 'like', "%{$keyword}%")
-                            ->orWhere('butir_rawas', 'like', "%{$keyword}%")
+                            ->orWhere('agenda_rawas', 'like', "%{$keyword}%")
+                            ->orWhere('keputusan_rawas', 'like', "%{$keyword}%")
                             ->orWhereHas('record', function ($recordQuery) use ($keyword) {
                                 $recordQuery->where('id_rawas', 'like', "%{$keyword}%")
                                     ->orWhere('nomor_surat', 'like', "%{$keyword}%")
                                     ->orWhere('perihal_surat', 'like', "%{$keyword}%");
+                            })
+                            ->orWhereHas('tindakLanjuts', function ($tlQuery) use ($keyword) {
+                                $tlQuery->where('tindak_lanjut', 'like', "%{$keyword}%")
+                                    ->orWhere('deliverables', 'like', "%{$keyword}%");
+                            })
+                            ->orWhereHas('butirPics.unitKerja', function ($unitQuery) use ($keyword) {
+                                $unitQuery->where('kode_unit', 'like', "%{$keyword}%")
+                                    ->orWhere('nama_unit', 'like', "%{$keyword}%");
                             });
-                    })
-
-                    ->orWhereHas('tindakLanjut', function ($tlQuery) use ($keyword) {
-                        $tlQuery->where('tindak_lanjut', 'like', "%{$keyword}%")
-                            ->orWhere('deliverables', 'like', "%{$keyword}%");
                     });
             });
         }
@@ -129,11 +158,7 @@ class ReviuRawasController extends Controller
             ->orderBy('nama_cluster')
             ->get();
 
-        $direktorats = Direktorat::orderBy('nama_direktorat')->get();
-
         $unitKerjas = UnitKerja::orderBy('nama_unit')->get();
-
-        $komites = Komite::orderBy('nama_komite')->get();
 
         $statusOptions = [
             'belum_ditanggapi' => 'Belum Direviu',
@@ -144,9 +169,7 @@ class ReviuRawasController extends Controller
         return view('layouts.rawas.reviu', compact(
             'reviews',
             'clusters',
-            'direktorats',
             'unitKerjas',
-            'komites',
             'statusOptions'
         ));
     }
@@ -155,21 +178,26 @@ class ReviuRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canReviewRawasByKomite($review->komite_id)) {
+        $review->load([
+            'butir.record',
+            'butir.record.butirRawas.reviewTindakLanjut',
+            'butir.tindakLanjuts',
+        ]);
+
+        if (!$user || !$this->canReviewRawasReview($user, $review)) {
             abort(403, 'Anda tidak memiliki akses untuk mereviu data ini.');
         }
 
-        $review->load([
-            'tindakLanjut',
-            'butir.record',
-        ]);
-
-        if ($review->tahap_review !== 'tindak_lanjut' || empty($review->id_tindak_lanjut)) {
+        if ($review->tahap_review !== 'tindak_lanjut') {
             return back()->with('error', 'Data reviu RAWAS tidak valid.');
         }
 
         if ($review->status === 'selesai_tuntas') {
             return back()->with('error', 'Reviu ini sudah selesai diproses dan tidak dapat diubah.');
+        }
+
+        if (!$review->butir || $review->butir->tindakLanjuts->count() === 0) {
+            return back()->with('error', 'Butir RAWAS belum memiliki tindak lanjut.');
         }
 
         $validated = $request->validate([
@@ -201,26 +229,32 @@ class ReviuRawasController extends Controller
                 'deliverables' => $validated['deliverables'] ?? null,
                 'dokumen' => $dokumenPath,
                 'status' => $validated['status'],
+                'updated_by' => $user->id,
             ]);
 
-            if (
-                $validated['status'] === 'selesai_tuntas'
-                && $review->butir
-                && $review->butir->record
-            ) {
-                $review->butir->record->update([
-                    'status' => 'selesai',
+            $record = $review->butir?->record;
+
+            if ($record && $validated['status'] === 'dalam_proses_reviu_dewan_pengawas') {
+                $record->update([
+                    'status' => 'dalam_proses',
+                    'updated_by' => $user->id,
                 ]);
             }
 
-            if (
-                $validated['status'] === 'dalam_proses_reviu_dewan_pengawas'
-                && $review->butir
-                && $review->butir->record
-            ) {
-                $review->butir->record->update([
-                    'status' => 'dalam_proses',
-                ]);
+            if ($record && $validated['status'] === 'selesai_tuntas') {
+                $record->load('butirRawas.reviewTindakLanjut');
+
+                $allButirsReviewed = $record->butirRawas->count() > 0
+                    && $record->butirRawas->every(function ($butir) {
+                        return $butir->reviewTindakLanjut?->status === 'selesai_tuntas';
+                    });
+
+                if ($allButirsReviewed) {
+                    $record->update([
+                        'status' => 'diusulkan_tuntas',
+                        'updated_by' => $user->id,
+                    ]);
+                }
             }
 
             LogActivity::create([
@@ -229,15 +263,15 @@ class ReviuRawasController extends Controller
                 'database_name' => 'sidewas_rawas',
                 'table_name' => 'tb_review',
                 'record_key' => $review->id_butir_rawas,
-                'action' => 'update_review_tindak_lanjut',
-                'description' => 'User melakukan reviu tindak lanjut RAWAS.',
+                'action' => 'update_review_butir',
+                'description' => 'User melakukan reviu tindak lanjut RAWAS per butir.',
                 'old_values' => [
                     'review' => $oldReview,
                     'record' => $oldRecord,
                 ],
                 'new_values' => [
                     'review' => $review->fresh()->toArray(),
-                    'record' => $review->butir?->record?->fresh()?->toArray(),
+                    'record' => $record?->fresh()?->toArray(),
                 ],
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
@@ -253,24 +287,38 @@ class ReviuRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canReviewRawasByKomite($review->komite_id)) {
+        $review->load('butir.record');
+
+        if (!$user || !$this->canReviewRawasReview($user, $review)) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen ini.');
         }
 
-        $review->load(['tindakLanjut']);
-
-        $dokumen = $review->tindakLanjut?->dokumen;
-
-        if (!$dokumen) {
-            abort(404, 'Dokumen tidak ditemukan.');
+        if (!$review->dokumen) {
+            abort(404, 'Dokumen reviu tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $dokumen);
+        $filePath = storage_path('app/public/' . $review->dokumen);
 
         if (!file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 
         return response()->download($filePath);
+    }
+
+    private function canReviewAllRawas(User $user): bool
+    {
+        return $user->isSuperAdmin()
+            || $user->hasRoleType('admin_rawas')
+            || $user->hasRoleType('moderator_rawas');
+    }
+
+    private function canReviewRawasReview(User $user, RawasReview $review): bool
+    {
+        if ($this->canReviewAllRawas($user)) {
+            return true;
+        }
+
+        return (int) $review->butir?->record?->created_by === (int) $user->id;
     }
 }

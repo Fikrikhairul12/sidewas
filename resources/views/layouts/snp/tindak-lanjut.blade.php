@@ -16,6 +16,21 @@
                 'butir_snp' => $butir->butir_snp,
                 'jth_tempo' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('Y-m-d') : null,
                 'jth_tempo_label' => $butir->record?->jth_tempo ? \Carbon\Carbon::parse($butir->record->jth_tempo)->format('d/m/Y') : '-',
+                'pic_units' => $butir->butirPics
+                    ->whereIn('jenis_pic', ['utama', 'pendukung'])
+                    ->reject(function ($pic) use ($butir) {
+                        return $butir->tindakLanjuts
+                            ->where('putaran_tl', $butir->putaran_tl_aktif ?? 1)
+                            ->where('butir_pic_id', $pic->id)
+                            ->count() > 0;
+                    })
+                    ->map(
+                        fn($pic) => [
+                            'id' => $pic->id,
+                            'label' => strtoupper($pic->jenis_pic) . ' - ' . ($pic->unitKerja?->kode_unit ?? '-') . ' - ' . ($pic->unitKerja?->nama_unit ?? '-'),
+                        ],
+                    )
+                    ->values(),
             ],
         )
         ->values(),
@@ -128,12 +143,17 @@
                         @forelse ($tindakLanjutRows as $row)
                             @php
                                 $butir = $row['butir'];
-                                $item = $row['item'];
+                                $items = $row['items'];
+                                $availablePicUnits = $row['available_pic_units'];
+                                $semuaPicSudahTl = $row['semua_pic_sudah_tl'];
+                                $item = $items->first();
                                 $record = $butir?->record;
 
-                                $reviewTerakhir = $item
-                                    ? $item->reviews->where('tahap_review', 'tindak_lanjut')->sortByDesc('id')->first()
-                                    : null;
+                                $reviewTerakhir = $butir->reviews
+                                    ->where('tahap_review', 'tindak_lanjut')
+                                    ->sortByDesc('putaran_tl')
+                                    ->sortByDesc('id')
+                                    ->first();
 
                                 $reviewTanggapan = $butir?->reviews
                                     ?->where('tahap_review', 'tanggapan')
@@ -186,58 +206,80 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    @if ($item)
-                                        <span class="rounded-full px-3 py-1 text-xs font-bold text-white"
-                                            style="background-color: #6bb17e;">
-                                            Sudah Ditindaklanjuti
-                                        </span>
-
-                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Tindak Lanjut
-                                        </p>
-
-                                        <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
-                                            {{ $item->tindak_lanjut ?? '-' }}
-                                        </p>
-
-                                        <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Deliverables
-                                        </p>
-
-                                        <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
-                                            {{ $item->deliverables ?? '-' }}
-                                        </p>
-
-                                        <p class="mt-4 text-xs text-slate-500">
-                                            Jatuh Tempo:
-                                            <span class="font-bold text-slate-700">
-                                                {{ $item->jth_tempo ? \Carbon\Carbon::parse($item->jth_tempo)->format('d/m/Y') : '-' }}
+                                    @if ($items->count() > 0)
+                                        @if ($semuaPicSudahTl)
+                                            <span class="rounded-full px-3 py-1 text-xs font-bold text-white"
+                                                style="background-color: #6bb17e;">
+                                                Semua PIC Sudah Menindaklanjuti
                                             </span>
-                                        </p>
-
-                                        <p class="mt-2 text-xs text-slate-500">
-                                            Diinput oleh:
-                                            <span class="font-bold text-slate-700">
-                                                {{ $item->creator?->name ?? '-' }}
+                                        @else
+                                            <span class="rounded-full px-3 py-1 text-xs font-bold text-slate-700"
+                                                style="background-color: #c8e079;">
+                                                Sebagian Sudah Menindaklanjuti
                                             </span>
-                                        </p>
+                                        @endif
 
-                                        <div class="mt-4">
-                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                Dokumen Tindak Lanjut
-                                            </p>
+                                        <div class="mt-4 space-y-4">
+                                            @foreach ($items as $tl)
+                                                <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                                                    <p class="text-xs font-bold uppercase tracking-wide"
+                                                        style="color: #2377b9;">
+                                                        {{ $tl->butirPic?->unitKerja?->kode_unit ?? '-' }}
+                                                        -
+                                                        {{ $tl->butirPic?->unitKerja?->nama_unit ?? '-' }}
+                                                    </p>
 
-                                            @if ($item?->dokumen)
-                                                <a href="{{ asset('storage/' . $item->dokumen) }}" target="_blank"
-                                                    class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
-                                                    style="background-color: #2377b9;">
-                                                    Download Dokumen
-                                                </a>
-                                            @else
-                                                <p class="mt-1 text-xs text-slate-400">
-                                                    -
-                                                </p>
-                                            @endif
+                                                    <p
+                                                        class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        Tindak Lanjut
+                                                    </p>
+
+                                                    <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
+                                                        {{ $tl->tindak_lanjut ?? '-' }}
+                                                    </p>
+
+                                                    <p
+                                                        class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        Deliverables
+                                                    </p>
+
+                                                    <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
+                                                        {{ $tl->deliverables ?? '-' }}
+                                                    </p>
+
+                                                    <p class="mt-4 text-xs text-slate-500">
+                                                        Jatuh Tempo:
+                                                        <span class="font-bold text-slate-700">
+                                                            {{ $tl->jth_tempo ? \Carbon\Carbon::parse($tl->jth_tempo)->format('d/m/Y') : '-' }}
+                                                        </span>
+                                                    </p>
+
+                                                    <p class="mt-2 text-xs text-slate-500">
+                                                        Diinput oleh:
+                                                        <span class="font-bold text-slate-700">
+                                                            {{ $tl->creator?->name ?? '-' }}
+                                                        </span>
+                                                    </p>
+
+                                                    <div class="mt-4">
+                                                        <p
+                                                            class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                            Dokumen Tindak Lanjut
+                                                        </p>
+
+                                                        @if ($tl->dokumen)
+                                                            <a href="{{ asset('storage/' . $tl->dokumen) }}"
+                                                                target="_blank"
+                                                                class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                                style="background-color: #2377b9;">
+                                                                Download Dokumen
+                                                            </a>
+                                                        @else
+                                                            <p class="mt-1 text-xs text-slate-400">-</p>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
                                         </div>
                                     @else
                                         <span
@@ -312,16 +354,42 @@
 
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex justify-center">
-                                        @if ($item)
-                                            <a href="#"
-                                                class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
-                                                style="background-color: #6bb17e;">
-                                                Detail
-                                            </a>
-                                        @else
-                                            <button type="button" @click="openModal = true"
-                                                class="rounded-lg px-4 py-2 text-xs font-bold text-white text-center hover:opacity-90" style="background-color: #2377b9;">
+                                        @if ($butir?->kompilasiTindakLanjut?->status === 'dalam_proses_reviu_dewas')
+                                            <button type="button" disabled
+                                                class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400">
+                                                Sudah Masuk Kompilasi
+                                            </button>
+                                        @elseif ($availablePicUnits->count() > 0)
+                                            <button type="button"
+                                                @click="selectedButir = {
+                                                        id: {{ $butir->id }},
+                                                        id_butir_snp: @js($butir->id_butir_snp),
+                                                        id_snp: @js($record?->id_snp),
+                                                        putaran_tl: {{ $row['putaran_tl'] ?? 1 }},
+                                                        nomor_surat: @js($record?->nomor_surat),
+                                                        butir_snp: @js($butir->butir_snp),
+                                                        jth_tempo_label: @js($record?->jth_tempo ? \Carbon\Carbon::parse($record->jth_tempo)->format('d/m/Y') : '-'),
+                                                        pic_units: @js(
+    $availablePicUnits
+        ->map(
+            fn($pic) => [
+                'id' => $pic->id,
+                'label' => strtoupper($pic->jenis_pic) . ' - ' . ($pic->unitKerja?->kode_unit ?? '-') . ' - ' . ($pic->unitKerja?->nama_unit ?? '-'),
+            ],
+        )
+        ->values(),
+)
+                                                    };
+                                                                selectedButirId = {{ $butir->id }};
+                                                                openModal = true"
+                                                class="rounded-lg px-4 py-2 text-xs font-bold text-white text-center hover:opacity-90"
+                                                style="background-color: #2377b9;">
                                                 Lakukan Tindak Lanjut
+                                            </button>
+                                        @else
+                                            <button type="button" disabled
+                                                class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400">
+                                                Semua PIC Sudah TL
                                             </button>
                                         @endif
                                     </div>
@@ -487,6 +555,27 @@
                             @endif
                         </div>
 
+                        <template x-if="selectedButir">
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                    PIC Unit yang Melakukan Tindak Lanjut
+                                </label>
+
+                                <select name="butir_pic_id" required
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="">Pilih PIC Unit</option>
+
+                                    <template x-for="pic in selectedButir?.pic_units ?? []" :key="pic.id">
+                                        <option :value="pic.id" x-text="pic.label"></option>
+                                    </template>
+                                </select>
+
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Pilih unit kerja PIC yang tindak lanjutnya sedang diinput.
+                                </p>
+                            </div>
+                        </template>
+
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
                                 Tindak Lanjut SNP
@@ -494,7 +583,7 @@
 
                             <textarea name="tindak_lanjut" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor surat tindak lanjut (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tindak lanjut...">{{ old('tindak_lanjut') }}</textarea>
+                                placeholder="Nomor memo tindak lanjut (ME/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tindak lanjut...">{{ old('tindak_lanjut') }}</textarea>
                         </div>
 
                         <div>
@@ -509,7 +598,7 @@
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Dokumen Pendukung
+                                Dokumen Pendukung (Dokumen Memo & Deliverables)
                             </label>
 
                             <input type="file" name="dokumen"
