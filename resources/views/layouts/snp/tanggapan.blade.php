@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div x-data="{ openModal: false, selectedButir: null }" class="space-y-6">
+    <div x-data="tanggapanSnpPage()" class="space-y-6">
         {{-- HEADER --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -104,6 +104,56 @@
                                 $semuaPicSudahTanggapan = $picUnits->count() > 0 && $availablePicUnits->count() === 0;
 
                                 $canRespond = $user?->canAccessSnpTanggapan() ?? false;
+
+                                $picTanggapanPayload = $picUnits
+                                    ->map(function ($pic) use ($tanggapanList, $butir) {
+                                        $tanggapan = $tanggapanList->firstWhere('butir_pic_id', $pic->id);
+                                        $unitLabel = ($pic->unitKerja?->kode_unit ?? '-') .
+                                            ' - ' .
+                                            ($pic->unitKerja?->nama_unit ?? '-');
+                                        $jenisPic =
+                                            $pic->jenis_pic === 'utama'
+                                                ? 'PIC Utama'
+                                                : 'PIC Pendukung';
+
+                                        return [
+                                            'id' => $pic->id,
+                                            'unit_label' => $unitLabel,
+                                            'initial' => $pic->unitKerja?->kode_unit ?? '-',
+                                            'jenis_pic' => $jenisPic,
+                                            'id_butir_snp' => $butir->id_butir_snp,
+                                            'isi_butir_singkat' => \Illuminate\Support\Str::limit(
+                                                $butir->butir_snp,
+                                                80,
+                                            ),
+                                            'sudah_menanggapi' => (bool) $tanggapan,
+                                            'tanggapan' => $tanggapan?->tanggapan,
+                                            'tanggapan_singkat' => $tanggapan
+                                                ? \Illuminate\Support\Str::limit($tanggapan->tanggapan, 110)
+                                                : null,
+                                            'deliverables' => $tanggapan?->deliverables,
+                                            'deliverables_singkat' => $tanggapan
+                                                ? \Illuminate\Support\Str::limit($tanggapan->deliverables, 90)
+                                                : null,
+                                            'dokumen_url' => $tanggapan?->dokumen
+                                                ? asset('storage/' . $tanggapan->dokumen)
+                                                : null,
+                                            'creator' => $tanggapan?->creator?->name ?? '-',
+                                            'created_at' => $tanggapan?->created_at
+                                                ? \Carbon\Carbon::parse($tanggapan->created_at)->format('d/m/Y')
+                                                : '-',
+                                        ];
+                                    })
+                                    ->values()
+                                    ->all();
+
+                                $detailTanggapanPayload = [
+                                    'id' => $butir->id,
+                                    'id_snp' => $butir->record?->id_snp,
+                                    'id_butir_snp' => $butir->id_butir_snp,
+                                    'butir_snp' => $butir->butir_snp,
+                                    'pic_tanggapans' => $picTanggapanPayload,
+                                ];
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -212,8 +262,8 @@
                                             </span>
                                         @endif
 
-                                        <div class="mt-4 space-y-4">
-                                            @foreach ($tanggapanList as $item)
+                                        <div class="mt-4 space-y-3">
+                                            @foreach ($tanggapanList->take(2) as $item)
                                                 <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
                                                     <p class="text-xs font-bold uppercase tracking-wide"
                                                         style="color: #2377b9;">
@@ -222,41 +272,22 @@
                                                         {{ $item->butirPic?->unitKerja?->nama_unit ?? '-' }}
                                                     </p>
 
-                                                    <p
-                                                        class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                        Tanggapan
+                                                    <p class="mt-2 text-xs leading-relaxed text-slate-700">
+                                                        {{ \Illuminate\Support\Str::limit($item->tanggapan ?? '-', 120) }}
                                                     </p>
 
-                                                    <p class="whitespace-pre-line mt-2 text-xs text-slate-700">
-                                                        {{ $item->tanggapan ?? '-' }}
+                                                    <p class="mt-2 text-xs text-slate-500">
+                                                        Deliverables:
+                                                        {{ \Illuminate\Support\Str::limit($item->deliverables ?? '-', 80) }}
                                                     </p>
-
-                                                    <p
-                                                        class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                        Deliverables
-                                                    </p>
-
-                                                    <p class="whitespace-pre-line mt-2 text-xs text-slate-700">
-                                                        {{ $item->deliverables ?? '-' }}
-                                                    </p>
-
-                                                    <p class="mt-3 text-xs text-slate-500">
-                                                        Oleh:
-                                                        <span class="font-bold text-slate-700">
-                                                            {{ $item->creator?->name ?? '-' }}
-                                                        </span>
-                                                    </p>
-
-                                                    @if ($item->dokumen)
-                                                        <a href="{{ asset('storage/' . $item->dokumen) }}"
-                                                            target="_blank"
-                                                            class="mt-3 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
-                                                            style="background-color: #2377b9;">
-                                                            Download Dokumen
-                                                        </a>
-                                                    @endif
                                                 </div>
                                             @endforeach
+
+                                            @if ($tanggapanList->count() > 2)
+                                                <p class="text-xs font-semibold text-slate-500">
+                                                    + {{ $tanggapanList->count() - 2 }} tanggapan lainnya
+                                                </p>
+                                            @endif
                                         </div>
                                     @else
                                         <span
@@ -267,7 +298,14 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    <div class="flex justify-center">
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <button type="button"
+                                            @click="openDetailModalFor(@js($detailTanggapanPayload))"
+                                            class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
+                                            style="background-color: #6bb17e;">
+                                            Detail
+                                        </button>
+
                                         @if ($availablePicUnits->count() > 0 && $canRespond)
                                             <button type="button"
                                                 @click="selectedButir = {
@@ -289,14 +327,6 @@
                                                 style="background-color: #FFA500;">
                                                 Beri Tanggapan
                                             </button>
-                                        @elseif ($availablePicUnits->count() === 0)
-                                            <span class="text-xs font-semibold text-slate-400">
-                                                Semua PIC sudah menanggapi
-                                            </span>
-                                        @else
-                                            <span class="text-xs font-semibold text-slate-400">
-                                                Tidak memiliki akses
-                                            </span>
                                         @endif
                                     </div>
                                 </td>
@@ -328,6 +358,154 @@
 
                 <div>
                     {{ $butirs->links() }}
+                </div>
+            </div>
+        </div>
+
+        {{-- Modal Detail Tanggapan --}}
+        <div x-show="openDetailModal" x-transition.opacity
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openDetailModal = false" x-transition
+                class="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">
+                            Detail Tanggapan SNP
+                        </h2>
+                        <p class="mt-1 text-sm font-semibold text-slate-500" x-text="detailButir?.id_snp ?? '-'"></p>
+                    </div>
+
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="grid max-h-[70vh] overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)]">
+                    <div class="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
+                        <div class="relative">
+                            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                                fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                            </svg>
+                            <input type="text" x-model="detailSearch" placeholder="Cari unit / isi tanggapan..."
+                                class="w-full rounded-xl border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div class="mt-4 max-h-[52vh] space-y-3 overflow-y-auto pr-1">
+                            <template x-for="pic in filteredDetailPics" :key="pic.id">
+                                <button type="button" @click="selectDetailPic(pic)"
+                                    class="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition hover:bg-blue-50"
+                                    :class="String(selectedDetailPic?.id) === String(pic.id)
+                                        ? 'border-blue-300 bg-blue-50'
+                                        : 'border-slate-200 bg-white'">
+                                    <span
+                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                                        :class="pic.sudah_menanggapi ? 'bg-blue-100 text-blue-700' :
+                                            'bg-slate-100 text-slate-500'"
+                                        x-text="pic.initial"></span>
+
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate text-sm font-bold text-slate-800"
+                                            x-text="`${pic.initial} - ${pic.jenis_pic}`"></span>
+                                        <span class="mt-1 block text-xs text-slate-500"
+                                            x-text="pic.sudah_menanggapi ? 'Sudah mengisi tanggapan' : 'Belum mengisi tanggapan'"></span>
+                                    </span>
+
+                                    <svg x-show="pic.sudah_menanggapi" class="h-5 w-5 shrink-0 text-green-500"
+                                        fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                </button>
+                            </template>
+
+                            <div x-show="filteredDetailPics.length === 0"
+                                class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
+                                Unit/tanggapan tidak ditemukan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="max-h-[70vh] overflow-y-auto p-6">
+                        <template x-if="selectedDetailPic">
+                            <div class="space-y-5">
+                                <div>
+                                    <p class="text-lg font-bold" style="color: #2377b9;"
+                                        x-text="selectedDetailPic.unit_label"></p>
+                                </div>
+
+                                <div class="grid gap-4 text-sm md:grid-cols-[130px_minmax(0,1fr)]">
+                                    <p class="font-bold text-slate-600">Tipe PIC</p>
+                                    <p class="text-slate-700" x-text="selectedDetailPic.jenis_pic"></p>
+
+                                    <p class="font-bold text-slate-600">Butir SNP</p>
+                                    <p class="text-slate-700" x-text="selectedDetailPic.id_butir_snp"></p>
+
+                                    <p class="font-bold text-slate-600">Isi Butir Singkat</p>
+                                    <p class="text-slate-700" x-text="selectedDetailPic.isi_butir_singkat"></p>
+
+                                    <p class="font-bold text-slate-600">Tanggapan</p>
+                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
+                                        x-text="selectedDetailPic.tanggapan ?? '-'"></p>
+
+                                    <p class="font-bold text-slate-600">Deliverables</p>
+                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
+                                        x-text="selectedDetailPic.deliverables ?? '-'"></p>
+
+                                    <p class="font-bold text-slate-600">Dokumen PIC</p>
+                                    <div>
+                                        <template x-if="selectedDetailPic.dokumen_url">
+                                            <a :href="selectedDetailPic.dokumen_url" target="_blank"
+                                                class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                style="background-color: #2377b9;">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor"
+                                                    stroke-width="1.8" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" />
+                                                </svg>
+                                                Download Dokumen
+                                            </a>
+                                        </template>
+                                        <p class="text-slate-400" x-show="!selectedDetailPic.dokumen_url">-</p>
+                                    </div>
+
+                                    <p class="font-bold text-slate-600">Diinput oleh</p>
+                                    <p class="text-slate-700" x-text="selectedDetailPic.creator"></p>
+
+                                    <p class="font-bold text-slate-600">Tanggal Input</p>
+                                    <p class="text-slate-700" x-text="selectedDetailPic.created_at"></p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="!selectedDetailPic"
+                            class="rounded-xl border border-dashed border-slate-200 px-4 py-14 text-center text-sm text-slate-400">
+                            Belum ada PIC pada butir ini.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Tutup
+                    </button>
+
+                    <button type="button" @click="selectNextDetailPic()"
+                        class="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold hover:bg-blue-50"
+                        style="color: #2377b9;">
+                        Unit Berikutnya
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>

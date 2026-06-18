@@ -31,6 +31,8 @@ class ReviuSnpController extends Controller
         $query = SnpReview::with([
             'butir.record.cluster',
             'butir.record.subCluster',
+            'butir.record.butirSnp.reviews.komite',
+            'butir.record.butirSnp.kompilasis',
             'butir.tanggapan.creator',
             'butir.tanggapan.butirPic.unitKerja',
             'butir.tindakLanjuts.creator',
@@ -125,8 +127,11 @@ class ReviuSnpController extends Controller
 
                     ->orWhereHas('tanggapan', function ($tanggapanQuery) use ($keyword) {
                         $tanggapanQuery->where('tanggapan', 'like', "%{$keyword}%")
-                            ->orWhere('deliverables', 'like', "%{$keyword}%")
-                            ->orWhere('status_pengajuan_tgl', 'like', "%{$keyword}%");
+                            ->orWhere('deliverables', 'like', "%{$keyword}%");
+                    })
+
+                    ->orWhereHas('kompilasiTanggapan', function ($kompilasiQuery) use ($keyword) {
+                        $kompilasiQuery->where('status_pengajuan_tgl', 'like', "%{$keyword}%");
                     })
 
                     ->orWhereHas('tindakLanjut', function ($tlQuery) use ($keyword) {
@@ -188,6 +193,7 @@ class ReviuSnpController extends Controller
 
         if (
             ($review->tahap_review === 'tanggapan' && $review->status === 'dalam_proses_tindak_lanjut_direksi') ||
+            ($review->tahap_review === 'tindak_lanjut' && $review->status === 'dalam_proses_tindak_lanjut_direksi') ||
             ($review->tahap_review === 'tindak_lanjut' && $review->status === 'selesai_tuntas')
         ) {
             return back()->with('error', 'Reviu ini sudah selesai diproses dan tidak dapat diubah.');

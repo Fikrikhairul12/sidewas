@@ -180,6 +180,10 @@
                                 $locked = $item->status === 'dalam_proses_reviu_dewas';
                                 $statusLabel = $locked ? 'Dalam Proses Reviu Dewas' : 'Belum Dikompilasi';
                                 $statusColor = $locked ? '#2377b9' : '#64748b';
+                                $visibleDataUnit = $item->data_unit->take(2);
+                                $remainingDataUnitCount = max($item->data_unit->count() - $visibleDataUnit->count(), 0);
+                                $remainingDataUnitLabel =
+                                    $item->tahap === 'tanggapan' ? 'tanggapan lainnya' : 'tindak lanjut lainnya';
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -227,7 +231,7 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    @forelse ($item->data_unit as $picId => $rows)
+                                    @forelse ($visibleDataUnit as $picId => $rows)
                                         @php
                                             $firstRow = $rows->first();
                                             $unit = $firstRow?->butirPic?->unitKerja;
@@ -237,93 +241,82 @@
                                         @endphp
 
                                         <div class="mb-4 rounded-xl border border-slate-200 bg-white p-4">
-                                            <p class="text-xs font-bold uppercase tracking-wide"
-                                                style="color: #2377b9;">
-                                                {{ $unitLabel }}
-                                            </p>
+                                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                                <p class="text-xs font-bold uppercase tracking-wide"
+                                                    style="color: #2377b9;">
+                                                    {{ $unitLabel }}
+                                                </p>
 
-                                            @foreach ($rows as $row)
-                                                <div class="mt-3 rounded-xl bg-slate-50 p-4">
-                                                    @if ($item->tahap === 'tanggapan')
-                                                        <p
-                                                            class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                            Tanggapan
-                                                        </p>
-                                                        <p class="mt-2 whitespace-pre-line text-xs text-slate-800">
-                                                            {{ $row->tanggapan ?? '-' }}
-                                                        </p>
+                                                <span
+                                                    class="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500">
+                                                    {{ $rows->count() }} data
+                                                </span>
+                                            </div>
 
-                                                        <p
-                                                            class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                            Deliverables
-                                                        </p>
-                                                        <p class="mt-2 whitespace-pre-line text-xs text-slate-800">
-                                                            {{ $row->deliverables ?? '-' }}
-                                                        </p>
+                                            @php
+                                                $previewRow = $rows->first();
+                                                $previewText =
+                                                    $item->tahap === 'tanggapan'
+                                                        ? $previewRow?->tanggapan
+                                                        : $previewRow?->tindak_lanjut;
+                                            @endphp
 
-                                                        @if ($row->ubah_tgl)
-                                                            <p class="mt-3 text-xs text-slate-500">
-                                                                Pengajuan Ubah Tanggal:
-                                                                <span class="font-bold text-slate-700">
-                                                                    {{ \Carbon\Carbon::parse($row->ubah_tgl)->format('d/m/Y') }}
-                                                                </span>
-                                                            </p>
-                                                        @endif
-                                                    @else
-                                                        <p
-                                                            class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                            Tindak Lanjut #{{ $loop->iteration }}
-                                                        </p>
-                                                        <p class="mt-2 whitespace-pre-line text-xs text-slate-800">
-                                                            {{ $row->tindak_lanjut ?? '-' }}
-                                                        </p>
+                                            <div class="mt-3 rounded-xl bg-slate-50 p-4">
+                                                <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                    {{ $item->tahap === 'tanggapan' ? 'Tanggapan Singkat' : 'Tindak Lanjut Singkat' }}
+                                                </p>
+                                                <p class="mt-2 text-xs leading-relaxed text-slate-800">
+                                                    {{ \Illuminate\Support\Str::limit($previewText ?? '-', 140) }}
+                                                </p>
 
-                                                        <p
-                                                            class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                            Deliverables
-                                                        </p>
-                                                        <p class="mt-2 whitespace-pre-line text-xs text-slate-800">
-                                                            {{ $row->deliverables ?? '-' }}
-                                                        </p>
+                                                <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                    Deliverables
+                                                </p>
+                                                <p class="mt-2 text-xs leading-relaxed text-slate-800">
+                                                    {{ \Illuminate\Support\Str::limit($previewRow?->deliverables ?? '-', 100) }}
+                                                </p>
 
-                                                        <p class="mt-3 text-xs text-slate-500">
-                                                            Jatuh Tempo:
-                                                            <span class="font-bold text-slate-700">
-                                                                {{ $row->jth_tempo ? \Carbon\Carbon::parse($row->jth_tempo)->format('d/m/Y') : '-' }}
-                                                            </span>
-                                                        </p>
-                                                    @endif
-
+                                                @if ($item->tahap === 'tanggapan' && $previewRow?->ubah_tgl)
                                                     <p class="mt-3 text-xs text-slate-500">
-                                                        Diinput oleh:
+                                                        Pengajuan ubah tanggal:
                                                         <span class="font-bold text-slate-700">
-                                                            {{ $row->creator?->name ?? '-' }}
+                                                            {{ \Carbon\Carbon::parse($previewRow->ubah_tgl)->format('d/m/Y') }}
                                                         </span>
                                                     </p>
+                                                @endif
 
-                                                    <div class="mt-3">
-                                                        <p
-                                                            class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                            Dokumen PIC
-                                                        </p>
+                                                @if ($item->tahap === 'tindak_lanjut')
+                                                    <p class="mt-3 text-xs text-slate-500">
+                                                        Jatuh Tempo:
+                                                        <span class="font-bold text-slate-700">
+                                                            {{ $previewRow?->jth_tempo ? \Carbon\Carbon::parse($previewRow->jth_tempo)->format('d/m/Y') : '-' }}
+                                                        </span>
+                                                    </p>
+                                                @endif
 
-                                                        @if ($row->dokumen)
-                                                            <a href="{{ asset('storage/' . $row->dokumen) }}"
-                                                                target="_blank"
-                                                                class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
-                                                                style="background-color: #2377b9;">
-                                                                Download Dokumen
-                                                            </a>
-                                                        @else
-                                                            <p class="mt-1 text-xs text-slate-400">-</p>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            @endforeach
+                                                <p class="mt-3 text-xs text-slate-500">
+                                                    Diinput oleh:
+                                                    <span class="font-bold text-slate-700">
+                                                        {{ $previewRow?->creator?->name ?? '-' }}
+                                                    </span>
+                                                </p>
+                                            </div>
+
+                                            @if ($rows->count() > 1)
+                                                <p class="mt-3 text-xs font-semibold text-slate-500">
+                                                    + {{ $rows->count() - 1 }} data lainnya dari unit ini.
+                                                </p>
+                                            @endif
                                         </div>
                                     @empty
                                         <p class="text-xs text-slate-400">Belum ada data PIC Unit.</p>
                                     @endforelse
+
+                                    @if ($remainingDataUnitCount > 0)
+                                        <p class="text-xs font-bold text-slate-500">
+                                            + {{ $remainingDataUnitCount }} {{ $remainingDataUnitLabel }}
+                                        </p>
+                                    @endif
                                 </td>
 
                                 <td class="px-6 py-6 align-top">

@@ -10,6 +10,11 @@ test('snp report pdf merges status per butir and uses latest butir status', func
         ->toContain('$reviewTerbaruButir = $butir->reviews->sortByDesc(\'id\')->first();')
         ->toContain('$statusTerbaruButir')
         ->toContain('<td class="center" rowspan="{{ $jumlahBarisButir }}">')
+        ->toContain('display: table-header-group;')
+        ->toContain('page-break-inside: avoid;')
+        ->toContain('td[rowspan]')
+        ->toContain('<tbody class="record-group">')
+        ->toContain('.record-group')
         ->toContain('{{ ucwords(str_replace(\'_\', \' \', $statusTerbaruButir)) }}')
         ->not->toContain('{{ ucwords(str_replace(\'_\', \' \', $statusTl)) }}');
 

@@ -192,7 +192,7 @@
                         $reviewTerbaruButir = $butir->reviews->sortByDesc('id')->first();
 
                         $jatuhTempoAwal = $record->tanggal_surat
-                            ? \Carbon\Carbon::parse($record->tanggal_surat)->addDays(30)
+                            ? \App\Models\SnpRecord::hitungJatuhTempo($record->tanggal_surat)
                             : null;
 
                         $jatuhTempoFinal = $jatuhTempoAwal;

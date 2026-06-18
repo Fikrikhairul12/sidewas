@@ -7,8 +7,12 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
     return {
         openCreateModal: false,
         openButirModal: false,
+        openDetailModal: false,
 
         selectedRecord: null,
+        detailRecord: null,
+        selectedDetailButirId: null,
+        detailSearch: '',
 
         selectedClusterId: '',
         selectedSubClusterId: '',
@@ -23,10 +27,51 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
         openButirModalFor(record) {
             this.selectedRecord = record;
             this.selectedClusterId = '';
+            this.selectedSubClusterId = '';
             this.selectedDirektoratUtamaId = '';
             this.picPendukungSearch = '';
             this.selectedPicPendukung = [];
             this.openButirModal = true;
+        },
+
+        openDetailModalFor(record) {
+            this.detailRecord = record;
+            this.detailSearch = '';
+            this.selectedDetailButirId = record.butirs?.[0]?.id ?? null;
+            this.openDetailModal = true;
+        },
+
+        selectDetailButir(butir) {
+            this.selectedDetailButirId = butir.id;
+        },
+
+        get detailButirs() {
+            return this.detailRecord?.butirs ?? [];
+        },
+
+        get filteredDetailButirs() {
+            const keyword = this.detailSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return this.detailButirs;
+            }
+
+            return this.detailButirs.filter(butir => {
+                const id = String(butir.id_butir_snp || '').toLowerCase();
+                const isi = String(butir.butir_snp || '').toLowerCase();
+
+                return id.includes(keyword) || isi.includes(keyword);
+            });
+        },
+
+        get selectedDetailButir() {
+            const selected = this.detailButirs.find(butir => String(butir.id) === String(this.selectedDetailButirId));
+
+            if (selected) {
+                return selected;
+            }
+
+            return this.filteredDetailButirs[0] ?? null;
         },
 
         get filteredSubClusters() {
@@ -74,6 +119,87 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
 
         removePicPendukung(id) {
             this.selectedPicPendukung = this.selectedPicPendukung.filter(item => String(item) !== String(id));
+        },
+    };
+};
+
+/**
+ * ============================================================
+ * TANGGAPAN SNP
+ * ============================================================
+ */
+window.tanggapanSnpPage = function () {
+    return {
+        openModal: false,
+        openDetailModal: false,
+        selectedButir: null,
+        detailButir: null,
+        selectedDetailPicId: null,
+        detailSearch: '',
+
+        openDetailModalFor(butir) {
+            this.detailButir = butir;
+            this.detailSearch = '';
+            this.selectedDetailPicId = butir.pic_tanggapans?.[0]?.id ?? null;
+            this.openDetailModal = true;
+        },
+
+        selectDetailPic(pic) {
+            this.selectedDetailPicId = pic.id;
+        },
+
+        get detailPics() {
+            return this.detailButir?.pic_tanggapans ?? [];
+        },
+
+        get filteredDetailPics() {
+            const keyword = this.detailSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return this.detailPics;
+            }
+
+            return this.detailPics.filter(pic => {
+                const unit = String(pic.unit_label || '').toLowerCase();
+                const tanggapan = String(pic.tanggapan || '').toLowerCase();
+                const deliverables = String(pic.deliverables || '').toLowerCase();
+
+                return unit.includes(keyword)
+                    || tanggapan.includes(keyword)
+                    || deliverables.includes(keyword);
+            });
+        },
+
+        get selectedDetailPic() {
+            const selected = this.detailPics.find(pic => String(pic.id) === String(this.selectedDetailPicId));
+
+            if (selected) {
+                return selected;
+            }
+
+            return this.filteredDetailPics[0] ?? null;
+        },
+
+        get nextDetailPic() {
+            if (this.filteredDetailPics.length === 0) {
+                return null;
+            }
+
+            const currentIndex = this.filteredDetailPics.findIndex(pic => {
+                return String(pic.id) === String(this.selectedDetailPic?.id);
+            });
+
+            if (currentIndex < 0) {
+                return this.filteredDetailPics[0];
+            }
+
+            return this.filteredDetailPics[(currentIndex + 1) % this.filteredDetailPics.length];
+        },
+
+        selectNextDetailPic() {
+            if (this.nextDetailPic) {
+                this.selectDetailPic(this.nextDetailPic);
+            }
         },
     };
 };

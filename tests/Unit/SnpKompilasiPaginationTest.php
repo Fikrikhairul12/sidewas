@@ -16,5 +16,9 @@ test('snp kompilasi paginates two rows and sorts newest items first', function (
     expect($view)
         ->toContain('{{ $kompilasiItems->links() }}')
         ->toContain('{{ $kompilasiItems->firstItem() ?? 0 }}')
-        ->toContain('{{ $kompilasiItems->lastItem() ?? 0 }}');
+        ->toContain('{{ $kompilasiItems->lastItem() ?? 0 }}')
+        ->toContain('$visibleDataUnit = $item->data_unit->take(2);')
+        ->toContain('$remainingDataUnitCount')
+        ->toContain('tanggapan lainnya')
+        ->toContain('tindak lanjut lainnya');
 });

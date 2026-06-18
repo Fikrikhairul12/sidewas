@@ -1,5 +1,52 @@
 <x-app-layout>
-    <div x-data="{ openModal: false, selectedReview: null }" class="space-y-6">
+    <div x-data="{
+        openModal: false,
+        openDetailModal: false,
+        selectedReview: null,
+        detailRecord: null,
+        selectedDetailButirId: null,
+        detailSearch: '',
+
+        openDetailModalFor(record, selectedButirId) {
+            this.detailRecord = record;
+            this.selectedDetailButirId = selectedButirId;
+            this.detailSearch = '';
+            this.openDetailModal = true;
+        },
+
+        selectDetailButir(butir) {
+            this.selectedDetailButirId = butir.id;
+        },
+
+        get detailButirs() {
+            return this.detailRecord?.butirs ?? [];
+        },
+
+        get filteredDetailButirs() {
+            const keyword = this.detailSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return this.detailButirs;
+            }
+
+            return this.detailButirs.filter((butir) => {
+                return String(butir.id_butir_snp || '').toLowerCase().includes(keyword) ||
+                    String(butir.butir_snp || '').toLowerCase().includes(keyword);
+            });
+        },
+
+        get selectedDetailButir() {
+            const selected = this.detailButirs.find((butir) => {
+                return String(butir.id) === String(this.selectedDetailButirId);
+            });
+
+            if (selected) {
+                return selected;
+            }
+
+            return this.filteredDetailButirs[0] ?? null;
+        },
+    }" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
                 SNP Dewas
@@ -84,6 +131,75 @@
                                 $isiKompilasi = $kompilasi?->hasil_kompilasi;
                                 $deliverablesKompilasi = $kompilasi?->deliverables;
                                 $dokumenAda = $kompilasi?->dokumen;
+
+                                $detailRecordPayload = [
+                                    'id_snp' => $record?->id_snp,
+                                    'nomor_surat' => $record?->nomor_surat,
+                                    'perihal_surat' => $record?->perihal_surat,
+                                    'butirs' =>
+                                        $record?->butirSnp
+                                            ?->map(function ($recordButir) {
+                                                $reviewTindakLanjut = $recordButir->reviews
+                                                    ->where('tahap_review', 'tindak_lanjut')
+                                                    ->sortByDesc('putaran_tl')
+                                                    ->sortByDesc('id')
+                                                    ->first();
+
+                                                $reviewTanggapan = $recordButir->reviews
+                                                    ->where('tahap_review', 'tanggapan')
+                                                    ->sortByDesc('id')
+                                                    ->first();
+
+                                                $reviewAktif = $reviewTindakLanjut ?? $reviewTanggapan;
+                                                $tahapAktif = $reviewTindakLanjut ? 'tindak_lanjut' : 'tanggapan';
+
+                                                $kompilasiAktif =
+                                                    $tahapAktif === 'tindak_lanjut'
+                                                        ? $recordButir->kompilasis
+                                                            ->where('tahap_kompilasi', 'tindak_lanjut')
+                                                            ->sortByDesc('putaran_tl')
+                                                            ->sortByDesc('id')
+                                                            ->first()
+                                                        : $recordButir->kompilasis
+                                                            ->where('tahap_kompilasi', 'tanggapan')
+                                                            ->sortByDesc('id')
+                                                            ->first();
+
+                                                return [
+                                                    'id' => $recordButir->id,
+                                                    'id_butir_snp' => $recordButir->id_butir_snp,
+                                                    'butir_snp' => $recordButir->butir_snp,
+                                                    'butir_singkat' => \Illuminate\Support\Str::limit($recordButir->butir_snp, 95),
+                                                    'tahap' => $tahapAktif,
+                                                    'tahap_label' =>
+                                                        $tahapAktif === 'tindak_lanjut'
+                                                            ? 'Reviu Tindak Lanjut'
+                                                            : 'Reviu Tanggapan',
+                                                    'kompilasi_label' =>
+                                                        $tahapAktif === 'tindak_lanjut'
+                                                            ? 'Kompilasi Tindak Lanjut'
+                                                            : 'Kompilasi Tanggapan',
+                                                    'putaran_tl' => $reviewAktif?->putaran_tl ?? $kompilasiAktif?->putaran_tl,
+                                                    'kompilasi' => $kompilasiAktif?->hasil_kompilasi,
+                                                    'kompilasi_deliverables' => $kompilasiAktif?->deliverables,
+                                                    'status_pengajuan_tgl' => $kompilasiAktif?->status_pengajuan_tgl,
+                                                    'ubah_tgl' => $kompilasiAktif?->ubah_tgl
+                                                        ? \Carbon\Carbon::parse($kompilasiAktif->ubah_tgl)->format('d/m/Y')
+                                                        : null,
+                                                    'review_id' => $reviewAktif?->id,
+                                                    'status' => $reviewAktif?->status ?? 'belum_ditanggapi',
+                                                    'status_label' => ucwords(
+                                                        str_replace('_', ' ', $reviewAktif?->status ?? 'belum_ditanggapi'),
+                                                    ),
+                                                    'hasil_review' => $reviewAktif?->hasil_review,
+                                                    'review_deliverables' => $reviewAktif?->deliverables,
+                                                    'komite' => $reviewAktif?->komite?->kode_komite ?? '-',
+                                                    'selesai' => $reviewAktif?->status === 'selesai_tuntas',
+                                                ];
+                                            })
+                                            ->values()
+                                            ->all() ?? [],
+                                ];
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -223,9 +339,17 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    <div class="flex justify-center">
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <button type="button"
+                                            @click="openDetailModalFor(@js($detailRecordPayload), {{ $review->butir?->id ?? 'null' }})"
+                                            class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
+                                            style="background-color: #6bb17e;">
+                                            Detail
+                                        </button>
+
                                         @if (
                                             ($review->tahap_review === 'tanggapan' && $review->status === 'dalam_proses_tindak_lanjut_direksi') ||
+                                                ($review->tahap_review === 'tindak_lanjut' && $review->status === 'dalam_proses_tindak_lanjut_direksi') ||
                                                 ($review->tahap_review === 'tindak_lanjut' && $review->status === 'selesai_tuntas'))
                                             <button type="button" disabled
                                                 class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400">
@@ -277,6 +401,164 @@
 
                 <div>
                     {{ $reviews->links() }}
+                </div>
+            </div>
+        </div>
+
+        {{-- Modal Detail Surat Reviu --}}
+        <div x-show="openDetailModal" x-transition.opacity
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openDetailModal = false" x-transition
+                class="w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">
+                            Detail Reviu SNP
+                        </h2>
+                        <p class="mt-1 text-sm font-semibold text-slate-500" x-text="detailRecord?.id_snp ?? '-'"></p>
+                    </div>
+
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="grid max-h-[72vh] overflow-hidden lg:grid-cols-[380px_minmax(0,1fr)]">
+                    <div class="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
+                        <div class="relative">
+                            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                                fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                            </svg>
+                            <input type="text" x-model="detailSearch" placeholder="Cari ID / isi butir..."
+                                class="w-full rounded-xl border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div class="mt-4 max-h-[48vh] space-y-3 overflow-y-auto pr-1">
+                            <template x-for="butir in filteredDetailButirs" :key="butir.id">
+                                <button type="button" @click="selectDetailButir(butir)"
+                                    class="flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition hover:bg-blue-50"
+                                    :class="String(selectedDetailButir?.id) === String(butir.id)
+                                        ? 'border-blue-300 bg-blue-50'
+                                        : 'border-slate-200 bg-white'">
+                                    <span
+                                        class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                                        :class="butir.selesai ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'">
+                                        <svg x-show="butir.selesai" class="h-5 w-5" fill="none"
+                                            stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="m4.5 12.75 6 6 9-13.5" />
+                                        </svg>
+                                        <span x-show="!butir.selesai" class="text-xs font-bold">-</span>
+                                    </span>
+
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-bold" style="color: #2377b9;"
+                                            x-text="butir.id_butir_snp"></span>
+                                        <span class="mt-1 block text-xs leading-relaxed text-slate-600"
+                                            x-text="butir.butir_singkat"></span>
+                                        <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
+                                            :style="`background-color: ${butir.tahap === 'tindak_lanjut' ? '#6bb17e' : '#2377b9'}`"
+                                            x-text="butir.tahap_label"></span>
+                                    </span>
+                                </button>
+                            </template>
+
+                            <div x-show="filteredDetailButirs.length === 0"
+                                class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
+                                Butir tidak ditemukan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="max-h-[72vh] overflow-y-auto p-6">
+                        <template x-if="selectedDetailButir">
+                            <div class="space-y-5">
+                                <div>
+                                    <p class="text-2xl font-bold" style="color: #2377b9;"
+                                        x-text="selectedDetailButir.id_butir_snp"></p>
+                                    <p class="mt-2 text-sm text-slate-500" x-text="selectedDetailButir.tahap_label"></p>
+                                </div>
+
+                                <div>
+                                    <p class="mb-2 text-sm font-bold text-slate-700">Isi Butir</p>
+                                    <div
+                                        class="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm leading-relaxed text-slate-700">
+                                        <p x-text="selectedDetailButir.butir_snp"></p>
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-4 text-sm md:grid-cols-[170px_minmax(0,1fr)]">
+                                    <p class="font-bold text-slate-600" x-text="selectedDetailButir.kompilasi_label"></p>
+                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
+                                        x-text="selectedDetailButir.kompilasi ?? '-'"></p>
+
+                                    <p class="font-bold text-slate-600">Deliverables Kompilasi</p>
+                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
+                                        x-text="selectedDetailButir.kompilasi_deliverables ?? '-'"></p>
+
+                                    <template x-if="selectedDetailButir.tahap === 'tanggapan'">
+                                        <p class="font-bold text-slate-600">Pengajuan Tanggal</p>
+                                    </template>
+                                    <template x-if="selectedDetailButir.tahap === 'tanggapan'">
+                                        <p class="text-slate-700">
+                                            <span x-text="selectedDetailButir.ubah_tgl ?? 'Tidak Ada'"></span>
+                                            <template x-if="selectedDetailButir.status_pengajuan_tgl">
+                                                <span>
+                                                    -
+                                                    <span x-text="selectedDetailButir.status_pengajuan_tgl"></span>
+                                                </span>
+                                            </template>
+                                        </p>
+                                    </template>
+
+                                    <template x-if="selectedDetailButir.tahap === 'tindak_lanjut'">
+                                        <p class="font-bold text-slate-600">Putaran TL</p>
+                                    </template>
+                                    <template x-if="selectedDetailButir.tahap === 'tindak_lanjut'">
+                                        <p class="text-slate-700" x-text="selectedDetailButir.putaran_tl ?? '-'"></p>
+                                    </template>
+
+                                    <p class="font-bold text-slate-600">Status Reviu</p>
+                                    <p>
+                                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold text-white"
+                                            :style="`background-color: ${selectedDetailButir.selesai ? '#6bb17e' : '#2377b9'}`"
+                                            x-text="selectedDetailButir.status_label"></span>
+                                    </p>
+
+                                    <p class="font-bold text-slate-600">Komite</p>
+                                    <p class="text-slate-700" x-text="selectedDetailButir.komite"></p>
+
+                                    <p class="font-bold text-slate-600">Hasil Reviu</p>
+                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
+                                        x-text="selectedDetailButir.hasil_review ?? '-'"></p>
+
+                                    <p class="font-bold text-slate-600">Deliverables Reviu</p>
+                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
+                                        x-text="selectedDetailButir.review_deliverables ?? '-'"></p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="!selectedDetailButir"
+                            class="rounded-xl border border-dashed border-slate-200 px-4 py-14 text-center text-sm text-slate-400">
+                            Belum ada butir pada surat ini.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end border-t border-slate-100 px-6 py-4">
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Tutup
+                    </button>
                 </div>
             </div>
         </div>

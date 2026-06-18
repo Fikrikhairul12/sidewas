@@ -349,6 +349,56 @@
 
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($records as $record)
+                            @php
+                                $butirCount = $record->butirSnp->count();
+                                $detailRecordPayload = [
+                                    'id' => $record->id,
+                                    'id_snp' => $record->id_snp,
+                                    'nomor_surat' => $record->nomor_surat,
+                                    'cluster' => $record->cluster?->nama_cluster,
+                                    'sub_cluster' => $record->subCluster?->nama_sub_cluster,
+                                    'butirs' => $record->butirSnp
+                                        ->map(function ($butir) {
+                                            $picUtama = $butir->butirPics
+                                                ->where('jenis_pic', 'utama')
+                                                ->first();
+                                            $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
+                                            $komite = $butir->butirPics
+                                                ->where('jenis_pic', 'komite')
+                                                ->first();
+
+                                            return [
+                                                'id' => $butir->id,
+                                                'id_butir_snp' => $butir->id_butir_snp,
+                                                'butir_snp' => $butir->butir_snp,
+                                                'ringkasan' => \Illuminate\Support\Str::limit($butir->butir_snp, 90),
+                                                'pic_utama' => $picUtama?->unitKerja
+                                                    ? $picUtama->unitKerja->kode_unit .
+                                                        ' - ' .
+                                                        $picUtama->unitKerja->nama_unit
+                                                    : '-',
+                                                'pic_pendukung' => $picPendukung
+                                                    ->map(
+                                                        fn($pic) => $pic->unitKerja
+                                                            ? $pic->unitKerja->kode_unit .
+                                                                ' - ' .
+                                                                $pic->unitKerja->nama_unit
+                                                            : null,
+                                                    )
+                                                    ->filter()
+                                                    ->values()
+                                                    ->all(),
+                                                'komite' => $komite?->komite
+                                                    ? $komite->komite->kode_komite .
+                                                        ' - ' .
+                                                        $komite->komite->nama_komite
+                                                    : '-',
+                                            ];
+                                        })
+                                        ->values()
+                                        ->all(),
+                                ];
+                            @endphp
                             <tr class="border-b border-slate-200 transition hover:bg-blue-50/40">
                                 {{-- Informasi Surat --}}
                                 <td class="px-6 py-6 align-top">
@@ -427,105 +477,112 @@
 
                                 {{-- Butir SNP --}}
                                 <td class="px-6 py-6 align-top">
-                                    @if ($record->butirSnp->count() > 0)
-                                        <div class="space-y-6">
-                                            @foreach ($record->butirSnp as $butir)
-                                                <div
-                                                    class="{{ !$loop->first ? 'mt-5 border-t border-slate-300 pt-5' : '' }}">
-                                                    <p class="text-sm font-bold tracking-wide"
-                                                        style="color: #2377b9;">
+                                    @if ($butirCount === 1)
+                                        @php
+                                            $butir = $record->butirSnp->first();
+                                            $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
+                                            $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
+                                            $komite = $butir->butirPics->where('jenis_pic', 'komite')->first();
+                                        @endphp
+
+                                        <div>
+                                            <p class="text-sm font-bold tracking-wide" style="color: #2377b9;">
+                                                {{ $butir->id_butir_snp }}
+                                            </p>
+
+                                            <p class="mt-3 max-w-xl text-xs font-medium uppercase leading-relaxed text-slate-800">
+                                                {{ $butir->butir_snp }}
+                                            </p>
+
+                                            <div class="mt-5 space-y-4">
+                                                <div>
+                                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        PIC Utama
+                                                    </p>
+
+                                                    @if ($picUtama?->unitKerja)
+                                                        <span
+                                                            class="mt-2 inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
+                                                            style="background-color: #6bb17e;">
+                                                            {{ $picUtama->unitKerja->kode_unit }}
+                                                            -
+                                                            {{ $picUtama->unitKerja->nama_unit }}
+                                                        </span>
+                                                    @else
+                                                        <p class="mt-1 text-sm text-slate-400">-</p>
+                                                    @endif
+                                                </div>
+
+                                                <div>
+                                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        PIC Pendukung
+                                                    </p>
+
+                                                    @if ($picPendukung->count() > 0)
+                                                        <div class="mt-2 flex flex-wrap gap-2">
+                                                            @foreach ($picPendukung as $pic)
+                                                                @if ($pic->unitKerja)
+                                                                    <span
+                                                                        class="inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-slate-700"
+                                                                        style="background-color: #c8e079;">
+                                                                        {{ $pic->unitKerja->kode_unit }}
+                                                                        -
+                                                                        {{ $pic->unitKerja->nama_unit }}
+                                                                    </span>
+                                                                @endif
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <p class="mt-1 text-sm text-slate-400">-</p>
+                                                    @endif
+                                                </div>
+
+                                                <div>
+                                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        Komite Dewas
+                                                    </p>
+
+                                                    @if ($komite?->komite)
+                                                        <span
+                                                            class="mt-2 inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
+                                                            style="background-color: #2377b9;">
+                                                            {{ $komite->komite->kode_komite }}
+                                                            -
+                                                            {{ $komite->komite->nama_komite }}
+                                                        </span>
+                                                    @else
+                                                        <p class="mt-1 text-sm text-slate-400">-</p>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @elseif ($butirCount > 1)
+                                        <div class="space-y-3">
+                                            <div class="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3">
+                                                <p class="text-sm font-bold text-slate-800">
+                                                    {{ $butirCount }} butir SNP
+                                                </p>
+                                                <p class="mt-1 text-xs text-slate-500">
+                                                    Ringkasan ditampilkan di tabel. Detail lengkap ada di tombol Detail.
+                                                </p>
+                                            </div>
+
+                                            @foreach ($record->butirSnp->take(3) as $butir)
+                                                <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                                                    <p class="text-sm font-bold" style="color: #2377b9;">
                                                         {{ $butir->id_butir_snp }}
                                                     </p>
-
-                                                    <p
-                                                        class="mt-3 max-w-xl text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                                        {{ $butir->butir_snp }}
+                                                    <p class="mt-1 text-xs leading-relaxed text-slate-600">
+                                                        {{ \Illuminate\Support\Str::limit($butir->butir_snp, 110) }}
                                                     </p>
-
-                                                    @php
-                                                        $picUtama = $butir->butirPics
-                                                            ->where('jenis_pic', 'utama')
-                                                            ->first();
-
-                                                        $picPendukung = $butir->butirPics->where(
-                                                            'jenis_pic',
-                                                            'pendukung',
-                                                        );
-
-                                                        $komite = $butir->butirPics
-                                                            ->where('jenis_pic', 'komite')
-                                                            ->first();
-                                                    @endphp
-
-                                                    <div class="mt-5 space-y-4">
-                                                        {{-- PIC Utama --}}
-                                                        <div>
-                                                            <p
-                                                                class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                                PIC Utama
-                                                            </p>
-
-                                                            @if ($picUtama?->unitKerja)
-                                                                <span
-                                                                    class="mt-2 inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
-                                                                    style="background-color: #6bb17e;">
-                                                                    {{ $picUtama->unitKerja->kode_unit }}
-                                                                    -
-                                                                    {{ $picUtama->unitKerja->nama_unit }}
-                                                                </span>
-                                                            @else
-                                                                <p class="mt-1 text-sm text-slate-400">-</p>
-                                                            @endif
-                                                        </div>
-
-                                                        {{-- PIC Pendukung --}}
-                                                        <div>
-                                                            <p
-                                                                class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                                PIC Pendukung
-                                                            </p>
-
-                                                            @if ($picPendukung->count() > 0)
-                                                                <div class="mt-2 flex flex-wrap gap-2">
-                                                                    @foreach ($picPendukung as $pic)
-                                                                        @if ($pic->unitKerja)
-                                                                            <span
-                                                                                class="inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-slate-700"
-                                                                                style="background-color: #c8e079;">
-                                                                                {{ $pic->unitKerja->kode_unit }}
-                                                                                -
-                                                                                {{ $pic->unitKerja->nama_unit }}
-                                                                            </span>
-                                                                        @endif
-                                                                    @endforeach
-                                                                </div>
-                                                            @else
-                                                                <p class="mt-1 text-sm text-slate-400">-</p>
-                                                            @endif
-                                                        </div>
-
-                                                        {{-- Komite Dewas --}}
-                                                        <div>
-                                                            <p
-                                                                class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                                Komite Dewas
-                                                            </p>
-
-                                                            @if ($komite?->komite)
-                                                                <span
-                                                                    class="mt-2 inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
-                                                                    style="background-color: #2377b9;">
-                                                                    {{ $komite->komite->kode_komite }}
-                                                                    -
-                                                                    {{ $komite->komite->nama_komite }}
-                                                                </span>
-                                                            @else
-                                                                <p class="mt-1 text-sm text-slate-400">-</p>
-                                                            @endif
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             @endforeach
+
+                                            @if ($butirCount > 3)
+                                                <p class="text-xs font-semibold text-slate-500">
+                                                    + {{ $butirCount - 3 }} butir lainnya
+                                                </p>
+                                            @endif
                                         </div>
                                     @else
                                         <span class="text-sm text-slate-400">-</span>
@@ -598,11 +655,11 @@
                                             </button>
                                         @endif
 
-                                        <a href="#"
+                                        <button type="button" @click="openDetailModalFor(@js($detailRecordPayload))"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
                                             style="background-color: #6bb17e;">
                                             Detail
-                                        </a>
+                                        </button>
 
                                         <a href="#"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
@@ -700,6 +757,165 @@
             </div>
         </div>
 
+        {{-- Modal Detail Butir --}}
+        <div x-show="openDetailModal" x-transition.opacity
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openDetailModal = false" x-transition
+                class="w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div class="flex items-start gap-4">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50"
+                            style="color: #2377b9;">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6M9 17h4" />
+                            </svg>
+                        </div>
+
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-800">
+                                Detail Butir SNP
+                            </h2>
+                            <p class="mt-1 text-sm font-semibold text-slate-500" x-text="detailRecord?.id_snp ?? '-'">
+                            </p>
+                        </div>
+                    </div>
+
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="grid max-h-[70vh] overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)]">
+                    <div class="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
+                        <div class="relative">
+                            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                                fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                            </svg>
+                            <input type="text" x-model="detailSearch" placeholder="Cari ID / isi butir..."
+                                class="w-full rounded-xl border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div class="mt-4 max-h-[52vh] space-y-3 overflow-y-auto pr-1">
+                            <template x-for="butir in filteredDetailButirs" :key="butir.id">
+                                <button type="button" @click="selectDetailButir(butir)"
+                                    class="block w-full rounded-xl border px-4 py-3 text-left transition hover:bg-blue-50"
+                                    :class="String(selectedDetailButir?.id) === String(butir.id)
+                                        ? 'border-blue-300 bg-blue-50'
+                                        : 'border-slate-200 bg-white'">
+                                    <span class="block text-sm font-bold" style="color: #2377b9;"
+                                        x-text="butir.id_butir_snp"></span>
+                                    <span class="mt-1 block text-sm leading-relaxed text-slate-600"
+                                        x-text="butir.ringkasan"></span>
+                                </button>
+                            </template>
+
+                            <div x-show="filteredDetailButirs.length === 0"
+                                class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
+                                Butir tidak ditemukan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="max-h-[70vh] overflow-y-auto p-6">
+                        <template x-if="selectedDetailButir">
+                            <div class="space-y-5">
+                                <div>
+                                    <p class="text-2xl font-bold" style="color: #2377b9;"
+                                        x-text="selectedDetailButir.id_butir_snp"></p>
+                                    <p class="mt-2 text-sm text-slate-500">
+                                        Cluster:
+                                        <span x-text="detailRecord?.cluster ?? '-'"></span>
+                                        <template x-if="detailRecord?.sub_cluster">
+                                            <span>
+                                                /
+                                                <span x-text="detailRecord.sub_cluster"></span>
+                                            </span>
+                                        </template>
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p class="mb-2 text-sm font-bold text-slate-700">Isi Butir</p>
+                                    <div
+                                        class="min-h-28 rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium leading-relaxed text-slate-700">
+                                        <p x-text="selectedDetailButir.butir_snp"></p>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div
+                                        class="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 md:grid-cols-[150px_minmax(0,1fr)] md:items-center">
+                                        <p class="text-sm font-bold text-slate-600">PIC Utama</p>
+                                        <span
+                                            class="inline-flex w-fit rounded-full px-4 py-1.5 text-xs font-bold text-white"
+                                            style="background-color: #6bb17e;"
+                                            x-text="selectedDetailButir.pic_utama"></span>
+                                    </div>
+
+                                    <div
+                                        class="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 md:grid-cols-[150px_minmax(0,1fr)] md:items-center">
+                                        <p class="text-sm font-bold text-slate-600">PIC Pendukung</p>
+                                        <div class="flex flex-wrap gap-2"
+                                            x-show="selectedDetailButir.pic_pendukung.length > 0">
+                                            <template x-for="unit in selectedDetailButir.pic_pendukung"
+                                                :key="unit">
+                                                <span
+                                                    class="inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-slate-700"
+                                                    style="background-color: #c8e079;" x-text="unit"></span>
+                                            </template>
+                                        </div>
+                                        <p class="text-sm text-slate-400"
+                                            x-show="selectedDetailButir.pic_pendukung.length === 0">
+                                            -
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        class="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 md:grid-cols-[150px_minmax(0,1fr)] md:items-center">
+                                        <p class="text-sm font-bold text-slate-600">Komite Dewas</p>
+                                        <span
+                                            class="inline-flex w-fit rounded-full px-4 py-1.5 text-xs font-bold text-white"
+                                            style="background-color: #2377b9;"
+                                            x-text="selectedDetailButir.komite"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="!selectedDetailButir"
+                            class="rounded-xl border border-dashed border-slate-200 px-4 py-14 text-center text-sm text-slate-400">
+                            Surat ini belum memiliki butir SNP.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Tutup
+                    </button>
+
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl px-5 py-3 text-sm font-semibold text-white hover:opacity-90"
+                        style="background-color: #2377b9;">
+                        Pilih Butir Ini
+                    </button>
+                </div>
+            </div>
+        </div>
+
         {{-- Modal Tambah Perekaman --}}
         <div x-show="openCreateModal" x-transition.opacity
             class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
@@ -763,7 +979,7 @@
                             <input type="date" name="tanggal_surat" value="{{ old('tanggal_surat') }}" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <p class="mt-1 text-xs text-slate-500">
-                                Tanggal jatuh tempo otomatis 30 hari setelah tanggal ini.
+                                Tanggal jatuh tempo otomatis 14 hari kerja setelah tanggal ini, di luar Sabtu dan Minggu.
                             </p>
                         </div>
 

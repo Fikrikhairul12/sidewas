@@ -45,6 +45,25 @@
             background: #f2f2f2;
         }
 
+        thead {
+            display: table-header-group;
+        }
+
+        tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        td[rowspan] {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .record-group {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
         .justify {
             text-align: justify;
         }
@@ -157,8 +176,8 @@
             </tr>
         </thead>
 
-        <tbody>
-            @foreach ($records as $record)
+        @foreach ($records as $record)
+            <tbody class="record-group">
                 @php
                     $totalRowsRecord = 0;
 
@@ -220,7 +239,7 @@
                         };
 
                         $jatuhTempoAwal = $record->tanggal_surat
-                            ? \Carbon\Carbon::parse($record->tanggal_surat)->addDays(30)
+                            ? \App\Models\SnpRecord::hitungJatuhTempo($record->tanggal_surat)
                             : null;
 
                         $jatuhTempoFinal = $jatuhTempoAwal;
@@ -368,8 +387,8 @@
                         </tr>
                     @endforeach
                 @endforeach
-            @endforeach
-        </tbody>
+            </tbody>
+        @endforeach
     </table>
     <div class="print-footer">
         Dokumen ini dicetak oleh {{ $printedBy ?? '-' }} pada {{ $printedAt ?? '-' }}

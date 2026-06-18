@@ -41,7 +41,7 @@ class SnpRecord extends Model
             }
 
             if (!empty($record->tanggal_surat) && empty($record->jth_tempo)) {
-                $record->jth_tempo = Carbon::parse($record->tanggal_surat)->addDays(30);
+                $record->jth_tempo = static::hitungJatuhTempo($record->tanggal_surat);
             }
 
             if (empty($record->status)) {
@@ -55,6 +55,24 @@ class SnpRecord extends Model
         $nomorSurat = trim($nomorSurat);
 
         return $nomorSurat . '-SNP';
+    }
+
+    public static function hitungJatuhTempo(string|Carbon $tanggalMulai, int $jumlahHariKerja = 14): Carbon
+    {
+        $tanggal = Carbon::parse($tanggalMulai)->copy();
+        $hariKerjaTerhitung = 0;
+
+        while ($hariKerjaTerhitung < $jumlahHariKerja) {
+            $tanggal->addDay();
+
+            if ($tanggal->isWeekend()) {
+                continue;
+            }
+
+            $hariKerjaTerhitung++;
+        }
+
+        return $tanggal;
     }
 
     public function cluster()
