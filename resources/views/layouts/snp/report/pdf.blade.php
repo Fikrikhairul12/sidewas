@@ -49,21 +49,6 @@
             display: table-header-group;
         }
 
-        tr {
-            page-break-inside: avoid;
-            break-inside: avoid;
-        }
-
-        td[rowspan] {
-            page-break-inside: avoid;
-            break-inside: avoid;
-        }
-
-        .record-group {
-            page-break-inside: avoid;
-            break-inside: avoid;
-        }
-
         .justify {
             text-align: justify;
         }
@@ -128,9 +113,9 @@
         .print-footer {
             position: fixed;
             left: 8mm;
-            bottom: 5mm;
+            bottom: 1mm;
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 7px;
+            font-size: 6px;
             color: #444;
         }
 
@@ -176,8 +161,8 @@
             </tr>
         </thead>
 
-        @foreach ($records as $record)
-            <tbody class="record-group">
+        <tbody>
+            @foreach ($records as $record)
                 @php
                     $totalRowsRecord = 0;
 
@@ -387,8 +372,8 @@
                         </tr>
                     @endforeach
                 @endforeach
-            </tbody>
-        @endforeach
+            @endforeach
+        </tbody>
     </table>
     <div class="print-footer">
         Dokumen ini dicetak oleh {{ $printedBy ?? '-' }} pada {{ $printedAt ?? '-' }}

@@ -234,13 +234,6 @@ class ReviuRawasController extends Controller
 
             $record = $review->butir?->record;
 
-            if ($record && $validated['status'] === 'dalam_proses_reviu_dewan_pengawas') {
-                $record->update([
-                    'status' => 'dalam_proses',
-                    'updated_by' => $user->id,
-                ]);
-            }
-
             if ($record && $validated['status'] === 'selesai_tuntas') {
                 $record->load('butirRawas.reviewTindakLanjut');
 
@@ -251,7 +244,7 @@ class ReviuRawasController extends Controller
 
                 if ($allButirsReviewed) {
                     $record->update([
-                        'status' => 'diusulkan_tuntas',
+                        'status' => 'tuntas',
                         'updated_by' => $user->id,
                     ]);
                 }

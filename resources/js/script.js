@@ -216,14 +216,18 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
     return {
         openCreateModal: false,
         openButirModal: false,
+        openDetailModal: false,
 
         selectedRecord: null,
+        detailRecord: null,
+        selectedDetailButir: null,
 
         selectedClusterId: '',
         selectedDirektoratIds: [],
         selectedUnitKerjaIds: [],
 
         unitKerjaSearch: '',
+        detailSearch: '',
 
         clusters: clusters,
         direktorats: direktorats,
@@ -240,9 +244,39 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
             this.openButirModal = true;
         },
 
+        openDetailModalFor(record) {
+            this.detailRecord = record;
+            this.detailSearch = '';
+            this.selectedDetailButir = record?.butirs?.[0] ?? null;
+            this.openDetailModal = true;
+        },
+
+        selectDetailButir(butir) {
+            this.selectedDetailButir = butir;
+        },
+
         get filteredSubClusters() {
             const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
             return cluster ? cluster.sub_clusters : [];
+        },
+
+        get filteredDetailButirs() {
+            const butirs = this.detailRecord?.butirs ?? [];
+            const keyword = this.detailSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return butirs;
+            }
+
+            return butirs.filter(butir => {
+                const id = String(butir.id_butir_ragab || '').toLowerCase();
+                const agenda = String(butir.agenda_ragab || '').toLowerCase();
+                const keputusan = String(butir.keputusan_ragab || '').toLowerCase();
+
+                return id.includes(keyword)
+                    || agenda.includes(keyword)
+                    || keputusan.includes(keyword);
+            });
         },
 
         get filteredUnitKerjas() {
@@ -665,13 +699,17 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
     return {
         openCreateModal: false,
         openButirModal: false,
+        openDetailModal: false,
 
         selectedRecord: null,
+        detailRecord: null,
+        selectedDetailButir: null,
 
         selectedClusterId: '',
         selectedPicIds: [],
 
         picSearch: '',
+        detailSearch: '',
 
         clusters: clusters,
         picOptions: picOptions,
@@ -684,9 +722,39 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
             this.openButirModal = true;
         },
 
+        openDetailModalFor(record) {
+            this.detailRecord = record;
+            this.detailSearch = '';
+            this.selectedDetailButir = record?.butirs?.[0] ?? null;
+            this.openDetailModal = true;
+        },
+
+        selectDetailButir(butir) {
+            this.selectedDetailButir = butir;
+        },
+
         get filteredSubClusters() {
             const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
             return cluster ? cluster.sub_clusters : [];
+        },
+
+        get filteredDetailButirs() {
+            const butirs = this.detailRecord?.butirs ?? [];
+            const keyword = this.detailSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return butirs;
+            }
+
+            return butirs.filter(butir => {
+                const id = String(butir.id_butir_rawas || '').toLowerCase();
+                const agenda = String(butir.agenda_rawas || '').toLowerCase();
+                const keputusan = String(butir.keputusan_rawas || '').toLowerCase();
+
+                return id.includes(keyword)
+                    || agenda.includes(keyword)
+                    || keputusan.includes(keyword);
+            });
         },
 
         get filteredPicOptions() {

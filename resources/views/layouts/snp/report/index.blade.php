@@ -278,7 +278,7 @@
                 </div>
 
                 <div class="border-t border-slate-100 px-6 py-4">
-                    {{ $records->links() }}
+                    @include('layouts.partials.compact-pagination', ['paginator' => $records])
                 </div>
             </div>
         </form>

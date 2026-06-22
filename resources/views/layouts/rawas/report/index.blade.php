@@ -300,7 +300,7 @@
                     </p>
 
                     <div>
-                        {{ $records->links() }}
+                        @include('layouts.partials.compact-pagination', ['paginator' => $records])
                     </div>
                 </div>
             </div>

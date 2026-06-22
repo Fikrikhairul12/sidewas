@@ -9,10 +9,11 @@ use App\Models\DjsnRecord;
 use App\Models\Komite;
 use App\Models\UnitKerja;
 use App\Models\User;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use Spatie\Browsershot\Browsershot;
 
 class ReportDjsnController extends Controller
 {
@@ -139,14 +140,11 @@ class ReportDjsnController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        $pdf = Pdf::loadView('layouts.djsn.report.pdf', compact(
+        return $this->streamBrowsershotPdf('layouts.djsn.report.pdf', compact(
             'records',
             'printedBy',
             'printedAt'
-        ))
-            ->setPaper('legal', 'landscape');
-
-        return $pdf->stream('report-djsn-dewas.pdf');
+        ), 'report-djsn-dewas.pdf');
     }
 
     public function cetakCustom(Request $request)
@@ -233,16 +231,31 @@ class ReportDjsnController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        $pdf = Pdf::loadView('layouts.djsn.report.pdf-custom', compact(
+        return $this->streamBrowsershotPdf('layouts.djsn.report.pdf-custom', compact(
             'records',
             'selectedFields',
             'fieldLabels',
             'printedBy',
             'printedAt'
-        ))
-            ->setPaper('legal', 'landscape');
+        ), 'report-djsn-dewas-custom.pdf');
+    }
 
-        return $pdf->stream('report-djsn-dewas-custom.pdf');
+    private function streamBrowsershotPdf(string $view, array $data, string $filename): Response
+    {
+        $html = view($view, $data)->render();
+
+        $pdf = Browsershot::html($html)
+            ->format('Legal')
+            ->landscape()
+            ->margins(8, 8, 8, 8)
+            ->showBackground()
+            ->timeout(120)
+            ->pdf();
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+        ]);
     }
 
     private function reportFieldLabels(): array

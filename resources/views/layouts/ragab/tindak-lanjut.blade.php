@@ -397,9 +397,7 @@
                     entri
                 </p>
 
-                <div>
-                    {{ $tindakLanjutRows->links() }}
-                </div>
+                @include('layouts.partials.compact-pagination', ['paginator' => $tindakLanjutRows])
             </div>
         </div>
 

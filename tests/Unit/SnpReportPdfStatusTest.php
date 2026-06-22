@@ -5,22 +5,30 @@ test('snp report pdf merges status per butir and uses latest butir status', func
 
     $pdf = file_get_contents($rootPath.'/resources/views/layouts/snp/report/pdf.blade.php');
     $pdfCustom = file_get_contents($rootPath.'/resources/views/layouts/snp/report/pdf-custom.blade.php');
+    $controller = file_get_contents($rootPath.'/app/Http/Controllers/Snp/ReportSnpController.php');
 
     expect($pdf)
         ->toContain('$reviewTerbaruButir = $butir->reviews->sortByDesc(\'id\')->first();')
         ->toContain('$statusTerbaruButir')
         ->toContain('<td class="center" rowspan="{{ $jumlahBarisButir }}">')
         ->toContain('display: table-header-group;')
-        ->toContain('page-break-inside: avoid;')
-        ->toContain('td[rowspan]')
-        ->toContain('<tbody class="record-group">')
-        ->toContain('.record-group')
+        ->not->toContain('page-break-inside: avoid;')
+        ->not->toContain('td[rowspan]')
+        ->not->toContain('<tbody class="record-group">')
+        ->not->toContain('.record-group')
         ->toContain('{{ ucwords(str_replace(\'_\', \' \', $statusTerbaruButir)) }}')
         ->not->toContain('{{ ucwords(str_replace(\'_\', \' \', $statusTl)) }}');
 
     expect($pdfCustom)
         ->toContain('$reviewTerbaruButir = $butir->reviews->sortByDesc(\'id\')->first();')
         ->toContain('$reviewTerbaruButir?->status');
+
+    expect($controller)
+        ->toContain('use Spatie\\Browsershot\\Browsershot;')
+        ->toContain('Browsershot::html($html)')
+        ->toContain("->format('Legal')")
+        ->toContain('->landscape()')
+        ->toContain('Content-Disposition');
 });
 
 test('snp custom report filters unit kerja with checkbox options from selected butir', function () {

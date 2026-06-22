@@ -259,9 +259,7 @@
                     entri
                 </p>
 
-                <div>
-                    {{ $reviews->links() }}
-                </div>
+                @include('layouts.partials.compact-pagination', ['paginator' => $reviews])
             </div>
         </div>
 

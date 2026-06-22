@@ -252,9 +252,7 @@
                     entri
                 </p>
 
-                <div>
-                    {{ $butirs->links() }}
-                </div>
+                @include('layouts.partials.compact-pagination', ['paginator' => $butirs])
             </div>
         </div>
 

@@ -184,6 +184,57 @@
 
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($records as $record)
+                            @php
+                                $butirCount = $record->butirRawas->count();
+                                $detailRecordPayload = [
+                                    'id' => $record->id,
+                                    'id_rawas' => $record->id_rawas,
+                                    'nomor_surat' => $record->nomor_surat,
+                                    'butirs' => $record->butirRawas
+                                        ->map(function ($butir) {
+                                            return [
+                                                'id' => $butir->id,
+                                                'id_butir_rawas' => $butir->id_butir_rawas,
+                                                'tanggal_rawas' => $butir->tanggal_rawas
+                                                    ? \Carbon\Carbon::parse($butir->tanggal_rawas)->format('d/m/Y')
+                                                    : '-',
+                                                'agenda_rawas' => $butir->agenda_rawas ?? '-',
+                                                'keputusan_rawas' => $butir->keputusan_rawas ?? '-',
+                                                'ringkasan' => \Illuminate\Support\Str::limit(
+                                                    $butir->keputusan_rawas ?? $butir->agenda_rawas ?? '-',
+                                                    90,
+                                                ),
+                                                'cluster' => $butir->cluster?->nama_cluster,
+                                                'sub_cluster' => $butir->subCluster?->nama_sub_cluster,
+                                                'pic_unit' => $butir->butirPics
+                                                    ->where('jenis_pic', 'unit')
+                                                    ->map(
+                                                        fn($pic) => trim(
+                                                            ($pic->unitKerja?->kode_unit ?? '-') .
+                                                                ' - ' .
+                                                                ($pic->unitKerja?->nama_unit ?? '-'),
+                                                        ),
+                                                    )
+                                                    ->values()
+                                                    ->all(),
+                                                'komite' => $butir->butirPics
+                                                    ->where('jenis_pic', 'komite')
+                                                    ->map(
+                                                        fn($pic) => trim(
+                                                            ($pic->komite?->kode_komite ?? '-') .
+                                                                ' - ' .
+                                                                ($pic->komite?->nama_komite ?? '-'),
+                                                        ),
+                                                    )
+                                                    ->values()
+                                                    ->all(),
+                                            ];
+                                        })
+                                        ->values()
+                                        ->all(),
+                                ];
+                            @endphp
+
                             <tr class="border-b border-slate-200 transition hover:bg-blue-50/40">
                                 {{-- Informasi Surat --}}
                                 <td class="px-6 py-6 align-top">
@@ -244,7 +295,7 @@
 
                                 {{-- Butir RAWAS --}}
                                 <td class="px-6 py-6 align-top">
-                                    @if ($record->butirRawas->count() > 0)
+                                    @if ($butirCount === 1)
                                         <div class="space-y-6">
                                             @foreach ($record->butirRawas as $butir)
                                                 @php
@@ -350,6 +401,29 @@
                                                 </div>
                                             @endforeach
                                         </div>
+                                    @elseif ($butirCount > 1)
+                                        @php
+                                            $firstButir = $record->butirRawas->first();
+                                        @endphp
+
+                                        <div class="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                {{ $butirCount }} Butir Keputusan RAWAS
+                                            </p>
+
+                                            <p class="mt-2 text-sm font-bold tracking-wide" style="color: #2377b9;">
+                                                {{ $firstButir?->id_butir_rawas ?? '-' }}
+                                            </p>
+
+                                            <p class="mt-2 text-xs text-slate-700">
+                                                {{ \Illuminate\Support\Str::limit($firstButir?->keputusan_rawas ?? $firstButir?->agenda_rawas ?? '-', 120) }}
+                                            </p>
+
+                                            <p class="mt-3 text-xs text-slate-500">
+                                                Menampilkan ringkasan 1 dari {{ $butirCount }} butir.
+                                                Detail lengkap ada di tombol Detail.
+                                            </p>
+                                        </div>
                                     @else
                                         <span class="text-sm text-slate-400">-</span>
                                     @endif
@@ -434,11 +508,12 @@
                                             </button>
                                         @endif
 
-                                        <a href="#"
+                                        <button type="button"
+                                            @click="openDetailModalFor(@js($detailRecordPayload))"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
                                             style="background-color: #6bb17e;">
                                             Detail
-                                        </a>
+                                        </button>
 
                                         <a href="#"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
@@ -491,47 +566,147 @@
                     entri
                 </p>
 
-                <div class="flex items-center gap-2">
-                    {{-- Tombol Sebelumnya --}}
-                    @if ($records->onFirstPage())
-                        <span
-                            class="cursor-not-allowed rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                            Sebelumnya
-                        </span>
-                    @else
-                        <a href="{{ $records->previousPageUrl() }}"
-                            class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                            Sebelumnya
-                        </a>
-                    @endif
+                @include('layouts.partials.compact-pagination', ['paginator' => $records])
+            </div>
+        </div>
 
-                    {{-- Nomor Halaman --}}
-                    @foreach ($records->getUrlRange(1, $records->lastPage()) as $page => $url)
-                        @if ($page == $records->currentPage())
-                            <span class="rounded-lg px-3 py-2 text-sm font-semibold text-white"
-                                style="background-color: #2377b9;">
-                                {{ $page }}
-                            </span>
-                        @else
-                            <a href="{{ $url }}"
-                                class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                                {{ $page }}
-                            </a>
-                        @endif
-                    @endforeach
+        {{-- Modal Detail Butir --}}
+        <div x-show="openDetailModal" x-transition.opacity
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openDetailModal = false" x-transition
+                class="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">
+                            Detail Butir RAWAS
+                        </h2>
+                        <p class="mt-1 text-sm font-semibold text-slate-500" x-text="detailRecord?.id_rawas ?? '-'"></p>
+                    </div>
 
-                    {{-- Tombol Selanjutnya --}}
-                    @if ($records->hasMorePages())
-                        <a href="{{ $records->nextPageUrl() }}"
-                            class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                            Selanjutnya
-                        </a>
-                    @else
-                        <span
-                            class="cursor-not-allowed rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                            Selanjutnya
-                        </span>
-                    @endif
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="grid max-h-[70vh] overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)]">
+                    <div class="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
+                        <div class="relative">
+                            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                                fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                            </svg>
+                            <input type="text" x-model="detailSearch" placeholder="Cari ID / agenda / keputusan..."
+                                class="w-full rounded-xl border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div class="mt-4 max-h-[52vh] space-y-3 overflow-y-auto pr-1">
+                            <template x-for="butir in filteredDetailButirs" :key="butir.id">
+                                <button type="button" @click="selectDetailButir(butir)"
+                                    class="w-full rounded-xl border px-4 py-3 text-left transition hover:bg-blue-50"
+                                    :class="String(selectedDetailButir?.id) === String(butir.id)
+                                        ? 'border-blue-300 bg-blue-50'
+                                        : 'border-slate-200 bg-white'">
+                                    <span class="block text-sm font-bold" style="color: #2377b9;"
+                                        x-text="butir.id_butir_rawas"></span>
+                                    <span class="mt-1 block text-xs leading-relaxed text-slate-500"
+                                        x-text="butir.ringkasan"></span>
+                                </button>
+                            </template>
+
+                            <div x-show="filteredDetailButirs.length === 0"
+                                class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
+                                Butir tidak ditemukan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="max-h-[70vh] overflow-y-auto p-6">
+                        <template x-if="selectedDetailButir">
+                            <div class="space-y-5">
+                                <div>
+                                    <p class="text-xl font-bold" style="color: #2377b9;"
+                                        x-text="selectedDetailButir.id_butir_rawas"></p>
+                                    <p class="mt-1 text-sm text-slate-500">
+                                        <span x-text="selectedDetailButir.cluster ?? '-'"></span>
+                                        <template x-if="selectedDetailButir.sub_cluster">
+                                            <span>
+                                                /
+                                                <span x-text="selectedDetailButir.sub_cluster"></span>
+                                            </span>
+                                        </template>
+                                    </p>
+                                </div>
+
+                                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Tanggal & Agenda RAWAS
+                                    </p>
+                                    <p class="mt-2 text-sm font-semibold text-slate-800"
+                                        x-text="selectedDetailButir.tanggal_rawas"></p>
+                                    <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700"
+                                        x-text="selectedDetailButir.agenda_rawas"></p>
+                                </div>
+
+                                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Keputusan RAWAS
+                                    </p>
+                                    <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700"
+                                        x-text="selectedDetailButir.keputusan_rawas"></p>
+                                </div>
+
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            PIC Unit
+                                        </p>
+                                        <div class="mt-3 flex flex-wrap gap-2" x-show="selectedDetailButir.pic_unit.length > 0">
+                                            <template x-for="unit in selectedDetailButir.pic_unit" :key="unit">
+                                                <span class="rounded-full px-3 py-1 text-xs font-bold text-slate-700"
+                                                    style="background-color: #c8e079;" x-text="unit"></span>
+                                            </template>
+                                        </div>
+                                        <p class="mt-2 text-sm text-slate-400" x-show="selectedDetailButir.pic_unit.length === 0">
+                                            -
+                                        </p>
+                                    </div>
+
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Komite Dewas
+                                        </p>
+                                        <div class="mt-3 flex flex-wrap gap-2" x-show="selectedDetailButir.komite.length > 0">
+                                            <template x-for="komite in selectedDetailButir.komite" :key="komite">
+                                                <span class="rounded-full px-3 py-1 text-xs font-bold text-white"
+                                                    style="background-color: #2377b9;" x-text="komite"></span>
+                                            </template>
+                                        </div>
+                                        <p class="mt-2 text-sm text-slate-400" x-show="selectedDetailButir.komite.length === 0">
+                                            -
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="!selectedDetailButir"
+                            class="rounded-xl border border-dashed border-slate-200 px-4 py-14 text-center text-sm text-slate-400">
+                            Pilih butir untuk melihat detail.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Tutup
+                    </button>
                 </div>
             </div>
         </div>

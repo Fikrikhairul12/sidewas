@@ -108,10 +108,10 @@ class User extends Authenticatable
             ->exists();
     }
 
-    // public static function isAllowedEmailDomain(string $email): bool
-    // {
-    //     return str_ends_with(strtolower($email), '@bpjsketenagakerjaan.go.id');
-    // }
+    public static function isAllowedEmailDomain(string $email): bool
+    {
+        return str_ends_with(strtolower($email), '@bpjsketenagakerjaan.go.id');
+    }
 
     public function hasRoleType(string $roleTypeName): bool
     {

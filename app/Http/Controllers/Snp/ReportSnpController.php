@@ -9,10 +9,11 @@ use App\Models\UnitKerja;
 use App\Models\Direktorat;
 use App\Models\Komite;
 use App\Exports\SnpReportExport;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use Spatie\Browsershot\Browsershot;
 
 class ReportSnpController extends Controller
 {
@@ -145,14 +146,11 @@ class ReportSnpController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        $pdf = Pdf::loadView('layouts.snp.report.pdf', compact(
+        return $this->streamBrowsershotPdf('layouts.snp.report.pdf', compact(
             'records',
             'printedBy',
             'printedAt'
-        ))
-            ->setPaper('legal', 'landscape');
-
-        return $pdf->stream('report-snp-dewas.pdf');
+        ), 'report-snp-dewas.pdf');
     }
 
     public function cetakCustom(Request $request)
@@ -266,7 +264,7 @@ class ReportSnpController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        $pdf = Pdf::loadView('layouts.snp.report.pdf-custom', compact(
+        return $this->streamBrowsershotPdf('layouts.snp.report.pdf-custom', compact(
             'records',
             'selectedFields',
             'fieldLabels',
@@ -274,10 +272,25 @@ class ReportSnpController extends Controller
             'printedAt',
             'tanggapanUnitKerjaIds',
             'tindakLanjutUnitKerjaIds'
-        ))
-            ->setPaper('legal', 'landscape');
+        ), 'report-snp-dewas-custom.pdf');
+    }
 
-        return $pdf->stream('report-snp-dewas-custom.pdf');
+    private function streamBrowsershotPdf(string $view, array $data, string $filename): Response
+    {
+        $html = view($view, $data)->render();
+
+        $pdf = Browsershot::html($html)
+            ->format('Legal')
+            ->landscape()
+            ->margins(8, 8, 8, 8)
+            ->showBackground()
+            ->timeout(120)
+            ->pdf();
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+        ]);
     }
 
     private function reportFieldLabels(): array

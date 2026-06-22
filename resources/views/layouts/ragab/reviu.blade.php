@@ -1,5 +1,75 @@
 <x-app-layout>
-    <div x-data="{ openModal: false, selectedReview: null }" class="space-y-6">
+    <div x-data="{
+        openModal: false,
+        openDetailModal: false,
+        selectedReview: null,
+        detailButir: null,
+        selectedDetailTlId: null,
+        detailSearch: '',
+
+        openDetailModalFor(butir) {
+            this.detailButir = butir;
+            this.detailSearch = '';
+            this.selectedDetailTlId = butir.tindak_lanjuts?.[0]?.id ?? null;
+            this.openDetailModal = true;
+        },
+
+        selectDetailTl(tindakLanjut) {
+            this.selectedDetailTlId = tindakLanjut.id;
+        },
+
+        get detailTindakLanjuts() {
+            return this.detailButir?.tindak_lanjuts ?? [];
+        },
+
+        get filteredDetailTindakLanjuts() {
+            const keyword = this.detailSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return this.detailTindakLanjuts;
+            }
+
+            return this.detailTindakLanjuts.filter((tindakLanjut) => {
+                return String(tindakLanjut.unit_label || '').toLowerCase().includes(keyword) ||
+                    String(tindakLanjut.tindak_lanjut || '').toLowerCase().includes(keyword) ||
+                    String(tindakLanjut.deliverables || '').toLowerCase().includes(keyword);
+            });
+        },
+
+        get selectedDetailTl() {
+            const selected = this.detailTindakLanjuts.find((tindakLanjut) => {
+                return String(tindakLanjut.id) === String(this.selectedDetailTlId);
+            });
+
+            if (selected) {
+                return selected;
+            }
+
+            return this.filteredDetailTindakLanjuts[0] ?? null;
+        },
+
+        get nextDetailTl() {
+            if (this.filteredDetailTindakLanjuts.length === 0) {
+                return null;
+            }
+
+            const currentIndex = this.filteredDetailTindakLanjuts.findIndex((tindakLanjut) => {
+                return String(tindakLanjut.id) === String(this.selectedDetailTl?.id);
+            });
+
+            if (currentIndex < 0) {
+                return this.filteredDetailTindakLanjuts[0];
+            }
+
+            return this.filteredDetailTindakLanjuts[(currentIndex + 1) % this.filteredDetailTindakLanjuts.length];
+        },
+
+        selectNextDetailTl() {
+            if (this.nextDetailTl) {
+                this.selectDetailTl(this.nextDetailTl);
+            }
+        }
+    }" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
                 Keputusan RAGAB
@@ -77,17 +147,72 @@
 
                                 $canReview = $statusTl === 'diusulkan_tuntas' && $review->status !== 'selesai_tuntas';
 
-                                $tindakLanjutsByUnit = ($butir?->tindakLanjuts ?? collect())
+                                $allowedDirektoratIds = ($butir?->butirDirektorats ?? collect())
+                                    ->pluck('direktorat_id')
+                                    ->map(fn($id) => (int) $id)
+                                    ->toArray();
+
+                                $tindakLanjutItems = ($butir?->tindakLanjuts ?? collect())
                                     ->sortBy([
                                         fn($tl) => $tl->unitKerja?->direktorat?->nama_direktorat ?? 'ZZZ',
                                         fn($tl) => $tl->unitKerja?->kode_unit ?? 'ZZZ',
                                         fn($tl) => $tl->id,
-                                    ])
-                                    ->groupBy(
-                                        fn($tl) => ($tl->unitKerja?->kode_unit ?? '-') .
-                                            ' - ' .
-                                            ($tl->unitKerja?->nama_unit ?? '-'),
-                                    );
+                                    ]);
+
+                                $detailTindakLanjutPayload = [
+                                    'id' => $butir?->id,
+                                    'id_ragab' => $record?->id_ragab,
+                                    'id_butir_ragab' => $butir?->id_butir_ragab,
+                                    'agenda_ragab' => $butir?->agenda_ragab,
+                                    'keputusan_ragab' => $butir?->keputusan_ragab,
+                                    'tindak_lanjuts' => $tindakLanjutItems
+                                        ->map(function ($tl) use ($allowedDirektoratIds, $butir) {
+                                            $unitLabel =
+                                                ($tl->unitKerja?->kode_unit ?? '-') .
+                                                ' - ' .
+                                                ($tl->unitKerja?->nama_unit ?? '-');
+
+                                            $tlDirektoratId = $tl->unitKerja?->direktorat_id;
+                                            $direktoratLabel =
+                                                $tlDirektoratId &&
+                                                in_array((int) $tlDirektoratId, $allowedDirektoratIds, true)
+                                                    ? $tl->unitKerja?->direktorat?->nama_direktorat ?? '-'
+                                                    : '-';
+
+                                            return [
+                                                'id' => $tl->id,
+                                                'unit_label' => $unitLabel,
+                                                'initial' => $tl->unitKerja?->kode_unit ?? '-',
+                                                'jenis_pic' => 'PIC Unit',
+                                                'id_butir_ragab' => $butir?->id_butir_ragab,
+                                                'isi_butir_singkat' => \Illuminate\Support\Str::limit(
+                                                    $butir?->keputusan_ragab ?? $butir?->agenda_ragab ?? '-',
+                                                    80,
+                                                ),
+                                                'direktorat' => $direktoratLabel,
+                                                'tindak_lanjut' => $tl->tindak_lanjut,
+                                                'tindak_lanjut_singkat' => \Illuminate\Support\Str::limit(
+                                                    $tl->tindak_lanjut ?? '-',
+                                                    110,
+                                                ),
+                                                'deliverables' => $tl->deliverables,
+                                                'deliverables_singkat' => \Illuminate\Support\Str::limit(
+                                                    $tl->deliverables ?? '-',
+                                                    90,
+                                                ),
+                                                'dokumen_url' => $tl->dokumen ? asset('storage/' . $tl->dokumen) : null,
+                                                'jth_tempo' => $tl->jth_tempo
+                                                    ? \Carbon\Carbon::parse($tl->jth_tempo)->format('d/m/Y')
+                                                    : '-',
+                                                'creator' => $tl->creator?->name ?? '-',
+                                                'created_at' => $tl->created_at
+                                                    ? \Carbon\Carbon::parse($tl->created_at)->format('d/m/Y')
+                                                    : '-',
+                                            ];
+                                        })
+                                        ->values()
+                                        ->all(),
+                                ];
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -167,93 +292,44 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    @forelse ($tindakLanjutsByUnit as $unitLabel => $tindakLanjuts)
-                                        <div class="mb-4 rounded-xl border border-slate-200 bg-white p-4">
-                                            <p class="text-xs font-bold uppercase tracking-wide"
-                                                style="color: #2377b9;">
-                                                {{ $unitLabel }}
-                                            </p>
-
-                                            @foreach ($tindakLanjuts as $tl)
-                                                @php
-                                                    $allowedDirektoratIds = ($butir?->butirDirektorats ?? collect())
-                                                        ->pluck('direktorat_id')
-                                                        ->map(fn($id) => (int) $id)
-                                                        ->toArray();
-
-                                                    $tlDirektoratId = $tl->unitKerja?->direktorat_id;
-
-                                                    $direktoratLabel =
-                                                        $tlDirektoratId &&
-                                                        in_array((int) $tlDirektoratId, $allowedDirektoratIds, true)
-                                                            ? $tl->unitKerja?->direktorat?->nama_direktorat ?? '-'
-                                                            : '-';
-                                                @endphp
-
-                                                <div class="mt-3 rounded-xl bg-slate-50 p-4">
-                                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                        Direktorat
-                                                    </p>
-                                                    <p class="mt-1 text-xs text-slate-700">
-                                                        {{ $direktoratLabel }}
+                                    @if ($tindakLanjutItems->isNotEmpty())
+                                        <div class="space-y-3">
+                                            @foreach ($tindakLanjutItems->take(2) as $tl)
+                                                <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                                                    <p class="text-xs font-bold uppercase tracking-wide"
+                                                        style="color: #2377b9;">
+                                                        {{ $tl->unitKerja?->kode_unit ?? '-' }}
+                                                        -
+                                                        {{ $tl->unitKerja?->nama_unit ?? '-' }}
                                                     </p>
 
-                                                    <p
-                                                        class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                        Tindak Lanjut #{{ $loop->iteration }}
-                                                    </p>
-                                                    <p class="mt-2 whitespace-pre-line text-xs text-slate-800">
-                                                        {{ $tl->tindak_lanjut ?? '-' }}
+                                                    <p class="mt-2 max-w-lg text-xs leading-relaxed text-slate-800">
+                                                        {{ \Illuminate\Support\Str::limit($tl->tindak_lanjut ?? '-', 120) }}
                                                     </p>
 
-                                                    <p
-                                                        class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                        Deliverable
-                                                    </p>
-                                                    <p class="mt-2 whitespace-pre-line text-xs text-slate-800">
-                                                        {{ $tl->deliverables ?? '-' }}
+                                                    <p class="mt-2 text-xs text-slate-500">
+                                                        Deliverable:
+                                                        {{ \Illuminate\Support\Str::limit($tl->deliverables ?? '-', 80) }}
                                                     </p>
 
-                                                    <div
-                                                        class="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                                                        <p>
-                                                            Jatuh Tempo:
-                                                            <span class="font-bold text-slate-700">
-                                                                {{ $tl->jth_tempo ? \Carbon\Carbon::parse($tl->jth_tempo)->format('d/m/Y') : '-' }}
-                                                            </span>
-                                                        </p>
-
-                                                        <p>
-                                                            Diinput oleh:
-                                                            <span class="font-bold text-slate-700">
-                                                                {{ $tl->creator?->name ?? '-' }}
-                                                            </span>
-                                                        </p>
-                                                    </div>
-
-                                                    <div class="mt-3">
-                                                        <p
-                                                            class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                            Dokumen Pendukung TL
-                                                        </p>
-
-                                                        @if ($tl->dokumen)
-                                                            <a href="{{ asset('storage/' . $tl->dokumen) }}"
-                                                                target="_blank"
-                                                                class="mt-2 inline-flex rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
-                                                                style="background-color: #2377b9;">
-                                                                Download Dokumen
-                                                            </a>
-                                                        @else
-                                                            <p class="mt-1 text-xs text-slate-400">-</p>
-                                                        @endif
-                                                    </div>
+                                                    <p class="mt-2 text-xs text-slate-500">
+                                                        Jatuh Tempo:
+                                                        <span class="font-bold text-slate-700">
+                                                            {{ $tl->jth_tempo ? \Carbon\Carbon::parse($tl->jth_tempo)->format('d/m/Y') : '-' }}
+                                                        </span>
+                                                    </p>
                                                 </div>
                                             @endforeach
+
+                                            @if ($tindakLanjutItems->count() > 2)
+                                                <p class="text-xs font-semibold text-slate-500">
+                                                    + {{ $tindakLanjutItems->count() - 2 }} tindak lanjut lainnya
+                                                </p>
+                                            @endif
                                         </div>
-                                    @empty
+                                    @else
                                         <p class="text-xs text-slate-400">Belum ada tindak lanjut.</p>
-                                    @endforelse
+                                    @endif
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
@@ -318,7 +394,14 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    <div class="flex justify-center">
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <button type="button"
+                                            @click="openDetailModalFor(@js($detailTindakLanjutPayload))"
+                                            class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
+                                            style="background-color: #6bb17e;">
+                                            Detail
+                                        </button>
+
                                         @if ($review->status === 'selesai_tuntas')
                                             <button type="button" disabled
                                                 class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400">
@@ -371,8 +454,159 @@
                     entri
                 </p>
 
-                <div>
-                    {{ $reviews->links() }}
+                @include('layouts.partials.compact-pagination', ['paginator' => $reviews])
+            </div>
+        </div>
+
+        {{-- Modal Detail Tindak Lanjut --}}
+        <div x-show="openDetailModal" x-transition.opacity
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openDetailModal = false" x-transition
+                class="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">
+                            Detail Tindak Lanjut RAGAB
+                        </h2>
+                        <p class="mt-1 text-sm font-semibold text-slate-500" x-text="detailButir?.id_ragab ?? '-'"></p>
+                    </div>
+
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="grid max-h-[70vh] overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)]">
+                    <div class="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
+                        <div class="relative">
+                            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                                fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                            </svg>
+                            <input type="text" x-model="detailSearch"
+                                placeholder="Cari unit / isi tindak lanjut..."
+                                class="w-full rounded-xl border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div class="mt-4 max-h-[52vh] space-y-3 overflow-y-auto pr-1">
+                            <template x-for="tindakLanjut in filteredDetailTindakLanjuts" :key="tindakLanjut.id">
+                                <button type="button" @click="selectDetailTl(tindakLanjut)"
+                                    class="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition hover:bg-blue-50"
+                                    :class="String(selectedDetailTl?.id) === String(tindakLanjut.id)
+                                        ? 'border-blue-300 bg-blue-50'
+                                        : 'border-slate-200 bg-white'">
+                                    <span
+                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700"
+                                        x-text="tindakLanjut.initial"></span>
+
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate text-sm font-bold text-slate-800"
+                                            x-text="tindakLanjut.unit_label"></span>
+                                        <span class="mt-1 block text-xs text-slate-500"
+                                            x-text="tindakLanjut.jenis_pic"></span>
+                                    </span>
+
+                                    <svg class="h-5 w-5 shrink-0 text-green-500" fill="none"
+                                        stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                </button>
+                            </template>
+
+                            <div x-show="filteredDetailTindakLanjuts.length === 0"
+                                class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
+                                Tindak lanjut tidak ditemukan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="max-h-[70vh] overflow-y-auto p-6">
+                        <template x-if="selectedDetailTl">
+                            <div class="space-y-5">
+                                <div>
+                                    <p class="text-lg font-bold" style="color: #2377b9;"
+                                        x-text="selectedDetailTl.unit_label"></p>
+                                </div>
+
+                                <div class="grid gap-4 text-sm md:grid-cols-[160px_minmax(0,1fr)]">
+                                    <p class="font-bold text-slate-600">Tipe PIC</p>
+                                    <p class="text-slate-700" x-text="selectedDetailTl.jenis_pic"></p>
+
+                                    <p class="font-bold text-slate-600">Butir RAGAB</p>
+                                    <p class="text-slate-700" x-text="selectedDetailTl.id_butir_ragab"></p>
+
+                                    <p class="font-bold text-slate-600">Isi Butir Singkat</p>
+                                    <p class="text-slate-700" x-text="selectedDetailTl.isi_butir_singkat"></p>
+
+                                    <p class="font-bold text-slate-600">Direktorat</p>
+                                    <p class="text-slate-700" x-text="selectedDetailTl.direktorat"></p>
+
+                                    <p class="font-bold text-slate-600">Tindak Lanjut</p>
+                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
+                                        x-text="selectedDetailTl.tindak_lanjut ?? '-'"></p>
+
+                                    <p class="font-bold text-slate-600">Deliverable</p>
+                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
+                                        x-text="selectedDetailTl.deliverables ?? '-'"></p>
+
+                                    <p class="font-bold text-slate-600">Jatuh Tempo</p>
+                                    <p class="text-slate-700" x-text="selectedDetailTl.jth_tempo"></p>
+
+                                    <p class="font-bold text-slate-600">Dokumen PIC</p>
+                                    <div>
+                                        <template x-if="selectedDetailTl.dokumen_url">
+                                            <a :href="selectedDetailTl.dokumen_url" target="_blank"
+                                                class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
+                                                style="background-color: #2377b9;">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor"
+                                                    stroke-width="1.8" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" />
+                                                </svg>
+                                                Download Dokumen
+                                            </a>
+                                        </template>
+                                        <p class="text-slate-400" x-show="!selectedDetailTl.dokumen_url">-</p>
+                                    </div>
+
+                                    <p class="font-bold text-slate-600">Diinput oleh</p>
+                                    <p class="text-slate-700" x-text="selectedDetailTl.creator"></p>
+
+                                    <p class="font-bold text-slate-600">Tanggal Input</p>
+                                    <p class="text-slate-700" x-text="selectedDetailTl.created_at"></p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="!selectedDetailTl"
+                            class="rounded-xl border border-dashed border-slate-200 px-4 py-14 text-center text-sm text-slate-400">
+                            Belum ada tindak lanjut untuk butir ini.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Tutup
+                    </button>
+
+                    <button type="button" @click="selectNextDetailTl()"
+                        class="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold hover:bg-blue-50"
+                        style="color: #2377b9;">
+                        Unit Berikutnya
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>

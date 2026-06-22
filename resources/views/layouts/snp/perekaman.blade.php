@@ -712,48 +712,7 @@
                     entri
                 </p>
 
-                <div class="flex items-center gap-2">
-                    {{-- Tombol Sebelumnya --}}
-                    @if ($records->onFirstPage())
-                        <span
-                            class="cursor-not-allowed rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                            Sebelumnya
-                        </span>
-                    @else
-                        <a href="{{ $records->previousPageUrl() }}"
-                            class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                            Sebelumnya
-                        </a>
-                    @endif
-
-                    {{-- Nomor Halaman --}}
-                    @foreach ($records->getUrlRange(1, $records->lastPage()) as $page => $url)
-                        @if ($page == $records->currentPage())
-                            <span class="rounded-lg px-3 py-2 text-sm font-semibold text-white"
-                                style="background-color: #2377b9;">
-                                {{ $page }}
-                            </span>
-                        @else
-                            <a href="{{ $url }}"
-                                class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                                {{ $page }}
-                            </a>
-                        @endif
-                    @endforeach
-
-                    {{-- Tombol Selanjutnya --}}
-                    @if ($records->hasMorePages())
-                        <a href="{{ $records->nextPageUrl() }}"
-                            class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                            Selanjutnya
-                        </a>
-                    @else
-                        <span
-                            class="cursor-not-allowed rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                            Selanjutnya
-                        </span>
-                    @endif
-                </div>
+                @include('layouts.partials.compact-pagination', ['paginator' => $records])
             </div>
         </div>
 

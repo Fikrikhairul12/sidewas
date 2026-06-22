@@ -429,9 +429,7 @@
                     entri
                 </p>
 
-                <div>
-                    {{ $kompilasiItems->links() }}
-                </div>
+                @include('layouts.partials.compact-pagination', ['paginator' => $kompilasiItems])
             </div>
         </div>
 

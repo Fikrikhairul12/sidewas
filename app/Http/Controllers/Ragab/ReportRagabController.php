@@ -8,10 +8,11 @@ use App\Models\Direktorat;
 use App\Models\RagabRecord;
 use App\Models\UnitKerja;
 use App\Models\User;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use Spatie\Browsershot\Browsershot;
 
 class ReportRagabController extends Controller
 {
@@ -125,13 +126,11 @@ class ReportRagabController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        $pdf = Pdf::loadView('layouts.ragab.report.pdf', compact(
+        return $this->streamBrowsershotPdf('layouts.ragab.report.pdf', compact(
             'records',
             'printedBy',
             'printedAt'
-        ))->setPaper('legal', 'landscape');
-
-        return $pdf->stream('report-ragab.pdf');
+        ), 'report-ragab.pdf');
     }
 
     public function cetakCustom(Request $request)
@@ -167,15 +166,31 @@ class ReportRagabController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        $pdf = Pdf::loadView('layouts.ragab.report.pdf-custom', compact(
+        return $this->streamBrowsershotPdf('layouts.ragab.report.pdf-custom', compact(
             'records',
             'selectedFields',
             'fieldLabels',
             'printedBy',
             'printedAt'
-        ))->setPaper('legal', 'landscape');
+        ), 'report-ragab-custom.pdf');
+    }
 
-        return $pdf->stream('report-ragab-custom.pdf');
+    private function streamBrowsershotPdf(string $view, array $data, string $filename): Response
+    {
+        $html = view($view, $data)->render();
+
+        $pdf = Browsershot::html($html)
+            ->format('Legal')
+            ->landscape()
+            ->margins(8, 8, 8, 8)
+            ->showBackground()
+            ->timeout(120)
+            ->pdf();
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+        ]);
     }
 
     public function cetakExcel(Request $request)
