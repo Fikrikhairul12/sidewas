@@ -18,6 +18,18 @@
 </head>
 
 <body class="font-sans antialiased">
+    @php
+        $headerUser = Auth::user();
+        $headerAvatar = $headerUser?->avatar;
+        $headerAvatarUrl = null;
+
+        if ($headerAvatar) {
+            $headerAvatarUrl = preg_match('/^(https?:)?\/\//', $headerAvatar)
+                ? $headerAvatar
+                : asset(str_starts_with($headerAvatar, 'storage/') ? $headerAvatar : 'storage/' . ltrim($headerAvatar, '/'));
+        }
+    @endphp
+
     <div x-data="{ sidebarOpen: true }" class="min-h-screen bg-[#eef6fb]"
         style="
         background:
@@ -52,16 +64,23 @@
                         <button type="button" @click="openUserMenu = !openUserMenu"
                             @click.outside="openUserMenu = false"
                             class="inline-flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100">
-                            <div
-                                class="flex h-10 w-10 items-center justify-center rounded-full text-white shadow bg-sidewas-blue">
-                                <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a8.25 8.25 0 0 1 15 0" />
-                                </svg>
-                            </div>
+                            @if ($headerAvatarUrl)
+                                <img src="{{ $headerAvatarUrl }}"
+                                    alt="{{ $headerUser?->name ? 'Avatar ' . $headerUser->name : 'Avatar user' }}"
+                                    class="h-10 w-10 rounded-full border border-blue-100 object-cover shadow"
+                                    referrerpolicy="no-referrer">
+                            @else
+                                <div
+                                    class="flex h-10 w-10 items-center justify-center rounded-full bg-sidewas-blue text-white shadow">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a8.25 8.25 0 0 1 15 0" />
+                                    </svg>
+                                </div>
+                            @endif
                             <span>
-                                {{ Auth::user()->email ?? Auth::user()->name }}
+                                {{ $headerUser?->email ?? $headerUser?->name }}
                             </span>
 
                             <svg class="h-4 w-4 text-gray-500 transition-transform"

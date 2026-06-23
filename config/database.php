@@ -144,6 +144,46 @@ return [
             ]) : [],
         ],
 
+        'mysql_produk_hukum' => [
+            'driver' => env('DB_PRODUK_HUKUM_CONNECTION', 'mysql'),
+            'url' => env('DB_PRODUK_HUKUM_URL'),
+            'host' => env('DB_PRODUK_HUKUM_HOST', '127.0.0.1'),
+            'port' => env('DB_PRODUK_HUKUM_PORT', '3306'),
+            'database' => env('DB_PRODUK_HUKUM_DATABASE', 'forge'),
+            'username' => env('DB_PRODUK_HUKUM_USERNAME', 'forge'),
+            'password' => env('DB_PRODUK_HUKUM_PASSWORD', ''),
+            'unix_socket' => env('DB_PRODUK_HUKUM_SOCKET', ''),
+            'charset' => env('DB_PRODUK_HUKUM_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_PRODUK_HUKUM_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        'mysql_eksternal' => [
+            'driver' => env('DB_EKSTERNAL_CONNECTION', 'mysql'),
+            'url' => env('DB_EKSTERNAL_URL'),
+            'host' => env('DB_EKSTERNAL_HOST', '127.0.0.1'),
+            'port' => env('DB_EKSTERNAL_PORT', '3306'),
+            'database' => env('DB_EKSTERNAL_DATABASE', 'forge'),
+            'username' => env('DB_EKSTERNAL_USERNAME', 'forge'),
+            'password' => env('DB_EKSTERNAL_PASSWORD', ''),
+            'unix_socket' => env('DB_EKSTERNAL_SOCKET', ''),
+            'charset' => env('DB_EKSTERNAL_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_EKSTERNAL_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

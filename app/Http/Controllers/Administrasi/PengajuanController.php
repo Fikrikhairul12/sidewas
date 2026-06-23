@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Validation\ValidationException;
 
 class PengajuanController extends Controller
 {
@@ -28,8 +28,7 @@ class PengajuanController extends Controller
             'verifier',
             'approver',
             'rejecter',
-        ])
-            ->where('table_name', 'tb_record');
+        ]);
 
         if ($user->isSuperAdmin()) {
             $query->where('status', 'pending_super_admin_approval');
@@ -92,7 +91,13 @@ class PengajuanController extends Controller
             return back()->with('error', 'Pengajuan ini belum siap disetujui.');
         }
 
-        if ($deleteRequest->type_code !== 'snp') {
+        if ($deleteRequest->table_name === 'users') {
+            $this->approveUserRequest($deleteRequest, $user);
+
+            return back()->with('success', 'Pengajuan disetujui dan data user berhasil diproses.');
+        }
+
+        if ($deleteRequest->table_name !== 'tb_record' || $deleteRequest->type_code !== 'snp') {
             return back()->with('error', 'Approval untuk tipe ini belum tersedia.');
         }
 
@@ -140,6 +145,152 @@ class PengajuanController extends Controller
         });
 
         return back()->with('success', 'Pengajuan disetujui dan data berhasil dihapus.');
+    }
+
+    private function approveUserRequest(DeleteRequest $deleteRequest, User $user): void
+    {
+        $requestPayload = json_decode($deleteRequest->reason ?? '', true);
+        $action = $requestPayload['action'] ?? null;
+
+        if ($action === 'update_user') {
+            $this->approveUserUpdateRequest($deleteRequest, $user, $requestPayload);
+
+            return;
+        }
+
+        if ($action === 'delete_user') {
+            $this->approveUserDeleteRequest($deleteRequest, $user, $requestPayload);
+
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'pengajuan' => 'Jenis pengajuan user tidak valid.',
+        ]);
+    }
+
+    private function approveUserUpdateRequest(DeleteRequest $deleteRequest, User $user, array $requestPayload): void
+    {
+        $payload = $requestPayload['payload'] ?? null;
+
+        if (! is_array($payload)) {
+            throw ValidationException::withMessages([
+                'pengajuan' => 'Payload pengajuan edit user tidak valid.',
+            ]);
+        }
+
+        DB::transaction(function () use ($deleteRequest, $user, $payload) {
+            $targetUser = User::with(['roleTypes', 'unitKerja', 'komite'])
+                ->findOrFail((int) $deleteRequest->record_key);
+
+            $oldValues = [
+                'user' => $targetUser->toArray(),
+                'request' => $deleteRequest->toArray(),
+            ];
+
+            $targetUser->update([
+                'name' => $payload['name'] ?? $targetUser->name,
+                'email' => $payload['email'] ?? $targetUser->email,
+            ]);
+
+            $targetUser->roleTypes()->sync(
+                collect($payload['role_type_ids'] ?? [])
+                    ->mapWithKeys(fn ($id) => [(int) $id => ['status' => 'active']])
+                    ->all()
+            );
+
+            $targetUser->unitKerja()->sync([]);
+            $targetUser->komite()->sync([]);
+
+            $assignment = $payload['assignment'] ?? ['type' => null, 'id' => null];
+
+            if (($assignment['type'] ?? null) === 'unit') {
+                $targetUser->unitKerja()->attach((int) $assignment['id'], ['status' => 'active']);
+            }
+
+            if (($assignment['type'] ?? null) === 'komite') {
+                $targetUser->komite()->attach((int) $assignment['id'], ['status' => 'active']);
+            }
+
+            $deleteRequest->update([
+                'status' => 'approved',
+                'approved_by' => $user->id,
+                'approved_at' => now(),
+            ]);
+
+            LogActivity::create([
+                'user_id' => $user->id,
+                'type_code' => $deleteRequest->type_code,
+                'database_name' => 'sidewas',
+                'table_name' => 'users',
+                'record_key' => (string) $targetUser->id,
+                'action' => 'approve_update_user_request',
+                'description' => 'Super Admin menyetujui pengajuan edit user.',
+                'old_values' => $oldValues,
+                'new_values' => [
+                    'user' => $targetUser->fresh(['roleTypes', 'unitKerja', 'komite'])->toArray(),
+                    'request' => $deleteRequest->fresh()->toArray(),
+                ],
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        });
+    }
+
+    private function approveUserDeleteRequest(DeleteRequest $deleteRequest, User $user, array $requestPayload): void
+    {
+        $payload = $requestPayload['payload'] ?? null;
+
+        if (! is_array($payload)) {
+            throw ValidationException::withMessages([
+                'pengajuan' => 'Payload pengajuan hapus user tidak valid.',
+            ]);
+        }
+
+        if ((int) $user->id === (int) $deleteRequest->record_key) {
+            throw ValidationException::withMessages([
+                'pengajuan' => 'Anda tidak dapat menyetujui penghapusan akun yang sedang digunakan.',
+            ]);
+        }
+
+        DB::transaction(function () use ($deleteRequest, $user) {
+            $targetUser = User::with(['roleTypes', 'unitKerja', 'komite'])
+                ->findOrFail((int) $deleteRequest->record_key);
+
+            $oldValues = [
+                'user' => $targetUser->toArray(),
+                'request' => $deleteRequest->toArray(),
+            ];
+
+            $recordKey = (string) $targetUser->id;
+
+            $targetUser->roleTypes()->sync([]);
+            $targetUser->unitKerja()->sync([]);
+            $targetUser->komite()->sync([]);
+            $targetUser->delete();
+
+            $deleteRequest->update([
+                'status' => 'approved',
+                'approved_by' => $user->id,
+                'approved_at' => now(),
+            ]);
+
+            LogActivity::create([
+                'user_id' => $user->id,
+                'type_code' => $deleteRequest->type_code,
+                'database_name' => 'sidewas',
+                'table_name' => 'users',
+                'record_key' => $recordKey,
+                'action' => 'approve_delete_user_request',
+                'description' => 'Super Admin menyetujui pengajuan hapus user.',
+                'old_values' => $oldValues,
+                'new_values' => [
+                    'request' => $deleteRequest->fresh()->toArray(),
+                ],
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        });
     }
 
     public function reject(Request $request, DeleteRequest $deleteRequest)

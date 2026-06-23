@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             RagabMasterSeeder::class,
             RawasMasterSeeder::class,
             DjsnMasterSeeder::class,
+            EksternalMasterSeeder::class,
         ]);
     }
 }

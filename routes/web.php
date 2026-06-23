@@ -1,12 +1,17 @@
 <?php
 
 use App\Http\Controllers\Administrasi\PengajuanController;
+use App\Http\Controllers\Administrasi\ManajemenUserController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Djsn\PerekamanDjsnController;
 use App\Http\Controllers\Djsn\ReportDjsnController;
 use App\Http\Controllers\Djsn\ReviuDjsnController;
 use App\Http\Controllers\Djsn\TanggapanDjsnController;
 use App\Http\Controllers\Djsn\TindakLanjutDjsnController;
+use App\Http\Controllers\Eksternal\PerekamanEksternalController;
+use App\Http\Controllers\Eksternal\ReportEksternalController;
+use App\Http\Controllers\Eksternal\ReviuEksternalController;
+use App\Http\Controllers\Eksternal\TindakLanjutEksternalController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Ragab\PerekamanRagabController;
 use App\Http\Controllers\Ragab\ReportRagabController;
@@ -52,6 +57,18 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
 
 // TODO: ADMINISTRASI
 Route::middleware(['auth', 'verified'])->group(function () {
+        Route::get('/administrasi/manajemen-user', [ManajemenUserController::class, 'index'])
+            ->name('administrasi.manajemen-user.index');
+
+        Route::post('/administrasi/manajemen-user', [ManajemenUserController::class, 'store'])
+            ->name('administrasi.manajemen-user.store');
+
+        Route::patch('/administrasi/manajemen-user/{user}', [ManajemenUserController::class, 'update'])
+            ->name('administrasi.manajemen-user.update');
+
+        Route::delete('/administrasi/manajemen-user/{user}', [ManajemenUserController::class, 'destroy'])
+            ->name('administrasi.manajemen-user.destroy');
+
         Route::get('/administrasi/pengajuan', [PengajuanController::class, 'index'])
             ->name('administrasi.pengajuan.index');
 
@@ -199,6 +216,63 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/ragab/report/cetak-excel-custom', [ReportRagabController::class, 'cetakExcelCustom'])
         ->name('ragab.report.cetak-excel-custom');
+});
+
+// TODO: RAPAT EKSTERNAL
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/eksternal/perekaman', [PerekamanEksternalController::class, 'index'])
+        ->name('eksternal.perekaman');
+
+    Route::post('/eksternal/perekaman', [PerekamanEksternalController::class, 'storeRecord'])
+        ->name('eksternal.perekaman.store');
+
+    Route::post('/eksternal/perekaman/{record}/butir', [PerekamanEksternalController::class, 'storeButir'])
+        ->name('eksternal.perekaman.butir.store');
+
+    Route::get('/eksternal/perekaman/{record}/dokumen', [PerekamanEksternalController::class, 'downloadDokumen'])
+        ->name('eksternal.perekaman.dokumen');
+
+    Route::get('/eksternal/perekaman/{record}/dokumen-memo', [PerekamanEksternalController::class, 'downloadDokumenMemo'])
+        ->name('eksternal.perekaman.dokumen-memo');
+
+    Route::delete('/eksternal/perekaman/{record}/request-delete', [PerekamanEksternalController::class, 'requestDelete'])
+        ->name('eksternal.perekaman.destroy.request');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/eksternal/tindak-lanjut', [TindakLanjutEksternalController::class, 'index'])
+        ->name('eksternal.tindak-lanjut.index');
+
+    Route::post('/eksternal/tindak-lanjut', [TindakLanjutEksternalController::class, 'store'])
+        ->name('eksternal.tindak-lanjut.store');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/eksternal/reviu', [ReviuEksternalController::class, 'index'])
+        ->name('eksternal.reviu.index');
+
+    Route::patch('/eksternal/reviu/{review}', [ReviuEksternalController::class, 'update'])
+        ->name('eksternal.reviu.update');
+
+    Route::get('/eksternal/reviu/{review}/dokumen', [ReviuEksternalController::class, 'downloadDokumen'])
+        ->name('eksternal.reviu.dokumen');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/eksternal/report', [ReportEksternalController::class, 'index'])
+        ->name('eksternal.report.index');
+
+    Route::post('/eksternal/report/cetak', [ReportEksternalController::class, 'cetak'])
+        ->name('eksternal.report.cetak');
+
+    Route::post('/eksternal/report/cetak-custom', [ReportEksternalController::class, 'cetakCustom'])
+        ->name('eksternal.report.cetak-custom');
+
+    Route::post('/eksternal/report/cetak-excel', [ReportEksternalController::class, 'cetakExcel'])
+        ->name('eksternal.report.cetak-excel');
+
+    Route::post('/eksternal/report/cetak-excel-custom', [ReportEksternalController::class, 'cetakExcelCustom'])
+        ->name('eksternal.report.cetak-excel-custom');
 });
 
 // TODO: RAWAS

@@ -31,6 +31,8 @@ class AccessControlSeeder extends Seeder
             ['id' => 2, 'code' => 'ragab', 'name' => 'RAGAB', 'database_connection' => 'mysql_ragab', 'database_name' => 'sidewas_ragab', 'keterangan' => 'Tipe akses untuk RAGAB.'],
             ['id' => 3, 'code' => 'rawas', 'name' => 'RAWAS', 'database_connection' => 'mysql_rawas', 'database_name' => 'sidewas_rawas', 'keterangan' => 'Tipe akses untuk RAWAS.'],
             ['id' => 4, 'code' => 'djsn', 'name' => 'DJSN', 'database_connection' => 'mysql_djsn', 'database_name' => 'sidewas_djsn', 'keterangan' => 'Tipe akses untuk DJSN.'],
+            ['id' => 5, 'code' => 'produk_hukum', 'name' => 'Produk Hukum', 'database_connection' => 'mysql_produk_hukum', 'database_name' => 'sidewas_produk_hukum', 'keterangan' => 'Tipe akses untuk Produk Hukum.'],
+            ['id' => 6, 'code' => 'eksternal', 'name' => 'Eksternal', 'database_connection' => 'mysql_eksternal', 'database_name' => 'sidewas_eksternal', 'keterangan' => 'Tipe akses untuk Rapat Eksternal.'],
         ];
 
         foreach ($types as $type) {
@@ -51,10 +53,13 @@ class AccessControlSeeder extends Seeder
         );
 
         $roleNames = [2 => 'admin', 3 => 'moderator', 4 => 'pic', 5 => 'viewer'];
-        $typeCodes = [1 => 'snp', 2 => 'ragab', 3 => 'rawas', 4 => 'djsn'];
+        $typeCodes = [1 => 'snp', 2 => 'ragab', 3 => 'rawas', 4 => 'djsn', 5 => 'produk_hukum', 6 => 'eksternal'];
 
         foreach ($roleNames as $roleId => $roleName) {
             foreach ($typeCodes as $typeId => $typeCode) {
+                if ($typeCode === 'produk_hukum' && !in_array($roleName, ['admin', 'viewer'])) {
+                    continue;
+                }
                 DB::table('tb_role_type')->updateOrInsert(
                     ['role_id' => $roleId, 'type_id' => $typeId],
                     [
@@ -66,5 +71,17 @@ class AccessControlSeeder extends Seeder
                 );
             }
         }
+
+        // foreach ([2 => 'admin', 5 => 'viewer'] as $roleId => $roleName) {
+        //     DB::table('tb_role_type')->updateOrInsert(
+        //         ['role_id' => $roleId, 'type_id' => 5],
+        //         [
+        //             'name' => $roleName . '_produk_hukum',
+        //             'keterangan' => ucfirst($roleName) . ' Produk Hukum',
+        //             'created_at' => $now,
+        //             'updated_at' => $now,
+        //         ]
+        //     );
+        // }
     }
 }

@@ -3,14 +3,15 @@
 namespace App\Models;
 
 use App\Models\Concerns\TracksUser;
+use App\Models\LogActivity;
+use App\Models\RagabButir;
+use App\Models\RagabReview;
+use App\Models\RoleType;
+use App\Models\SnpButir;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Models\RoleType;
-use App\Models\SnpButir;
-use App\Models\RagabButir;
-use App\Models\RagabReview;
 
 class User extends Authenticatable
 {
@@ -83,6 +84,11 @@ class User extends Authenticatable
         return $this->hasMany(LogActivity::class, 'user_id', 'id');
     }
 
+    public function latestLog()
+    {
+        return $this->hasOne(LogActivity::class, 'user_id', 'id')->latestOfMany();
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->roleTypes()
@@ -108,10 +114,10 @@ class User extends Authenticatable
             ->exists();
     }
 
-    public static function isAllowedEmailDomain(string $email): bool
-    {
-        return str_ends_with(strtolower($email), '@bpjsketenagakerjaan.go.id');
-    }
+    // public static function isAllowedEmailDomain(string $email): bool
+    // {
+    //     return str_ends_with(strtolower($email), '@bpjsketenagakerjaan.go.id');
+    // }
 
     public function hasRoleType(string $roleTypeName): bool
     {
@@ -169,13 +175,15 @@ class User extends Authenticatable
                 'admin_ragab',
                 'admin_rawas',
                 'admin_djsn',
+                'admin_produk_hukum',
+                'admin_eksternal',
             ]);
     }
 
     public function pengajuanTypeCodes(): array
     {
         if ($this->isSuperAdmin()) {
-            return ['snp', 'ragab', 'rawas', 'djsn'];
+            return ['snp', 'ragab', 'rawas', 'djsn', 'produk_hukum', 'eksternal'];
         }
 
         $roleTypes = $this->roleTypes()
@@ -201,6 +209,14 @@ class User extends Authenticatable
             if ($roleTypeName === 'admin_djsn') {
                 $types[] = 'djsn';
             }
+
+            if ($roleTypeName === 'admin_produk_hukum') {
+                $types[] = 'produk_hukum';
+            }
+
+            if ($roleTypeName === 'admin_eksternal') {
+                $types[] = 'eksternal';
+            }
         }
 
         return array_values(array_unique($types));
@@ -218,6 +234,24 @@ class User extends Authenticatable
     public function canApprovePengajuan(): bool
     {
         return $this->isSuperAdmin();
+    }
+
+    public function canAccessManajemenUser(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasAnyRoleType([
+                'admin_snp',
+                'admin_ragab',
+                'admin_rawas',
+                'admin_djsn',
+                'admin_produk_hukum',
+                'admin_eksternal',
+                'moderator_snp',
+                'moderator_ragab',
+                'moderator_rawas',
+                'moderator_djsn',
+                'moderator_eksternal',
+            ]);
     }
 
     public function unitKerjaIds(): array
@@ -371,6 +405,46 @@ class User extends Authenticatable
             || $this->hasRoleType('admin_ragab')
             || $this->hasRoleType('moderator_ragab')
             || $this->hasRoleType('pic_ragab');
+    }
+
+    public function canAccessEksternalPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_eksternal')
+            || $this->hasRoleType('moderator_eksternal')
+            || $this->hasRoleType('pic_eksternal');
+    }
+
+    public function canCreateEksternalPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_eksternal')
+            || $this->hasRoleType('moderator_eksternal');
+    }
+
+    public function canRequestDeleteEksternalPerekaman(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_eksternal')
+            || $this->hasRoleType('moderator_eksternal');
+    }
+
+    public function isEksternalAdmin(): bool
+    {
+        return $this->hasRoleType('admin_eksternal');
+    }
+
+    public function isEksternalModerator(): bool
+    {
+        return $this->hasRoleType('moderator_eksternal');
+    }
+
+    public function canAccessEksternalTindakLanjut(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_eksternal')
+            || $this->hasRoleType('moderator_eksternal')
+            || $this->hasRoleType('pic_eksternal');
     }
 
     public function canAccessRawasPerekaman(): bool
@@ -620,12 +694,45 @@ class User extends Authenticatable
         return count(array_intersect($userUnitKerjaIds, $picUnitKerjaIds)) > 0;
     }
 
+    public function canCreateEksternalTindakLanjutForButir(EksternalButir $butir): bool
+    {
+        if ($this->isSuperAdmin() || $this->hasRoleType('admin_eksternal') || $this->hasRoleType('moderator_eksternal')) {
+            return true;
+        }
+
+        if (!$this->hasRoleType('pic_eksternal')) {
+            return false;
+        }
+
+        $userUnitKerjaIds = $this->unitKerjaIds();
+
+        if (empty($userUnitKerjaIds)) {
+            return false;
+        }
+
+        $picUnitKerjaIds = $butir->butirPics()
+            ->where('jenis_pic', 'unit')
+            ->whereNotNull('unit_kerja_id')
+            ->pluck('unit_kerja_id')
+            ->toArray();
+
+        return count(array_intersect($userUnitKerjaIds, $picUnitKerjaIds)) > 0;
+    }
+
     public function canAccessRagabReview(): bool
     {
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_ragab')
             || $this->hasRoleType('moderator_ragab')
             || $this->hasRoleType('pic_ragab');
+    }
+
+    public function canAccessEksternalReview(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_eksternal')
+            || $this->hasRoleType('moderator_eksternal')
+            || $this->hasRoleType('pic_eksternal');
     }
 
     // * Method ini boleh tetap ada untuk kompatibilitas lama, tapi RAGAB baru tidak bergantung komite.

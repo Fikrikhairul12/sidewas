@@ -29,11 +29,11 @@
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div class="border-b border-blue-50 px-6 py-5">
                 <h2 class="text-lg font-bold text-slate-800">
-                    Daftar Pengajuan Hapus
+                    Daftar Pengajuan
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Untuk saat ini daftar pengajuan berisi pengajuan hapus perekaman SNP.
+                    Pengajuan hapus perekaman dan edit user akan diproses sesuai alur approval.
                 </p>
             </div>
 
@@ -64,14 +64,28 @@
 
                     <tbody class="divide-y divide-slate-100 bg-white">
                         @forelse ($pengajuan as $item)
+                            @php
+                                $isUserRequest = $item->table_name === 'users';
+                                $payload = $isUserRequest ? json_decode($item->reason ?? '', true) : null;
+                                $userAction = $payload['action'] ?? null;
+                                $isUserUpdate = $isUserRequest && $userAction === 'update_user';
+                                $isUserDelete = $isUserRequest && $userAction === 'delete_user';
+                                $userPayload = $payload['payload'] ?? [];
+                            @endphp
                             <tr class="hover:bg-blue-50/40">
                                 <td class="px-6 py-5 align-top">
-                                    <span class="inline-flex text-center rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-600">
-                                        Hapus Perekaman
+                                    <span class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold {{ $isUserRequest ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-600' }}">
+                                        @if ($isUserUpdate)
+                                            Edit User
+                                        @elseif ($isUserDelete)
+                                            Hapus User
+                                        @else
+                                            Hapus Perekaman
+                                        @endif
                                     </span>
 
                                     <p class="mt-2 text-xs text-slate-500">
-                                        {{ strtoupper($item->type_code) }}
+                                        {{ strtoupper($item->type_code ?? 'administrasi') }}
                                     </p>
                                 </td>
 
@@ -84,9 +98,23 @@
                                         Record Key: {{ $item->record_key }}
                                     </p>
 
-                                    <p class="mt-2 text-sm text-slate-600">
-                                        Alasan: {{ $item->reason ?: '-' }}
-                                    </p>
+                                    @if ($isUserRequest)
+                                        <div class="mt-2 space-y-1 text-sm text-slate-600">
+                                            <p>Nama: {{ $userPayload['name'] ?? '-' }}</p>
+                                            <p>Email: {{ $userPayload['email'] ?? '-' }}</p>
+                                            @if ($isUserUpdate)
+                                                <p>Role ID: {{ collect($userPayload['role_type_ids'] ?? [])->join(', ') ?: '-' }}</p>
+                                                <p>
+                                                    Unit/Komite:
+                                                    {{ ($userPayload['assignment']['type'] ?? null) ? (($userPayload['assignment']['type'] ?? '-') . ':' . ($userPayload['assignment']['id'] ?? '-')) : '-' }}
+                                                </p>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <p class="mt-2 text-sm text-slate-600">
+                                            Alasan: {{ $item->reason ?: '-' }}
+                                        </p>
+                                    @endif
                                 </td>
 
                                 <td class="px-6 py-5 align-top">
@@ -143,7 +171,7 @@
                                         @if ($authUser?->canApprovePengajuan() && $item->status === 'pending_super_admin_approval')
                                             <form method="POST"
                                                 action="{{ route('administrasi.pengajuan.approve', $item->id) }}"
-                                                onsubmit="return confirm('Setujui penghapusan data ini? Data akan dihapus permanen.')">
+                                                onsubmit="return confirm('{{ $isUserUpdate ? 'Setujui perubahan user ini?' : ($isUserDelete ? 'Setujui penghapusan user ini? User akan dihapus.' : 'Setujui penghapusan data ini? Data akan dihapus permanen.') }}')">
                                                 @csrf
                                                 @method('PATCH')
 

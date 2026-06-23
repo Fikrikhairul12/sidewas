@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class EksternalSubCluster extends Model
+{
+    protected $connection = 'mysql_eksternal';
+
+    protected $table = 'tb_sub_cluster';
+
+    protected $fillable = [
+        'cluster_id',
+        'nama_sub_cluster',
+        'keterangan',
+    ];
+
+    public function cluster()
+    {
+        return $this->belongsTo(EksternalCluster::class, 'cluster_id', 'id');
+    }
+
+    public function records()
+    {
+        return $this->hasMany(EksternalRecord::class, 'sub_cluster_id', 'id');
+    }
+}
