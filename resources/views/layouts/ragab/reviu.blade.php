@@ -141,9 +141,17 @@
 
                                 $picUnits = $butir?->butirPics?->where('jenis_pic', 'unit') ?? collect();
 
-                                $statusTl = $butir?->statusTindakLanjut() ?? 'dalam_proses_tindak_lanjut';
-                                $statusTlLabel = $butir?->statusTindakLanjutLabel() ?? 'Dalam Proses Tindak Lanjut';
+                                $statusTl = $butir?->statusTindakLanjut() ?? 'terbit';
+                                $statusTlLabel = $butir?->statusTindakLanjutLabel() ?? 'Terbit';
                                 $progressTlLabel = $butir?->progressTindakLanjutLabel() ?? '-';
+                                $statusTlColor =
+                                    [
+                                        'terbit' => '#2377b9',
+                                        'dalam_proses' => '#c8e079',
+                                        'diusulkan_tuntas' => '#f59e0b',
+                                        'selesai_tuntas' => '#6bb17e',
+                                    ][$statusTl] ?? '#64748b';
+                                $statusTlTextColor = $statusTl === 'dalam_proses' ? 'text-black' : 'text-white';
 
                                 $canReview = $statusTl === 'diusulkan_tuntas' && $review->status !== 'selesai_tuntas';
 
@@ -333,8 +341,9 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    <span class="inline-flex rounded-xl px-3 py-1 text-xs font-bold text-white"
-                                        style="background-color: {{ $statusTl === 'diusulkan_tuntas' ? '#6bb17e' : '#64748b' }};">
+                                    <span
+                                        class="inline-flex rounded-xl px-3 py-1 text-xs font-bold {{ $statusTlTextColor }}"
+                                        style="background-color: {{ $statusTlColor }};">
                                         {{ $statusTlLabel }}
                                     </span>
 

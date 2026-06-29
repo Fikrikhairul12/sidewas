@@ -245,25 +245,18 @@ class ReviuSnpController extends Controller
                 'status' => $validated['status'],
             ]);
 
-            if (
-                $validated['status'] === 'dalam_proses_tindak_lanjut_direksi'
-                && $review->butir
-                && $review->butir->record
-            ) {
-                $review->butir->record->update([
-                    'status' => 'proses',
-                ]);
+            if ($validated['status'] === 'dalam_proses_tindak_lanjut_direksi' && $review->butir) {
+                $review->butir->markDalamProses($user->id);
+                $review->butir->record?->refresh()->syncStatusFromButir($user->id);
             }
 
             if (
                 $review->tahap_review === 'tindak_lanjut'
                 && $validated['status'] === 'selesai_tuntas'
                 && $review->butir
-                && $review->butir->record
             ) {
-                $review->butir->record->update([
-                    'status' => 'selesai',
-                ]);
+                $review->butir->markSelesaiTuntas($user->id);
+                $review->butir->record?->refresh()->syncStatusFromButir($user->id);
             }
 
             if ($review->tahap_review === 'tanggapan' && $review->kompilasiTanggapan) {

@@ -60,6 +60,50 @@ class EksternalRecord extends Model
         return $this->hasMany(EksternalButir::class, 'id_eksternal', 'id_eksternal');
     }
 
+    public function isEveryButirSelesaiTuntas(): bool
+    {
+        $this->loadMissing('butirEksternal');
+
+        if ($this->butirEksternal->isEmpty()) {
+            return false;
+        }
+
+        return $this->butirEksternal->every(function (EksternalButir $butir): bool {
+            return $butir->statusTindakLanjut() === 'selesai_tuntas';
+        });
+    }
+
+    public function isButirAdditionLocked(): bool
+    {
+        $this->loadMissing('butirEksternal');
+
+        if ($this->butirEksternal->count() !== 1) {
+            return false;
+        }
+
+        return $this->status === 'tuntas'
+            || $this->butirEksternal->first()?->statusTindakLanjut() === 'selesai_tuntas';
+    }
+
+    public function syncStatusFromButir(?int $updatedBy = null): void
+    {
+        $this->loadMissing('butirEksternal');
+
+        $status = match (true) {
+            $this->butirEksternal->isEmpty() => 'draft',
+            $this->isEveryButirSelesaiTuntas() => 'tuntas',
+            default => 'dalam_proses',
+        };
+
+        $attributes = ['status' => $status];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'id');

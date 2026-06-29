@@ -91,7 +91,7 @@
                                 <option value="">Semua Status</option>
                                 <option value="draft" @selected(request('status') === 'draft')>Draft</option>
                                 <option value="dalam_proses" @selected(request('status') === 'dalam_proses')>Dalam Proses</option>
-                                <option value="selesai" @selected(request('status') === 'selesai')>Selesai</option>
+                                <option value="tuntas" @selected(request('status') === 'tuntas')>Tuntas</option>
                             </select>
                         </div>
 

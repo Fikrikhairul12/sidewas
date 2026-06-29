@@ -123,9 +123,7 @@ class PerekamanRawasController extends Controller
         $statistik = [
             'total' => RawasRecord::count(),
             'draft' => RawasRecord::where('status', 'draft')->count(),
-            'terbit' => RawasRecord::where('status', 'terbit')->count(),
             'dalam_proses' => RawasRecord::where('status', 'dalam_proses')->count(),
-            'diusulkan_tuntas' => RawasRecord::where('status', 'diusulkan_tuntas')->count(),
             'tuntas' => RawasRecord::where('status', 'tuntas')->count(),
         ];
 
@@ -198,6 +196,14 @@ class PerekamanRawasController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk menambah butir RAWAS.');
         }
 
+        if ($record->isButirAdditionLocked()) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'keputusan_rawas' => 'Butir tidak dapat ditambah karena satu-satunya butir pada surat ini sudah selesai tuntas.',
+                ]);
+        }
+
         $validated = $request->validate([
             'cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_cluster,id'],
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_sub_cluster,id'],
@@ -216,6 +222,7 @@ class PerekamanRawasController extends Controller
                 'tanggal_rawas' => $validated['tanggal_rawas'],
                 'agenda_rawas' => $validated['agenda_rawas'],
                 'keputusan_rawas' => $validated['keputusan_rawas'],
+                'status' => 'terbit',
             ]);
 
             foreach ($validated['pic_ids'] as $picValue) {
@@ -244,11 +251,7 @@ class PerekamanRawasController extends Controller
                 }
             }
 
-            if ($record->status === 'draft') {
-                $record->update([
-                    'status' => 'terbit',
-                ]);
-            }
+            $record->refresh()->syncStatusFromButir(Auth::id());
 
             LogActivity::create([
                 'user_id' => Auth::id(),

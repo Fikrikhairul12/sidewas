@@ -68,11 +68,18 @@ return new class extends Migration {
             $table->string('id_butir_snp', 70)->unique();
             $table->string('id_snp', 50);
             $table->text('butir_snp');
+            $table->enum('status', [
+                'terbit',
+                'dalam_proses',
+                'diusulkan_tuntas',
+                'selesai_tuntas',
+            ])->default('terbit');
 
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
 
             $table->timestamps();
+            $table->index('status');
 
             $table->foreign('id_snp')
                 ->references('id_snp')

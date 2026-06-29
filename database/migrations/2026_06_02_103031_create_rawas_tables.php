@@ -41,9 +41,7 @@ return new class extends Migration {
 
             $table->enum('status', [
                 'draft',
-                'terbit',
                 'dalam_proses',
-                'diusulkan_tuntas',
                 'tuntas',
             ])->default('draft');
 
@@ -62,6 +60,12 @@ return new class extends Migration {
             $table->date('tanggal_rawas')->nullable();
             $table->text('agenda_rawas')->nullable();
             $table->text('keputusan_rawas')->nullable();
+            $table->enum('status', [
+                'terbit',
+                'dalam_proses',
+                'diusulkan_tuntas',
+                'selesai_tuntas',
+            ])->default('terbit');
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
@@ -70,6 +74,7 @@ return new class extends Migration {
             $table->index('cluster_id');
             $table->index('sub_cluster_id');
             $table->index('tanggal_rawas');
+            $table->index('status');
 
             $table->foreign('id_rawas')
                 ->references('id_rawas')

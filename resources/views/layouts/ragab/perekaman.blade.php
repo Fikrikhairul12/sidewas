@@ -2,9 +2,7 @@
     @php
         $summaryTotal = $statistik['total'] ?? $records->total();
         $summaryDraft = $statistik['draft'] ?? $records->getCollection()->where('status', 'draft')->count();
-        $summaryTerbit = $statistik['terbit'] ?? $records->getCollection()->where('status', 'terbit')->count();
         $summaryProses = $statistik['dalam_proses'] ?? $statistik['proses'] ?? $records->getCollection()->where('status', 'dalam_proses')->count();
-        $summaryDiusulkanTuntas = $statistik['diusulkan_tuntas'] ?? $records->getCollection()->where('status', 'diusulkan_tuntas')->count();
         $summaryTuntas = $statistik['tuntas'] ?? $records->getCollection()->where('status', 'tuntas')->count();
     @endphp
 
@@ -78,13 +76,13 @@
                 </div>
             </div>
 
-            {{-- Terbit --}}
+            {{-- Draft --}}
             <div class="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-slate-500">Terbit</p>
+                        <p class="text-sm font-medium text-slate-500">Draft</p>
                         <p class="mt-2 text-3xl font-bold" style="color: #2377b9;">
-                            {{ $summaryTerbit }}
+                            {{ $summaryDraft }}
                         </p>
                     </div>
 
@@ -146,9 +144,7 @@
             'action' => route('ragab.perekaman'),
             'statusOptions' => $statusOptions ?? [
                 'draft' => 'Draft',
-                'terbit' => 'Terbit',
                 'dalam_proses' => 'Dalam Proses',
-                'diusulkan_tuntas' => 'Diusulkan Tuntas',
                 'tuntas' => 'Tuntas',
             ],
             'keywordPlaceholder' => 'Cari ID Keputusan RAGAB, ID butir, nomor surat, perihal, agenda, keputusan, atau PIC unit...',
@@ -203,6 +199,9 @@
                                             $picUnit = $butir->butirPics->where('jenis_pic', 'unit');
                                             $komite = $butir->butirPics->where('jenis_pic', 'komite')->first();
                                             $direktoratButir = $butir->butirDirektorats ?? collect();
+                                            $subClusterNames = $butir->subClusters->isNotEmpty()
+                                                ? $butir->subClusters->pluck('nama_sub_cluster')
+                                                : collect([$butir->subCluster?->nama_sub_cluster])->filter();
 
                                             return [
                                                 'id' => $butir->id,
@@ -216,8 +215,11 @@
                                                     $butir->keputusan_ragab ?? $butir->agenda_ragab ?? '-',
                                                     90,
                                                 ),
+                                                'status' => $butir->statusTindakLanjut(),
+                                                'status_label' => $butir->statusTindakLanjutLabel(),
                                                 'cluster' => $butir->cluster?->nama_cluster ?? '-',
-                                                'sub_cluster' => $butir->subCluster?->nama_sub_cluster ?? '-',
+                                                'sub_cluster' => $subClusterNames->implode(', ') ?: '-',
+                                                'sub_clusters' => $subClusterNames->values()->all(),
                                                 'direktorats' => $direktoratButir
                                                     ->map(fn($item) => $item->direktorat?->nama_direktorat)
                                                     ->filter()
@@ -470,13 +472,18 @@
                                     @if ($record->butirRagab->count() > 0)
                                         <div class="space-y-5">
                                             @foreach ($record->butirRagab as $butir)
+                                                @php
+                                                    $subClusterNames = $butir->subClusters->isNotEmpty()
+                                                        ? $butir->subClusters->pluck('nama_sub_cluster')
+                                                        : collect([$butir->subCluster?->nama_sub_cluster])->filter();
+                                                @endphp
                                                 <div class="{{ !$loop->first ? 'border-t border-slate-200 pt-4' : '' }}">
                                                     <p class="max-w-xs text-sm font-bold leading-relaxed text-slate-800">
                                                         {{ $butir->cluster?->nama_cluster ?? '-' }}
                                                     </p>
 
                                                     <p class="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
-                                                        {{ $butir->subCluster?->nama_sub_cluster ?? '-' }}
+                                                        {{ $subClusterNames->implode(', ') ?: '-' }}
                                                     </p>
                                                 </div>
                                             @endforeach
@@ -492,27 +499,21 @@
                                         $statusLabel =
                                             [
                                                 'draft' => 'Draft',
-                                                'terbit' => 'Terbit',
                                                 'dalam_proses' => 'Dalam Proses',
-                                                'diusulkan_tuntas' => 'Diusulkan Tuntas',
                                                 'tuntas' => 'Tuntas',
                                             ][$record->status] ?? ucwords(str_replace('_', ' ', $record->status));
 
                                         $statusColor =
                                             [
                                                 'draft' => '#64748b',
-                                                'terbit' => '#2377b9',
                                                 'dalam_proses' => '#c8e079',
-                                                'diusulkan_tuntas' => '#f59e0b',
                                                 'tuntas' => '#6bb17e',
                                             ][$record->status] ?? '#64748b';
 
                                         $teksColor =
                                             [
                                                 'draft' => 'text-white',
-                                                'terbit' => 'text-white',
                                                 'dalam_proses' => 'text-black',
-                                                'diusulkan_tuntas' => 'text-white',
                                                 'tuntas' => 'text-white',
                                             ][$record->status] ?? 'text-white';
                                     @endphp
@@ -532,16 +533,24 @@
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex flex-wrap justify-center gap-2">
                                         @if (auth()->user()->canCreateRagabPerekaman())
-                                            <button type="button"
-                                                @click="openButirModalFor({
-                                                    id: {{ $record->id }},
-                                                    id_ragab: @js($record->id_ragab),
-                                                    nomor_surat: @js($record->nomor_surat)
-                                                })"
-                                                class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
-                                                style="background-color: #c8e079;">
-                                                + Butir
-                                            </button>
+                                            @if ($record->isButirAdditionLocked())
+                                                <button type="button" disabled
+                                                    class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500 shadow-sm"
+                                                    title="Butir tidak dapat ditambah karena satu-satunya butir sudah selesai tuntas.">
+                                                    Butir Tuntas
+                                                </button>
+                                            @else
+                                                <button type="button"
+                                                    @click="openButirModalFor({
+                                                        id: {{ $record->id }},
+                                                        id_ragab: @js($record->id_ragab),
+                                                        nomor_surat: @js($record->nomor_surat)
+                                                    })"
+                                                    class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
+                                                    style="background-color: #c8e079;">
+                                                    + Butir
+                                                </button>
+                                            @endif
                                         @endif
 
                                         <button type="button"
@@ -665,6 +674,9 @@
                                         : 'border-slate-200 bg-white'">
                                     <span class="block text-sm font-bold" style="color: #2377b9;"
                                         x-text="butir.id_butir_ragab"></span>
+                                    <span
+                                        class="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"
+                                        x-text="butir.status_label"></span>
                                     <span class="mt-1 block text-sm leading-relaxed text-slate-600"
                                         x-text="butir.ringkasan"></span>
                                 </button>
@@ -683,6 +695,9 @@
                                 <div>
                                     <p class="text-2xl font-bold" style="color: #2377b9;"
                                         x-text="selectedDetailButir.id_butir_ragab"></p>
+                                    <span
+                                        class="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"
+                                        x-text="selectedDetailButir.status_label"></span>
                                     <p class="mt-2 text-sm text-slate-500">
                                         Cluster:
                                         <span x-text="selectedDetailButir.cluster ?? '-'"></span>
@@ -1047,7 +1062,7 @@
                                 Cluster
                             </label>
 
-                            <select name="cluster_id" x-model="selectedClusterId" required
+                            <select name="cluster_id" x-model="selectedClusterId" @change="selectedSubClusterIds = []" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">Pilih Cluster</option>
                                 @foreach ($clusters as $cluster)
@@ -1063,13 +1078,58 @@
                                 Sub-Cluster
                             </label>
 
-                            <select name="sub_cluster_id" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Pilih Sub-Cluster</option>
-                                <template x-for="subCluster in filteredSubClusters" :key="subCluster.id">
-                                    <option :value="subCluster.id" x-text="subCluster.nama_sub_cluster"></option>
-                                </template>
-                            </select>
+                            <div class="rounded-xl border border-slate-300 bg-white">
+                                <div x-show="selectedSubClusterDetail.length > 0"
+                                    class="border-b border-slate-200 bg-slate-50 p-3">
+                                    <p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Sub-Cluster Terpilih
+                                    </p>
+
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="subCluster in selectedSubClusterDetail" :key="subCluster.id">
+                                            <span
+                                                class="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                                                <span x-text="subCluster.nama_sub_cluster"></span>
+
+                                                <button type="button" @click="removeSubCluster(subCluster.id)"
+                                                    class="text-blue-500 hover:text-red-500">
+                                                    ×
+                                                </button>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div class="max-h-56 overflow-y-auto p-3">
+                                    <template x-if="!selectedClusterId">
+                                        <p class="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
+                                            Pilih cluster terlebih dahulu.
+                                        </p>
+                                    </template>
+
+                                    <template x-if="selectedClusterId && filteredSubClusters.length === 0">
+                                        <p class="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
+                                            Sub-cluster belum tersedia untuk cluster ini.
+                                        </p>
+                                    </template>
+
+                                    <template x-for="subCluster in filteredSubClusters" :key="subCluster.id">
+                                        <label
+                                            class="mb-2 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm hover:bg-blue-50">
+                                            <input type="checkbox" name="sub_cluster_ids[]" :value="subCluster.id"
+                                                x-model="selectedSubClusterIds"
+                                                class="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+
+                                            <span class="font-medium text-slate-700"
+                                                x-text="subCluster.nama_sub_cluster"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Pilih satu atau lebih sub-cluster.
+                            </p>
                         </div>
 
                         <div class="lg:col-span-2">

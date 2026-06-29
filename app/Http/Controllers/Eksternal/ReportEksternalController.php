@@ -20,7 +20,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalPerekaman()) {
+        if (!$user || !$user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report EKSTERNAL.');
         }
 
@@ -90,9 +90,7 @@ class ReportEksternalController extends Controller
 
         $statusOptions = [
             'draft' => 'Draft',
-            'terbit' => 'Terbit',
             'dalam_proses' => 'Dalam Proses',
-            'diusulkan_tuntas' => 'Diusulkan Tuntas',
             'tuntas' => 'Tuntas',
         ];
 
@@ -111,7 +109,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalPerekaman()) {
+        if (!$user || !$user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report EKSTERNAL.');
         }
 
@@ -138,7 +136,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalPerekaman()) {
+        if (!$user || !$user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report EKSTERNAL.');
         }
 
@@ -198,7 +196,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalPerekaman()) {
+        if (!$user || !$user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report EKSTERNAL.');
         }
 
@@ -220,7 +218,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalPerekaman()) {
+        if (!$user || !$user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report EKSTERNAL.');
         }
 

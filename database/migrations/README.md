@@ -9,6 +9,8 @@ File yang dipakai:
 - 2026_05_22_110928_create_ragab_tables.php
 - 2026_06_02_103031_create_rawas_tables.php
 - 2026_06_03_093422_create_djsn_tables.php
+- 2026_06_23_093422_create_produk_hukum_tables.php
+- 2026_06_23_134204_create_external_tables.php
 
 Migration lama yang sudah digabung dan sebaiknya dihapus:
 - 2026_05_05_015104_add_google_fields_to_users_table.php
@@ -24,3 +26,5 @@ Migration lama yang sudah digabung dan sebaiknya dihapus:
 - 2026_05_24_190011_add_dokumen_to_snp_review_table.php
 - 2026_06_09_132746_add_dokumen_memo_to_snp_tables.php
 - 2026_06_09_154129_create_tb_kompilasi_and_update_snp_tanggapan_tindak_lanjut.php
+- 2026_06_25_000001_add_selesai_tuntas_status_to_ragab_records.php
+- 2026_06_25_102106_add_selesai_tuntas_status_to_ragab_rawas_eksternal_records.php

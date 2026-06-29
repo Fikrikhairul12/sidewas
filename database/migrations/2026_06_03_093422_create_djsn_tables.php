@@ -43,7 +43,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
-
+            $table->index('status');
 
         });
 
@@ -54,10 +54,17 @@ return new class extends Migration {
             $table->text('butir_djsn');
             $table->unsignedBigInteger('cluster_id')->nullable();
             $table->unsignedBigInteger('sub_cluster_id')->nullable();
+            $table->enum('status', [
+                'terbit',
+                'dalam_proses',
+                'diusulkan_tuntas',
+                'selesai_tuntas',
+            ])->default('terbit');
 
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
+            $table->index('status');
 
             $table->foreign('id_djsn')
                 ->references('id_djsn')

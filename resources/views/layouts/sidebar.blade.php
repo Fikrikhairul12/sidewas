@@ -82,6 +82,11 @@
         @php
             $authUser = \App\Models\User::find(auth()->id());
             $canAccessSnpPerekaman = $authUser?->canAccessSnpPerekaman() ?? false;
+            $canAccessSnpTanggapan = $authUser?->canAccessSnpTanggapan() ?? false;
+            $canAccessSnpTindakLanjut = $authUser?->canAccessSnpTindakLanjut() ?? false;
+            $canAccessSnpKompilasi = $authUser?->canAccessSnpKompilasi() ?? false;
+            $canAccessSnpReview = $authUser?->canAccessSnpReview() ?? false;
+            $canAccessSnpReport = $authUser?->canAccessSnpReport() ?? false;
         @endphp
         <div x-data="{ open: false }">
             <button type="button" @click="open = !open"
@@ -127,45 +132,86 @@
                     </a>
                 @else
                     <a href="#"
-                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed
-                        {{ request()->routeIs('snp.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50
                         Perekaman SNP
+                    </a>
+@endif
+
+                @if ($canAccessSnpTanggapan)
+<a href="{{ route('snp.tanggapan.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                    {{ request()->routeIs('snp.tanggapan.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                        Tanggapan SNP
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Tanggapan SNP
                     </a>
                 @endif
 
-                <a href="{{ route('snp.tanggapan.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
-                    {{ request()->routeIs('snp.tanggapan.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Tanggapan SNP
-                </a>
-
-                <a href="{{ route('snp.tindak-lanjut.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessSnpTindakLanjut)
+                    <a href="{{ route('snp.tindak-lanjut.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('snp.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Tindak Lanjut SNP
-                </a>
+                        Tindak Lanjut SNP
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Tindak Lanjut SNP
+                    </a>
+                @endif
 
-                <a href="{{ route('snp.kompilasi.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessSnpKompilasi)
+                    <a href="{{ route('snp.kompilasi.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('snp.kompilasi.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Kompilasi SNP
-                </a>
+                        Kompilasi SNP
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Kompilasi SNP
+                    </a>
+                @endif
 
-                <a href="{{ route('snp.reviu.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessSnpReview)
+                    <a href="{{ route('snp.reviu.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('snp.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Reviu Tanggapan & Tindak Lanjut SNP
-                </a>
+                        Reviu Tanggapan & Tindak Lanjut SNP
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Reviu Tanggapan & Tindak Lanjut SNP
+                    </a>
+                @endif
 
-                <a href="{{ route('snp.report.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
-                    {{ request()->routeIs('snp.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Cetak Laporan SNP
-                </a>
+                @if ($canAccessSnpReport)
+                    <a href="{{ route('snp.report.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                        {{ request()->routeIs('snp.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                        Cetak Laporan SNP
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Cetak Laporan SNP
+                    </a>
+                @endif
             </div>
         </div>
 
         {{-- Contoh Dropdown Kedua: Ragab --}}
+        @php
+            $authUser = \App\Models\User::find(auth()->id());
+            $canAccessRagabPerekaman = $authUser?->canAccessRagabPerekaman() ?? false;
+            $canAccessRagabTindakLanjut = $authUser?->canAccessRagabTindakLanjut() ?? false;
+            $canAccessRagabReview = $authUser?->canAccessRagabReview() ?? false;
+            $canAccessRagabReport = $authUser?->canAccessRagabReport() ?? false;
+        @endphp
         <div x-data="{ open: false }">
             <button type="button" @click="open = !open"
                 class="flex w-full items-center justify-between px-6 py-4 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-sidewas-blue border-b border-slate-300/70">
@@ -202,35 +248,70 @@
             <div x-show="open" x-transition
                 class="mx-4 overflow-hidden rounded-xl bg-white border border-slate-200 shadow-sm"
                 style="display: none;">
-                <a href="{{ route('ragab.perekaman') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessRagabPerekaman)
+                    <a href="{{ route('ragab.perekaman') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('ragab.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Perekaman Keputusan Ragab
-                </a>
+                        Perekaman Keputusan Ragab
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Perekaman Keputusan Ragab
+                    </a>
+                @endif
 
-                <a href="{{ route('ragab.tindak-lanjut.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessRagabTindakLanjut)
+                    <a href="{{ route('ragab.tindak-lanjut.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('ragab.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Tindak Lanjut Keputusan Ragab
-                </a>
+                        Tindak Lanjut Keputusan Ragab
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Tindak Lanjut Keputusan Ragab
+                    </a>
+                @endif
 
-                <a href="{{ route('ragab.reviu.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessRagabReview)
+                    <a href="{{ route('ragab.reviu.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('ragab.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Reviu Tindak Lanjut Keputusan Ragab
-                </a>
+                        Reviu Tindak Lanjut Keputusan Ragab
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Reviu Tindak Lanjut Keputusan Ragab
+                    </a>
+                @endif
 
-                <a href="{{ route('ragab.report.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessRagabReport)
+                    <a href="{{ route('ragab.report.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('ragab.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Cetak Laporan Tindak Lanjut Keputusan Ragab
-                </a>
+                        Cetak Laporan Tindak Lanjut Keputusan Ragab
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Cetak Laporan Tindak Lanjut Keputusan Ragab
+                    </a>
+                @endif
             </div>
         </div>
 
 
 
         {{-- Contoh Dropdown Ketiga: Rawas --}}
+        @php
+            $authUser = \App\Models\User::find(auth()->id());
+            $canAccessRawasPerekaman = $authUser?->canAccessRawasPerekaman() ?? false;
+            $canAccessRawasTindakLanjut = $authUser?->canAccessRawasTindakLanjut() ?? false;
+            $canAccessRawasReview = $authUser?->canAccessRawasReview() ?? false;
+            $canAccessRawasReport = $authUser?->canAccessRawasReport() ?? false;
+        @endphp
         <div x-data="{ open: false }">
             <button type="button" @click="open = !open"
                 class="flex w-full items-center justify-between px-6 py-4 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-sidewas-blue border-b border-slate-300/70">
@@ -267,33 +348,69 @@
             <div x-show="open" x-transition
                 class="mx-4 overflow-hidden rounded-xl bg-white border border-slate-200 shadow-sm"
                 style="display: none;">
-                <a href="{{ route('rawas.perekaman') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessRawasPerekaman)
+                    <a href="{{ route('rawas.perekaman') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('rawas.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Perekaman Keputusan Rawas
-                </a>
+                        Perekaman Keputusan Rawas
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Perekaman Keputusan Rawas
+                    </a>
+                @endif
 
-                <a href="{{ route('rawas.tindak-lanjut.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessRawasTindakLanjut)
+                    <a href="{{ route('rawas.tindak-lanjut.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('rawas.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Tindak Lanjut Keputusan Rawas
-                </a>
+                        Tindak Lanjut Keputusan Rawas
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Tindak Lanjut Keputusan Rawas
+                    </a>
+                @endif
 
-                <a href="{{ route('rawas.reviu.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessRawasReview)
+                    <a href="{{ route('rawas.reviu.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('rawas.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Reviu Tindak Lanjut Keputusan Rawas
-                </a>
+                        Reviu Tindak Lanjut Keputusan Rawas
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Reviu Tindak Lanjut Keputusan Rawas
+                    </a>
+                @endif
 
-                <a href="{{ route('rawas.report.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessRawasReport)
+                    <a href="{{ route('rawas.report.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('rawas.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Cetak Laporan Tindak Lanjut Keputusan Rawas
-                </a>
+                        Cetak Laporan Tindak Lanjut Keputusan Rawas
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Cetak Laporan Tindak Lanjut Keputusan Rawas
+                    </a>
+                @endif
             </div>
         </div>
 
         {{-- Contoh Dropdown Keempat: Rekomendasi DJSN --}}
+        @php
+            $authUser = \App\Models\User::find(auth()->id());
+            $canAccessDjsnPerekaman = $authUser?->canAccessDjsnPerekaman() ?? false;
+            $canAccessDjsnTanggapan = $authUser?->canAccessDjsnTanggapan() ?? false;
+            $canAccessDjsnTindakLanjut = $authUser?->canAccessDjsnTindakLanjut() ?? false;
+            $canAccessDjsnReview = $authUser?->canAccessDjsnReview() ?? false;
+            $canAccessDjsnReport = $authUser?->canAccessDjsnReport() ?? false;
+        @endphp
         <div x-data="{ open: false }">
             <button type="button" @click="open = !open"
                 class="flex w-full items-center justify-between px-6 py-4 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-sidewas-blue border-b border-slate-300/70">
@@ -330,39 +447,81 @@
             <div x-show="open" x-transition
                 class="mx-4 overflow-hidden rounded-xl bg-white border border-slate-200 shadow-sm"
                 style="display: none;">
-                <a href="{{ route('djsn.perekaman') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessDjsnPerekaman)
+                    <a href="{{ route('djsn.perekaman') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('djsn.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Perekaman Rekomendasi DJSN
-                </a>
+                        Perekaman Rekomendasi DJSN
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Perekaman Rekomendasi DJSN
+                    </a>
+                @endif
 
-                <a href="{{ route('djsn.tanggapan.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessDjsnTanggapan)
+                    <a href="{{ route('djsn.tanggapan.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('djsn.tanggapan.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Tanggapan Rekomendasi DJSN
-                </a>
+                        Tanggapan Rekomendasi DJSN
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Tanggapan Rekomendasi DJSN
+                    </a>
+                @endif
 
-                <a href="{{ route('djsn.tindak-lanjut.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessDjsnTindakLanjut)
+                    <a href="{{ route('djsn.tindak-lanjut.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('djsn.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Tindak Lanjut Rekomendasi DJSN
-                </a>
+                        Tindak Lanjut Rekomendasi DJSN
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Tindak Lanjut Rekomendasi DJSN
+                    </a>
+                @endif
 
-                <a href="{{ route('djsn.reviu.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessDjsnReview)
+                    <a href="{{ route('djsn.reviu.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('djsn.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Reviu Tanggapan & Tindak Lanjut Rekomendasi DJSN
-                </a>
+                        Reviu Tanggapan & Tindak Lanjut Rekomendasi DJSN
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Reviu Tanggapan & Tindak Lanjut Rekomendasi DJSN
+                    </a>
+                @endif
 
-                <a href="{{ route('djsn.report.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessDjsnReport)
+                    <a href="{{ route('djsn.report.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('djsn.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Cetak Laporan Tanggapan & Tindak Lanjut Rekomendasi DJSN
-                </a>
+                        Cetak Laporan Tanggapan & Tindak Lanjut Rekomendasi DJSN
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Cetak Laporan Tanggapan & Tindak Lanjut Rekomendasi DJSN
+                    </a>
+                @endif
             </div>
         </div>
 
         {{-- Dropdown Rapat Eksternal --}}
+        @php
+            $authUser = \App\Models\User::find(auth()->id());
+            $canAccessEksternalPerekaman = $authUser?->canAccessEksternalPerekaman() ?? false;
+            $canAccessEksternalTindakLanjut = $authUser?->canAccessEksternalTindakLanjut() ?? false;
+            $canAccessEksternalReview = $authUser?->canAccessEksternalReview() ?? false;
+            $canAccessEksternalReport = $authUser?->canAccessEksternalReport() ?? false;
+        @endphp
         <div x-data="{ open: false }">
             <button type="button" @click="open = !open"
                 class="flex w-full items-center justify-between px-6 py-4 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-sidewas-blue border-b border-slate-300/70">
@@ -399,31 +558,122 @@
             <div x-show="open" x-transition
                 class="mx-4 overflow-hidden rounded-xl bg-white border border-slate-200 shadow-sm"
                 style="display: none;">
-                <a href="{{ route('eksternal.perekaman') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessEksternalPerekaman)
+                    <a href="{{ route('eksternal.perekaman') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('eksternal.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Perekaman Rapat Eksternal
-                </a>
+                        Perekaman Rapat Eksternal
+                    </a>
+                @else
+                    <a href="#"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Perekaman Rapat Eksternal
+                    </a>
+                @endif
 
-                <a href="{{ route('eksternal.tindak-lanjut.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessEksternalTindakLanjut)
+                    <a href="{{ route('eksternal.tindak-lanjut.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('eksternal.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Tindak Lanjut Rapat Eksternal
-                </a>
+                        Tindak Lanjut Rapat Eksternal
+                    </a>
+                @else
+                    <a href="{{ route('eksternal.tindak-lanjut.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Tindak Lanjut Rapat Eksternal
+                    </a>
+                @endif
 
-                <a href="{{ route('eksternal.reviu.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessEksternalReview)
+                    <a href="{{ route('eksternal.reviu.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('eksternal.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Reviu Tindak Lanjut Rapat Eksternal
-                </a>
+                        Reviu Tindak Lanjut Rapat Eksternal
+                    </a>
+                @else
+                    <a href="{{ route('eksternal.reviu.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Reviu Tindak Lanjut Rapat Eksternal
+                    </a>
+                @endif
 
-                <a href="{{ route('eksternal.report.index') }}"
-                    class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                @if ($canAccessEksternalReport)
+                    <a href="{{ route('eksternal.report.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('eksternal.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                    Cetak Laporan Tindak Lanjut Rapat Eksternal
-                </a>
+                        Cetak Laporan Tindak Lanjut Rapat Eksternal
+                    </a>
+                @else
+                    <a href="{{ route('eksternal.report.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Cetak Laporan Tindak Lanjut Rapat Eksternal
+                    </a>
+                @endif
             </div>
         </div>
+
+        {{-- Produk Hukum --}}
+        @php
+            $canAccessProdukHukum = $authUser?->canAccessProdukHukum() ?? false;
+        @endphp
+
+        @if ($canAccessProdukHukum)
+            <a href="{{ route('produk-hukum.index') }}"
+                class="group flex w-full items-center justify-between px-6 py-4 text-sm font-medium transition hover:bg-white hover:text-sidewas-blue border-b border-slate-300/70
+                    {{ request()->routeIs('produk-hukum.*')
+                        ? 'bg-white text-sidewas-blue font-semibold is-active'
+                        : 'text-slate-600' }}">
+
+                <span class="flex items-center gap-3">
+                    <span
+                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-200">
+                        <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none">
+                            <path
+                                d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9A2.5 2.5 0 0 0 19 18.5V8L14 3Z"
+                                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                            <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            <path d="M8.5 11.5h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                            <path d="M8.5 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                            <path d="M15.3 18.2h3.2" stroke="currentColor" stroke-width="1.8"
+                                stroke-linecap="round" />
+                            <path d="M16.9 16.6v3.2" stroke="currentColor" stroke-width="1.8"
+                                stroke-linecap="round" />
+                        </svg>
+                    </span>
+
+                    <span>Produk Hukum</span>
+                </span>
+            </a>
+        @else
+            <a href="#"
+                class="group flex w-full items-center justify-between px-6 py-4 text-sm font-medium transition cursor-not-allowed hover:bg-white hover:text-sidewas-blue border-b border-slate-300/70
+                    {{ request()->routeIs('produk-hukum.*')
+                        ? 'bg-white text-sidewas-blue font-semibold is-active'
+                        : 'text-slate-600' }}">
+
+                <span class="flex items-center gap-3">
+                    <span
+                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-200">
+                        <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none">
+                            <path
+                                d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9A2.5 2.5 0 0 0 19 18.5V8L14 3Z"
+                                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                            <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            <path d="M8.5 11.5h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                            <path d="M8.5 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                            <path d="M15.3 18.2h3.2" stroke="currentColor" stroke-width="1.8"
+                                stroke-linecap="round" />
+                            <path d="M16.9 16.6v3.2" stroke="currentColor" stroke-width="1.8"
+                                stroke-linecap="round" />
+                        </svg>
+                    </span>
+
+                    <span>Produk Hukum</span>
+                </span>
+            </a>
+        @endif
 
         {{-- Section Workflow --}}
         @php
@@ -438,10 +688,56 @@
         @if ($canAccessManajemenUser)
             <a href="{{ route('administrasi.manajemen-user.index') }}"
                 class="group flex w-full items-center justify-between px-6 py-4 text-sm font-medium transition hover:bg-white hover:text-sidewas-blue border-b border-slate-300/70
-    {{ request()->routeIs('administrasi.manajemen-user.*')
-        ? 'bg-white text-sidewas-blue font-semibold is-active'
-        : 'text-slate-600' }}">
+                {{ request()->routeIs('administrasi.manajemen-user.*')
+                    ? 'bg-white text-sidewas-blue font-semibold is-active'
+                    : 'text-slate-600' }}">
 
+                <span class="flex items-center gap-3">
+                    <span
+                        class="flex h-10 w-10 items-center justify-center rounded-xl shadow-sm ring-1 ring-slate-200">
+                        <svg class="h-10 w-10" viewBox="0 0 100 100" fill="none"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="mgGrad" x1="0" y1="1" x2="1"
+                                    y2="0">
+                                    <stop offset="0%" stop-color="#38BDF8" />
+                                    <stop offset="100%" stop-color="#0EA5E9" />
+                                </linearGradient>
+                            </defs>
+
+                            <!-- Background putih (default) -->
+                            <rect x="0" y="0" width="100" height="100" rx="22" fill="white"
+                                class="transition-opacity duration-300 group-hover:opacity-0 group-[.is-active]:opacity-0" />
+
+                            <!-- Background gradient (hover/active) -->
+                            <rect x="0" y="0" width="100" height="100" rx="22" fill="url(#mgGrad)"
+                                class="opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-[.is-active]:opacity-100" />
+
+                            <!-- Gear 8 gigi simetris -->
+                            <path
+                                d="M 50.0 14.0 A 27 27 0 0 1 55.8 14.6 L 60.2 21.8 A 36 36 0 0 1 65.5 24.5 L 73.8 22.0 A 27 27 0 0 1 78.0 26.2 L 75.5 34.5 A 36 36 0 0 1 78.2 39.8 L 85.4 44.2 A 27 27 0 0 1 86.0 50.0 A 27 27 0 0 1 85.4 55.8 L 78.2 60.2 A 36 36 0 0 1 75.5 65.5 L 78.0 73.8 A 27 27 0 0 1 73.8 78.0 L 65.5 75.5 A 36 36 0 0 1 60.2 78.2 L 55.8 85.4 A 27 27 0 0 1 50.0 86.0 A 27 27 0 0 1 44.2 85.4 L 39.8 78.2 A 36 36 0 0 1 34.5 75.5 L 26.2 78.0 A 27 27 0 0 1 22.0 73.8 L 24.5 65.5 A 36 36 0 0 1 21.8 60.2 L 14.6 55.8 A 27 27 0 0 1 14.0 50.0 A 27 27 0 0 1 14.6 44.2 L 21.8 39.8 A 36 36 0 0 1 24.5 34.5 L 22.0 26.2 A 27 27 0 0 1 26.2 22.0 L 34.5 24.5 A 36 36 0 0 1 39.8 21.8 L 44.2 14.6 A 27 27 0 0 1 50.0 14.0 Z"
+                                class="fill-sky-400 transition-all duration-300 group-hover:fill-white group-[.is-active]:fill-white" />
+
+                            <!-- Lubang tengah gear -->
+                            <circle cx="50" cy="50" r="16"
+                                class="fill-white transition-all duration-300 group-hover:fill-[#1ab0f0] group-[.is-active]:fill-[#1ab0f0]" />
+
+                            <!-- Kepala user -->
+                            <circle cx="50" cy="44" r="5.5"
+                                class="fill-sky-400 transition-all duration-300 group-hover:fill-white group-[.is-active]:fill-white" />
+
+                            <!-- Badan user -->
+                            <path d="M40,59 Q40,49 50,49 Q60,49 60,59 Z"
+                                class="fill-sky-400 transition-all duration-300 group-hover:fill-white group-[.is-active]:fill-white" />
+                        </svg>
+                    </span>
+
+                    <span>Manajemen User</span>
+                </span>
+            </a>
+        @else
+            <a href="#"
+                class="flex w-full items-center justify-between px-6 py-4 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-sidewas-blue cursor-not-allowed opacity-60">
                 <span class="flex items-center gap-3">
                     <span
                         class="flex h-10 w-10 items-center justify-center rounded-xl shadow-sm ring-1 ring-slate-200">

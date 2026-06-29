@@ -147,10 +147,7 @@ class TindakLanjutSnpController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->whereHas('reviews', function ($reviewQuery) use ($request) {
-                $reviewQuery->where('tahap_review', 'tindak_lanjut')
-                    ->where('status', $request->status);
-            });
+            $query->where('status', $request->status);
         }
 
         if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_snp')) {
@@ -299,9 +296,9 @@ class TindakLanjutSnpController extends Controller
         $komites = Komite::orderBy('nama_komite')->get();
 
         $statusOptions = [
-            'belum_ditanggapi' => 'Belum Ditanggapi',
-            'dalam_proses_reviu_dewas' => 'Dalam Proses Reviu Dewas',
-            'dalam_proses_tindak_lanjut_direksi' => 'Dalam Proses Tindak Lanjut Direksi',
+            'terbit' => 'Terbit',
+            'dalam_proses' => 'Dalam Proses',
+            'diusulkan_tuntas' => 'Diusulkan Tuntas',
             'selesai_tuntas' => 'Selesai Tuntas',
         ];
 
@@ -428,6 +425,9 @@ class TindakLanjutSnpController extends Controller
                 );
             }
 
+            $butir->refresh()->syncStatusFromTindakLanjut($putaranAktif, $user->id);
+            $butir->record?->refresh()->syncStatusFromButir($user->id);
+
             LogActivity::create([
                 'user_id' => $user->id,
                 'type_code' => 'snp',
@@ -442,6 +442,8 @@ class TindakLanjutSnpController extends Controller
                     'tindak_lanjut' => $tindakLanjut->toArray(),
                     'putaran_tl' => $putaranAktif,
                     'kompilasi_ready' => $allPicSudahTindakLanjut,
+                    'status_butir' => $butir->fresh()->statusTindakLanjut(),
+                    'status_record' => $butir->record?->fresh()?->status,
                 ],
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),

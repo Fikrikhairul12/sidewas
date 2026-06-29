@@ -11,6 +11,7 @@ test('pengajuan page supports user update approval flow', function () {
         ->toContain('approveUserRequest')
         ->toContain('approveUserUpdateRequest')
         ->toContain('approveUserDeleteRequest')
+        ->toContain('approveProdukHukumRequest')
         ->toContain('json_decode($deleteRequest->reason')
         ->toContain('$targetUser->update')
         ->toContain('$targetUser->roleTypes()->sync')
@@ -22,9 +23,12 @@ test('pengajuan page supports user update approval flow', function () {
     expect($view)
         ->toContain('$isUserUpdate = $isUserRequest && $userAction === \'update_user\'')
         ->toContain('$isUserDelete = $isUserRequest && $userAction === \'delete_user\'')
+        ->toContain('$isProdukHukumView = $item->type_code === \'produk_hukum\'')
         ->toContain('Edit User')
         ->toContain('Hapus User')
-        ->toContain('Pengajuan hapus perekaman dan edit user')
+        ->toContain('Lihat Produk Hukum')
+        ->toContain('Pengajuan edit/hapus user, hapus perekaman, dan akses dokumen rahasia')
         ->toContain('Setujui perubahan user ini?')
-        ->toContain('Setujui penghapusan user ini?');
+        ->toContain('Setujui penghapusan user ini?')
+        ->toContain('Setujui akses lihat Produk Hukum ini?');
 });

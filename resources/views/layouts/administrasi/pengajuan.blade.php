@@ -33,7 +33,7 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Pengajuan hapus perekaman dan edit user akan diproses sesuai alur approval.
+                    Pengajuan edit/hapus user, hapus perekaman, dan akses dokumen rahasia akan diproses sesuai alur approval.
                 </p>
             </div>
 
@@ -65,20 +65,30 @@
                     <tbody class="divide-y divide-slate-100 bg-white">
                         @forelse ($pengajuan as $item)
                             @php
+                                $rawReason = $item->reason ?? '';
+                                [$jsonReason, $rejectReason] = array_pad(explode("\n\nAlasan penolakan: ", $rawReason, 2), 2, null);
+                                $payload = json_decode($jsonReason, true);
+                                $payload = is_array($payload) ? $payload : [];
                                 $isUserRequest = $item->table_name === 'users';
-                                $payload = $isUserRequest ? json_decode($item->reason ?? '', true) : null;
                                 $userAction = $payload['action'] ?? null;
                                 $isUserUpdate = $isUserRequest && $userAction === 'update_user';
                                 $isUserDelete = $isUserRequest && $userAction === 'delete_user';
+                                $isProdukHukumView = $item->type_code === 'produk_hukum'
+                                    && $item->table_name === 'tb_produk_hukum'
+                                    && ($payload['action'] ?? null) === 'view_produk_hukum';
                                 $userPayload = $payload['payload'] ?? [];
+                                $canRejectItem = in_array($item->status, ['pending_admin_verification', 'pending_super_admin_approval'], true)
+                                    && ($authUser?->canApprovePengajuan() || $authUser?->canVerifyPengajuanType($item->type_code));
                             @endphp
                             <tr class="hover:bg-blue-50/40">
                                 <td class="px-6 py-5 align-top">
-                                    <span class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold {{ $isUserRequest ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-600' }}">
+                                    <span class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold {{ $isUserRequest ? 'bg-blue-100 text-blue-700' : ($isProdukHukumView ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-600') }}">
                                         @if ($isUserUpdate)
                                             Edit User
                                         @elseif ($isUserDelete)
                                             Hapus User
+                                        @elseif ($isProdukHukumView)
+                                            Lihat Produk Hukum
                                         @else
                                             Hapus Perekaman
                                         @endif
@@ -110,9 +120,15 @@
                                                 </p>
                                             @endif
                                         </div>
+                                    @elseif ($isProdukHukumView)
+                                        <div class="mt-2 space-y-1 text-sm text-slate-600">
+                                            <p>Kode: {{ $payload['kode_produk_hukum'] ?? '-' }}</p>
+                                            <p>Judul: {{ $payload['judul'] ?? '-' }}</p>
+                                            <p>Catatan: {{ $payload['catatan'] ?? '-' }}</p>
+                                        </div>
                                     @else
                                         <p class="mt-2 text-sm text-slate-600">
-                                            Alasan: {{ $item->reason ?: '-' }}
+                                            Alasan: {{ $jsonReason ?: '-' }}
                                         </p>
                                     @endif
                                 </td>
@@ -125,13 +141,6 @@
                                     <p class="text-xs text-slate-500">
                                         {{ $item->requested_at?->format('d/m/Y H:i') ?? '-' }}
                                     </p>
-
-                                    @if ($item->verifier)
-                                        <p class="mt-2 text-xs text-slate-500">
-                                            Diverifikasi oleh:
-                                            <span class="font-semibold">{{ $item->verifier->name }}</span>
-                                        </p>
-                                    @endif
                                 </td>
 
                                 <td class="px-6 py-5 align-top">
@@ -150,6 +159,51 @@
                                         style="background-color: #2377b9;">
                                         {{ $statusLabel }}
                                     </span>
+
+                                    <div class="mt-3 space-y-2 text-xs text-slate-500">
+                                        <p>
+                                            Diajukan:
+                                            <span class="font-semibold text-slate-700">
+                                                {{ $item->requested_at?->format('d/m/Y H:i') ?? '-' }}
+                                            </span>
+                                        </p>
+
+                                        @if ($item->verifier)
+                                            <p>
+                                                Diverifikasi:
+                                                <span class="font-semibold text-slate-700">{{ $item->verifier->name }}</span>
+                                                @if ($item->verified_at)
+                                                    <span>({{ $item->verified_at->format('d/m/Y H:i') }})</span>
+                                                @endif
+                                            </p>
+                                        @endif
+
+                                        @if ($item->approver)
+                                            <p>
+                                                Disetujui:
+                                                <span class="font-semibold text-green-700">{{ $item->approver->name }}</span>
+                                                @if ($item->approved_at)
+                                                    <span>({{ $item->approved_at->format('d/m/Y H:i') }})</span>
+                                                @endif
+                                            </p>
+                                        @endif
+
+                                        @if ($item->rejecter)
+                                            <p>
+                                                Ditolak:
+                                                <span class="font-semibold text-red-600">{{ $item->rejecter->name }}</span>
+                                                @if ($item->rejected_at)
+                                                    <span>({{ $item->rejected_at->format('d/m/Y H:i') }})</span>
+                                                @endif
+                                            </p>
+
+                                            @if ($rejectReason)
+                                                <p class="rounded-lg bg-red-50 px-3 py-2 text-red-600">
+                                                    Alasan: {{ $rejectReason }}
+                                                </p>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <td class="px-6 py-5 align-top">
@@ -171,7 +225,7 @@
                                         @if ($authUser?->canApprovePengajuan() && $item->status === 'pending_super_admin_approval')
                                             <form method="POST"
                                                 action="{{ route('administrasi.pengajuan.approve', $item->id) }}"
-                                                onsubmit="return confirm('{{ $isUserUpdate ? 'Setujui perubahan user ini?' : ($isUserDelete ? 'Setujui penghapusan user ini? User akan dihapus.' : 'Setujui penghapusan data ini? Data akan dihapus permanen.') }}')">
+                                                onsubmit="return confirm('{{ $isUserUpdate ? 'Setujui perubahan user ini?' : ($isUserDelete ? 'Setujui penghapusan user ini? User akan dihapus.' : ($isProdukHukumView ? 'Setujui akses lihat Produk Hukum ini?' : 'Setujui penghapusan data ini? Data akan dihapus permanen.')) }}')">
                                                 @csrf
                                                 @method('PATCH')
 
@@ -183,7 +237,7 @@
                                             </form>
                                         @endif
 
-                                        @if ($authUser?->canApprovePengajuan() || $authUser?->canVerifyPengajuanType($item->type_code))
+                                        @if ($canRejectItem)
                                             <form method="POST"
                                                 action="{{ route('administrasi.pengajuan.reject', $item->id) }}"
                                                 onsubmit="return confirm('Tolak pengajuan ini?')">
@@ -196,6 +250,12 @@
                                                 </button>
                                             </form>
                                         @endif
+
+                                        @if (! $authUser?->canVerifyPengajuanType($item->type_code) && ! ($authUser?->canApprovePengajuan() && $item->status === 'pending_super_admin_approval') && ! $canRejectItem)
+                                            <span class="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold text-slate-500">
+                                                Riwayat
+                                            </span>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -203,7 +263,7 @@
                             <tr>
                                 <td colspan="5" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada pengajuan yang perlu diproses.
+                                        Belum ada pengajuan.
                                     </p>
                                 </td>
                             </tr>

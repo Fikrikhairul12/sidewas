@@ -83,15 +83,15 @@
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                        Keputusan EKSTERNAL
+                        Rapat EKSTERNAL
                     </p>
 
                     <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                        Tindak Lanjut Keputusan EKSTERNAL
+                        Tindak Lanjut Rapat EKSTERNAL
                     </h1>
 
                     <p class="mt-2 text-sm text-slate-500">
-                        Halaman ini digunakan untuk menginput tindak lanjut keputusan EKSTERNAL berdasarkan PIC unit.
+                        Halaman ini digunakan untuk menginput tindak lanjut Rapat EKSTERNAL berdasarkan PIC unit.
                     </p>
                 </div>
 
@@ -119,7 +119,7 @@
             'action' => route('eksternal.tindak-lanjut.index'),
             'statusOptions' => $statusOptions,
             'keywordPlaceholder' =>
-                'Cari nomor surat, instansi, agenda eksternal, keputusan eksternal, direktorat, PIC unit, tindak lanjut, atau hasil reviu...',
+                'Cari nomor surat, instansi, agenda eksternal, Rapat eksternal, direktorat, PIC unit, tindak lanjut, atau hasil reviu...',
         ])
 
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -129,7 +129,7 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
-                    Data menampilkan butir Keputusan EKSTERNAL yang sudah tersedia dan seluruh tindak lanjut yang sudah diinput.
+                    Data menampilkan butir Rapat EKSTERNAL yang sudah tersedia dan seluruh tindak lanjut yang sudah diinput.
                 </p>
             </div>
 
@@ -138,7 +138,7 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi Keputusan EKSTERNAL
+                                Informasi Rapat EKSTERNAL
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Tindak Lanjut
@@ -193,7 +193,7 @@
                                     </p>
 
                                     <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                        Keputusan EKSTERNAL
+                                        Rapat EKSTERNAL
                                     </p>
 
                                     <p class="mt-1 max-w-md whitespace-pre-line text-xs text-slate-800">
@@ -239,7 +239,7 @@
                                         </p>
 
                                         <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Tindak Lanjut Keputusan EKSTERNAL
+                                            Tindak Lanjut Rapat EKSTERNAL
                                         </p>
 
                                         <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
@@ -379,11 +379,11 @@
                             <tr>
                                 <td colspan="4" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada data tindak lanjut Keputusan EKSTERNAL.
+                                        Belum ada data tindak lanjut Rapat EKSTERNAL.
                                     </p>
 
                                     <p class="mt-1 text-xs text-slate-400">
-                                        Data akan muncul setelah butir Keputusan EKSTERNAL dibuat.
+                                        Data akan muncul setelah butir Rapat EKSTERNAL dibuat.
                                     </p>
                                 </td>
                             </tr>
@@ -417,7 +417,7 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Form Tindak Lanjut Keputusan EKSTERNAL
+                            Form Tindak Lanjut Rapat EKSTERNAL
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
@@ -453,7 +453,7 @@
                     <div class="grid gap-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Pilih Butir Keputusan EKSTERNAL
+                                Pilih Butir Rapat EKSTERNAL
                             </label>
 
                             <input type="hidden" name="butir_id" :value="selectedButirId" required>
@@ -462,7 +462,7 @@
                                 <div class="border-b border-slate-200 p-3">
                                     <input type="text" x-model="butirSearch"
                                         @input="selectedButir = null; selectedButirId = ''; selectedUnitKerjaId = ''"
-                                        placeholder="Ketik nomor surat, agenda, keputusan, cluster, atau sub-cluster..."
+                                        placeholder="Ketik nomor surat, agenda, cluster, atau sub-cluster..."
                                         class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 </div>
 
@@ -501,7 +501,7 @@
 
                                     <div x-show="filteredButirs.length === 0"
                                         class="py-8 text-center text-sm text-slate-400">
-                                        Butir Keputusan EKSTERNAL tidak ditemukan.
+                                        Butir Rapat EKSTERNAL tidak ditemukan.
                                     </div>
                                 </div>
                             </div>
@@ -534,7 +534,7 @@
 
                             @if ($butirSiapTindakLanjut->count() === 0)
                                 <p class="mt-2 text-xs font-semibold text-red-500">
-                                    Belum ada butir Keputusan EKSTERNAL yang siap ditindaklanjuti.
+                                    Belum ada butir Rapat EKSTERNAL yang siap ditindaklanjuti.
                                 </p>
                             @endif
                         </div>
@@ -561,12 +561,12 @@
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Tindak Lanjut Keputusan EKSTERNAL
+                                Tindak Lanjut Rapat EKSTERNAL
                             </label>
 
                             <textarea name="tindak_lanjut" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor surat tindak lanjut (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tindak lanjut keputusan EKSTERNAL...">{{ old('tindak_lanjut') }}</textarea>
+                                placeholder="Nomor surat tindak lanjut (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi tindak lanjut rapat EKSTERNAL...">{{ old('tindak_lanjut') }}</textarea>
                         </div>
 
                         <div>

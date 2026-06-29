@@ -72,15 +72,15 @@
     }" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                Keputusan EKSTERNAL
+                Rapat EKSTERNAL
             </p>
 
             <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                Reviu Tindak Lanjut Keputusan EKSTERNAL
+                Reviu Tindak Lanjut Rapat EKSTERNAL
             </h1>
 
             <p class="mt-2 text-sm text-slate-500">
-                Reviu dilakukan per butir Keputusan EKSTERNAL. Data tetap tampil walaupun tindak lanjut dari PIC Unit belum lengkap.
+                Reviu dilakukan per butir Rapat EKSTERNAL. Data tetap tampil walaupun tindak lanjut dari PIC Unit belum lengkap.
             </p>
         </div>
 
@@ -100,13 +100,13 @@
             'action' => route('eksternal.reviu.index'),
             'statusOptions' => $statusOptions,
             'keywordPlaceholder' =>
-                'Cari ID Rapat Eksternal, ID butir, nomor surat, instansi, agenda, keputusan, PIC unit, tindak lanjut, atau hasil reviu...',
+                'Cari ID Rapat Eksternal, ID butir, nomor surat, instansi, agenda, PIC unit, tindak lanjut, atau hasil reviu...',
         ])
 
         <div class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
             <div class="border-b border-blue-50 px-6 py-5">
                 <h2 class="text-lg font-bold text-slate-800">
-                    Daftar Reviu Butir Keputusan EKSTERNAL
+                    Daftar Reviu Butir Rapat EKSTERNAL
                 </h2>
 
                 <p class="mt-1 text-sm text-slate-500">
@@ -119,7 +119,7 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi Keputusan EKSTERNAL
+                                Informasi Rapat EKSTERNAL
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Tindak Lanjut PIC Unit
@@ -240,7 +240,7 @@
 
                                     <div class="mt-4 rounded-xl border border-slate-100 bg-white p-4">
                                         <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Butir Keputusan EKSTERNAL
+                                            Butir Rapat EKSTERNAL
                                         </p>
 
                                         <p class="mt-2 text-xs font-bold" style="color: #2377b9;">
@@ -262,7 +262,7 @@
                                         </p>
 
                                         <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Keputusan
+                                            Keputusan Rapat
                                         </p>
                                         <p class="mt-1 whitespace-pre-line text-xs text-slate-800">
                                             {{ $butir?->keputusan_eksternal ?? '-' }}
@@ -437,7 +437,7 @@
                             <tr>
                                 <td colspan="4" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada butir Keputusan EKSTERNAL yang memiliki tindak lanjut.
+                                        Belum ada butir Rapat EKSTERNAL yang memiliki tindak lanjut.
                                     </p>
                                 </td>
                             </tr>
@@ -625,7 +625,7 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Form Reviu Tindak Lanjut Butir Keputusan EKSTERNAL
+                            Form Reviu Tindak Lanjut Butir Rapat EKSTERNAL
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">

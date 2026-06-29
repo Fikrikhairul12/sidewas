@@ -44,9 +44,7 @@ return new class extends Migration
 
             $table->enum('status', [
                 'draft',
-                'terbit',
                 'dalam_proses',
-                'diusulkan_tuntas',
                 'tuntas',
             ])->default('draft');
 
@@ -68,6 +66,12 @@ return new class extends Migration
             $table->date('tanggal_ragab')->nullable();
             $table->text('agenda_ragab')->nullable();
             $table->text('keputusan_ragab')->nullable();
+            $table->enum('status', [
+                'terbit',
+                'dalam_proses',
+                'diusulkan_tuntas',
+                'selesai_tuntas',
+            ])->default('terbit');
 
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
@@ -77,6 +81,7 @@ return new class extends Migration
             $table->index('cluster_id');
             $table->index('sub_cluster_id');
             $table->index('tanggal_ragab');
+            $table->index('status');
 
             $table->foreign('id_ragab')
                 ->references('id_ragab')
@@ -94,6 +99,33 @@ return new class extends Migration
                 ->references('id')
                 ->on('tb_sub_cluster')
                 ->nullOnDelete()
+                ->cascadeOnUpdate();
+        });
+
+        Schema::connection($this->connectionName)->create('tb_butir_sub_cluster', function (Blueprint $table) {
+            $table->id();
+            $table->string('id_butir_ragab', 70);
+            $table->unsignedBigInteger('sub_cluster_id');
+            $table->timestamps();
+
+            $table->index('id_butir_ragab');
+            $table->index('sub_cluster_id');
+
+            $table->unique([
+                'id_butir_ragab',
+                'sub_cluster_id',
+            ], 'tb_butir_sub_cluster_unique');
+
+            $table->foreign('id_butir_ragab')
+                ->references('id_butir_ragab')
+                ->on('tb_butir_ragab')
+                ->cascadeOnDelete()
+                ->cascadeOnUpdate();
+
+            $table->foreign('sub_cluster_id')
+                ->references('id')
+                ->on('tb_sub_cluster')
+                ->cascadeOnDelete()
                 ->cascadeOnUpdate();
         });
 
@@ -238,6 +270,7 @@ return new class extends Migration
         Schema::connection($this->connectionName)->dropIfExists('tb_tindak_lanjut');
         Schema::connection($this->connectionName)->dropIfExists('tb_butir_pic');
         Schema::connection($this->connectionName)->dropIfExists('tb_butir_direktorat');
+        Schema::connection($this->connectionName)->dropIfExists('tb_butir_sub_cluster');
         Schema::connection($this->connectionName)->dropIfExists('tb_butir_ragab');
         Schema::connection($this->connectionName)->dropIfExists('tb_record');
         Schema::connection($this->connectionName)->dropIfExists('tb_sub_cluster');

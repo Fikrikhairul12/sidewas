@@ -121,7 +121,9 @@ class ReviuRagabController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('butir', function ($butirQuery) use ($request) {
+                $butirQuery->where('status', $request->status);
+            });
         }
 
         if ($request->filled('keyword')) {
@@ -131,9 +133,9 @@ class ReviuRagabController extends Controller
                 $q->where('id_butir_ragab', 'like', "%{$keyword}%")
                     ->orWhere('hasil_review', 'like', "%{$keyword}%")
                     ->orWhere('deliverables', 'like', "%{$keyword}%")
-                    ->orWhere('status', 'like', "%{$keyword}%")
                     ->orWhereHas('butir', function ($butirQuery) use ($keyword) {
                         $butirQuery->where('id_butir_ragab', 'like', "%{$keyword}%")
+                            ->orWhere('status', 'like', "%{$keyword}%")
                             ->orWhere('agenda_ragab', 'like', "%{$keyword}%")
                             ->orWhere('keputusan_ragab', 'like', "%{$keyword}%")
                             ->orWhereHas('record', function ($recordQuery) use ($keyword) {
@@ -167,8 +169,9 @@ class ReviuRagabController extends Controller
         $unitKerjas = UnitKerja::orderBy('nama_unit')->get();
 
         $statusOptions = [
-            'belum_ditanggapi' => 'Belum Direviu',
-            'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
+            'terbit' => 'Terbit',
+            'dalam_proses' => 'Dalam Proses',
+            'diusulkan_tuntas' => 'Diusulkan Tuntas',
             'selesai_tuntas' => 'Selesai Tuntas',
         ];
 
@@ -242,19 +245,8 @@ class ReviuRagabController extends Controller
             $record = $review->butir?->record;
 
             if ($record && $validated['status'] === 'selesai_tuntas') {
-                $record->load('butirRagab.reviewTindakLanjut');
-
-                $allButirsReviewed = $record->butirRagab->count() > 0
-                    && $record->butirRagab->every(function ($butir) {
-                        return $butir->reviewTindakLanjut?->status === 'selesai_tuntas';
-                    });
-
-                if ($allButirsReviewed) {
-                    $record->update([
-                        'status' => 'tuntas',
-                        'updated_by' => $user->id,
-                    ]);
-                }
+                $review->butir?->markSelesaiTuntas($user->id);
+                $record->refresh()->syncStatusFromButir($user->id);
             }
 
             LogActivity::create([

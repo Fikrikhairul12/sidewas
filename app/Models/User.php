@@ -114,10 +114,10 @@ class User extends Authenticatable
             ->exists();
     }
 
-    // public static function isAllowedEmailDomain(string $email): bool
-    // {
-    //     return str_ends_with(strtolower($email), '@bpjsketenagakerjaan.go.id');
-    // }
+    public static function isAllowedEmailDomain(string $email): bool
+    {
+        return str_ends_with(strtolower($email), '@bpjsketenagakerjaan.go.id');
+    }
 
     public function hasRoleType(string $roleTypeName): bool
     {
@@ -254,6 +254,25 @@ class User extends Authenticatable
             ]);
     }
 
+    public function canAccessProdukHukum(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_produk_hukum')
+            || $this->hasRoleType('viewer_produk_hukum');
+    }
+
+    public function canCreateProdukHukum(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_produk_hukum');
+    }
+
+    public function canViewRahasiaProdukHukum(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_produk_hukum');
+    }
+
     public function unitKerjaIds(): array
     {
         return $this->unitKerja()
@@ -311,6 +330,15 @@ class User extends Authenticatable
         return $this->hasRoleType('pic_snp')
             || $this->hasRoleType('moderator_snp')
             || $this->hasRoleType('admin_snp')
+            || $this->isSuperAdmin();
+    }
+
+    public function canAccessSnpReport(): bool
+    {
+        return $this->hasRoleType('pic_snp')
+            || $this->hasRoleType('moderator_snp')
+            || $this->hasRoleType('admin_snp')
+            || $this->hasRoleType('viewer_snp')
             || $this->isSuperAdmin();
     }
 
@@ -520,7 +548,16 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_rawas')
             || $this->hasRoleType('moderator_rawas')
-            || $this->hasRoleType('komite_rawas');
+            || $this->hasRoleType('pic_rawas');
+    }
+
+    public function canAccessRawasReport(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_rawas')
+            || $this->hasRoleType('moderator_rawas')
+            || $this->hasRoleType('pic_rawas')
+            || $this->hasRoleType('viewer_rawas');
     }
 
     public function canReviewRawasByKomite(?int $komiteId): bool
@@ -669,6 +706,15 @@ class User extends Authenticatable
             || $this->isSuperAdmin();
     }
 
+    public function canAccessDjsnReport(): bool
+    {
+        return $this->hasRoleType('pic_djsn')
+            || $this->hasRoleType('moderator_djsn')
+            || $this->hasRoleType('admin_djsn')
+            || $this->hasRoleType('viewer_djsn')
+            || $this->isSuperAdmin();
+    }
+
     public function canCreateRagabTindakLanjutForButir(RagabButir $butir): bool
     {
         if ($this->isSuperAdmin() || $this->hasRoleType('admin_ragab') || $this->hasRoleType('moderator_ragab')) {
@@ -727,12 +773,30 @@ class User extends Authenticatable
             || $this->hasRoleType('pic_ragab');
     }
 
+    public function canAccessRagabReport(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_ragab')
+            || $this->hasRoleType('moderator_ragab')
+            || $this->hasRoleType('pic_ragab')
+            || $this->hasRoleType('viewer_ragab');
+    }
+
     public function canAccessEksternalReview(): bool
     {
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_eksternal')
             || $this->hasRoleType('moderator_eksternal')
             || $this->hasRoleType('pic_eksternal');
+    }
+
+    public function canAccessEksternalReport(): bool
+    {
+        return $this->isSuperAdmin()
+            || $this->hasRoleType('admin_eksternal')
+            || $this->hasRoleType('moderator_eksternal')
+            || $this->hasRoleType('pic_eksternal')
+            || $this->hasRoleType('viewer_eksternal');
     }
 
     // * Method ini boleh tetap ada untuk kompatibilitas lama, tapi RAGAB baru tidak bergantung komite.

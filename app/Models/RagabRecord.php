@@ -59,6 +59,55 @@ class RagabRecord extends Model
         return $this->hasMany(RagabButir::class, 'id_ragab', 'id_ragab');
     }
 
+    public function isEveryButirSelesaiTuntas(): bool
+    {
+        $this->loadMissing('butirRagab');
+
+        if ($this->butirRagab->isEmpty()) {
+            return false;
+        }
+
+        return $this->butirRagab->every(function (RagabButir $butir): bool {
+            return $butir->statusTindakLanjut() === 'selesai_tuntas';
+        });
+    }
+
+    public function isButirAdditionLocked(): bool
+    {
+        $this->loadMissing('butirRagab');
+
+        if ($this->butirRagab->count() !== 1) {
+            return false;
+        }
+
+        return $this->status === 'tuntas'
+            || $this->butirRagab->first()?->statusTindakLanjut() === 'selesai_tuntas';
+    }
+
+    public function syncStatusFromButir(?int $updatedBy = null): void
+    {
+        $this->loadMissing('butirRagab');
+
+        $status = match (true) {
+            $this->butirRagab->isEmpty() => 'draft',
+            $this->isEveryButirSelesaiTuntas() => 'tuntas',
+            default => 'dalam_proses',
+        };
+
+        $attributes = ['status' => $status];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
+    }
+
+    public function syncStatusFromTindakLanjut(?int $updatedBy = null): void
+    {
+        $this->syncStatusFromButir($updatedBy);
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'id');

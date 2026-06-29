@@ -316,12 +316,7 @@ class KompilasiSnpController extends Controller
                 ]
             );
 
-            if ($butir->record && $butir->record->status !== 'selesai') {
-                $butir->record->update([
-                    'status' => 'proses',
-                    'updated_by' => $user->id,
-                ]);
-            }
+            $butir->record?->refresh()->syncStatusFromButir($user->id);
 
             LogActivity::create([
                 'user_id' => $user->id,

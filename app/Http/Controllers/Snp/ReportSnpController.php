@@ -21,7 +21,7 @@ class ReportSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpPerekaman()) {
+        if (!$user || !$user->canAccessSnpReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report SNP.');
         }
 
@@ -115,7 +115,7 @@ class ReportSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpPerekaman()) {
+        if (!$user || !$user->canAccessSnpReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report SNP.');
         }
 
@@ -157,7 +157,7 @@ class ReportSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpPerekaman()) {
+        if (!$user || !$user->canAccessSnpReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report SNP.');
         }
 
@@ -348,7 +348,7 @@ class ReportSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpPerekaman()) {
+        if (!$user || !$user->canAccessSnpReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report SNP.');
         }
 
@@ -401,7 +401,7 @@ class ReportSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpPerekaman()) {
+        if (!$user || !$user->canAccessSnpReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report SNP.');
         }
 

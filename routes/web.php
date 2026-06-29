@@ -3,6 +3,7 @@
 use App\Http\Controllers\Administrasi\PengajuanController;
 use App\Http\Controllers\Administrasi\ManajemenUserController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Djsn\PerekamanDjsnController;
 use App\Http\Controllers\Djsn\ReportDjsnController;
 use App\Http\Controllers\Djsn\ReviuDjsnController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Eksternal\ReportEksternalController;
 use App\Http\Controllers\Eksternal\ReviuEksternalController;
 use App\Http\Controllers\Eksternal\TindakLanjutEksternalController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProdukHukum\ProdukHukumController;
 use App\Http\Controllers\Ragab\PerekamanRagabController;
 use App\Http\Controllers\Ragab\ReportRagabController;
 use App\Http\Controllers\Ragab\ReviuRagabController;
@@ -29,9 +31,9 @@ use App\Http\Controllers\Snp\TanggapanSnpController;
 use App\Http\Controllers\Snp\TindakLanjutSnpController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 // Route::get('/register', function () {
 //     return view('auth.register');
@@ -78,9 +80,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/administrasi/pengajuan/{deleteRequest}/approve', [PengajuanController::class, 'approve'])
             ->name('administrasi.pengajuan.approve');
 
-        Route::patch('/administrasi/pengajuan/{deleteRequest}/reject', [PengajuanController::class, 'reject'])
-            ->name('administrasi.pengajuan.reject');
+    Route::patch('/administrasi/pengajuan/{deleteRequest}/reject', [PengajuanController::class, 'reject'])
+        ->name('administrasi.pengajuan.reject');
     });
+
+// TODO: PRODUK HUKUM
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/produk-hukum', [ProdukHukumController::class, 'index'])
+        ->name('produk-hukum.index');
+
+    Route::post('/produk-hukum', [ProdukHukumController::class, 'store'])
+        ->name('produk-hukum.store');
+
+    Route::post('/produk-hukum/{produkHukum}/request-access', [ProdukHukumController::class, 'requestAccess'])
+        ->name('produk-hukum.request-access');
+
+    Route::get('/produk-hukum/file/{file}/download', [ProdukHukumController::class, 'downloadFile'])
+        ->name('produk-hukum.file.download');
+});
 
 // TODO: SNP
 Route::middleware(['auth', 'verified'])->group(function () {

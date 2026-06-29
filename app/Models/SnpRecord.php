@@ -90,6 +90,49 @@ class SnpRecord extends Model
         return $this->hasMany(SnpButir::class, 'id_snp', 'id_snp');
     }
 
+    public function isEveryButirSelesaiTuntas(): bool
+    {
+        $this->loadMissing('butirSnp');
+
+        if ($this->butirSnp->isEmpty()) {
+            return false;
+        }
+
+        return $this->butirSnp->every(function (SnpButir $butir): bool {
+            return $butir->statusTindakLanjut() === 'selesai_tuntas';
+        });
+    }
+
+    public function isButirAdditionLocked(): bool
+    {
+        $this->loadMissing('butirSnp');
+
+        if ($this->butirSnp->count() !== 1) {
+            return false;
+        }
+
+        return $this->butirSnp->first()?->statusTindakLanjut() === 'selesai_tuntas';
+    }
+
+    public function syncStatusFromButir(?int $updatedBy = null): void
+    {
+        $this->loadMissing('butirSnp');
+
+        $status = match (true) {
+            $this->butirSnp->isEmpty() => 'draft',
+            $this->isEveryButirSelesaiTuntas() => 'tuntas',
+            default => 'dalam_proses',
+        };
+
+        $attributes = ['status' => $status];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'id');

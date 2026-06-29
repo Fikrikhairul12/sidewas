@@ -63,13 +63,13 @@
                 </div>
             </div>
 
-            {{-- Selesai --}}
+            {{-- Tuntas --}}
             <div class="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-slate-500">Selesai</p>
+                        <p class="text-sm font-medium text-slate-500">Tuntas</p>
                         <p class="mt-2 text-3xl font-bold" style="color: #6bb17e;">
-                            {{ $statistik['selesai'] ?? 0 }}
+                            {{ $statistik['tuntas'] ?? 0 }}
                         </p>
                     </div>
 
@@ -165,9 +165,8 @@
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">Semua Status</option>
                                 <option value="draft" @selected(request('status') === 'draft')>Draft</option>
-                                <option value="terbit" @selected(request('status') === 'terbit')>Terbit</option>
                                 <option value="dalam_proses" @selected(request('status') === 'dalam_proses')>Dalam Proses</option>
-                                <option value="selesai" @selected(request('status') === 'selesai')>Selesai</option>
+                                <option value="tuntas" @selected(request('status') === 'tuntas')>Tuntas</option>
                             </select>
                         </div>
 
@@ -349,6 +348,46 @@
 
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($records as $record)
+                            @php
+                                $butirCount = $record->butirDjsn->count();
+                                $detailRecordPayload = [
+                                    'id' => $record->id,
+                                    'id_djsn' => $record->id_djsn,
+                                    'nomor_surat' => $record->nomor_surat,
+                                    'butirs' => $record->butirDjsn
+                                        ->map(function ($butir) {
+                                            $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
+                                            $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
+                                            $komite = $butir->butirPics->where('jenis_pic', 'komite')->first();
+
+                                            return [
+                                                'id' => $butir->id,
+                                                'id_butir_djsn' => $butir->id_butir_djsn,
+                                                'butir_djsn' => $butir->butir_djsn ?? '-',
+                                                'ringkasan' => \Illuminate\Support\Str::limit($butir->butir_djsn ?? '-', 90),
+                                                'cluster' => $butir->cluster?->nama_cluster ?? '-',
+                                                'sub_cluster' => $butir->subCluster?->nama_sub_cluster ?? '-',
+                                                'pic_utama' => $picUtama?->unitKerja
+                                                    ? $picUtama->unitKerja->kode_unit . ' - ' . $picUtama->unitKerja->nama_unit
+                                                    : '-',
+                                                'pic_pendukung' => $picPendukung
+                                                    ->map(
+                                                        fn($pic) => $pic->unitKerja
+                                                            ? $pic->unitKerja->kode_unit . ' - ' . $pic->unitKerja->nama_unit
+                                                            : null,
+                                                    )
+                                                    ->filter()
+                                                    ->values()
+                                                    ->all(),
+                                                'komite' => $komite?->komite
+                                                    ? $komite->komite->kode_komite . ' - ' . $komite->komite->nama_komite
+                                                    : '-',
+                                            ];
+                                        })
+                                        ->values()
+                                        ->all(),
+                                ];
+                            @endphp
                             <tr class="border-b border-slate-200 transition hover:bg-blue-50/40">
                                 {{-- Informasi Surat --}}
                                 <td class="px-6 py-6 align-top">
@@ -409,7 +448,7 @@
 
                                 {{-- Butir DJSN --}}
                                 <td class="px-6 py-6 align-top">
-                                    @if ($record->butirDjsn->count() > 0)
+                                    @if ($butirCount === 1)
                                         <div class="space-y-6">
                                             @foreach ($record->butirDjsn as $butir)
                                                 <div
@@ -509,6 +548,31 @@
                                                 </div>
                                             @endforeach
                                         </div>
+                                    @elseif ($butirCount > 1)
+                                        @php
+                                            $firstButir = $record->butirDjsn->first();
+                                        @endphp
+
+                                        <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                            <p class="text-sm font-bold tracking-wide" style="color: #2377b9;">
+                                                {{ $firstButir?->id_butir_djsn }}
+                                            </p>
+
+                                            <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                Ringkasan Butir
+                                            </p>
+
+                                            <p class="mt-1 max-w-xl whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
+                                                {{ \Illuminate\Support\Str::limit($firstButir?->butir_djsn ?? '-', 180) }}
+                                            </p>
+
+                                            <div class="mt-4 rounded-lg bg-slate-50 px-3 py-2">
+                                                <p class="text-xs font-semibold text-slate-500">
+                                                    Menampilkan ringkasan 1 dari {{ $butirCount }} butir.
+                                                    Detail lengkap ada di tombol Detail.
+                                                </p>
+                                            </div>
+                                        </div>
                                     @else
                                         <span class="text-sm text-slate-400">-</span>
                                     @endif
@@ -550,25 +614,22 @@
                                         $statusLabel =
                                             [
                                                 'draft' => 'Draft',
-                                                'terbit' => 'Terbit',
                                                 'dalam_proses' => 'Proses',
-                                                'selesai' => 'Selesai',
+                                                'tuntas' => 'Tuntas',
                                             ][$record->status] ?? ucwords(str_replace('_', ' ', $record->status));
 
                                         $statusColor =
                                             [
                                                 'draft' => '#64748b',
-                                                'terbit' => '#2377b9',
                                                 'dalam_proses' => '#c8e079',
-                                                'selesai' => '#6bb17e',
+                                                'tuntas' => '#6bb17e',
                                             ][$record->status] ?? '#64748b';
 
                                         $teksColor =
                                             [
                                                 'draft' => 'text-white',
-                                                'terbit' => 'text-white',
                                                 'dalam_proses' => 'text-black',
-                                                'selesai' => 'text-white',
+                                                'tuntas' => 'text-white',
                                             ][$record->status] ?? 'text-white';
                                     @endphp
 
@@ -586,23 +647,32 @@
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex flex-wrap justify-center gap-2">
                                         @if (auth()->user()->canCreateDjsnPerekaman())
-                                            <button type="button"
-                                                @click="openButirModalFor({
-                                                    id: {{ $record->id }},
-                                                    id_djsn: @js($record->id_djsn),
-                                                    nomor_surat: @js($record->nomor_surat)
-                                                })"
-                                                class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
-                                                style="background-color: #c8e079;">
-                                                + Butir
-                                            </button>
+                                            @if ($record->isButirAdditionLocked())
+                                                <button type="button" disabled
+                                                    class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500 shadow-sm"
+                                                    title="Butir tidak dapat ditambah karena satu-satunya butir sudah selesai tuntas.">
+                                                    Butir Tuntas
+                                                </button>
+                                            @else
+                                                <button type="button"
+                                                    @click="openButirModalFor({
+                                                        id: {{ $record->id }},
+                                                        id_djsn: @js($record->id_djsn),
+                                                        nomor_surat: @js($record->nomor_surat)
+                                                    })"
+                                                    class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
+                                                    style="background-color: #c8e079;">
+                                                    + Butir
+                                                </button>
+                                            @endif
                                         @endif
 
-                                        <a href="#"
+                                        <button type="button"
+                                            @click="openDetailModalFor(@js($detailRecordPayload))"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
                                             style="background-color: #6bb17e;">
                                             Detail
-                                        </a>
+                                        </button>
 
                                         <a href="#"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
@@ -656,6 +726,142 @@
                 </p>
 
                 @include('layouts.partials.compact-pagination', ['paginator' => $records])
+            </div>
+        </div>
+
+        {{-- Modal Detail Butir --}}
+        <div x-show="openDetailModal" x-transition.opacity
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openDetailModal = false" x-transition
+                class="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
+                            Detail Butir DJSN
+                        </p>
+                        <h2 class="mt-1 text-2xl font-bold text-slate-800" x-text="detailRecord?.id_djsn ?? '-'">
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-500" x-text="detailRecord?.nomor_surat ?? '-'"></p>
+                    </div>
+
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="grid min-h-[520px] lg:grid-cols-[320px_minmax(0,1fr)]">
+                    <div class="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
+                        <div class="relative">
+                            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                            </svg>
+                            <input type="text" x-model="detailSearch" placeholder="Cari ID / isi butir..."
+                                class="w-full rounded-xl border-slate-300 py-3 pl-11 pr-4 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div class="mt-5 max-h-[420px] space-y-3 overflow-y-auto pr-1">
+                            <template x-for="butir in filteredDetailButirs" :key="butir.id">
+                                <button type="button" @click="selectDetailButir(butir)"
+                                    class="w-full rounded-xl border px-4 py-3 text-left transition"
+                                    :class="String(selectedDetailButir?.id) === String(butir.id)
+                                        ? 'border-blue-300 bg-blue-50'
+                                        : 'border-slate-200 bg-white hover:bg-slate-50'">
+                                    <p class="text-sm font-bold" style="color: #2377b9;"
+                                        x-text="butir.id_butir_djsn"></p>
+                                    <p class="mt-1 line-clamp-2 text-sm text-slate-600" x-text="butir.ringkasan"></p>
+                                </button>
+                            </template>
+
+                            <div x-show="filteredDetailButirs.length === 0"
+                                class="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400">
+                                Butir tidak ditemukan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="max-h-[520px] overflow-y-auto p-6">
+                        <template x-if="selectedDetailButir">
+                            <div class="space-y-5">
+                                <div>
+                                    <p class="text-2xl font-bold" style="color: #2377b9;"
+                                        x-text="selectedDetailButir.id_butir_djsn"></p>
+                                    <p class="mt-2 text-sm text-slate-500">
+                                        <span x-text="selectedDetailButir.cluster ?? '-'"></span>
+                                        <template x-if="selectedDetailButir.sub_cluster">
+                                            <span>
+                                                / <span x-text="selectedDetailButir.sub_cluster"></span>
+                                            </span>
+                                        </template>
+                                    </p>
+                                </div>
+
+                                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Isi Butir Rekomendasi DJSN
+                                    </p>
+                                    <p class="mt-3 whitespace-pre-line text-sm font-medium leading-relaxed text-slate-800"
+                                        x-text="selectedDetailButir.butir_djsn"></p>
+                                </div>
+
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            PIC Utama
+                                        </p>
+                                        <span class="mt-3 inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
+                                            style="background-color: #6bb17e;"
+                                            x-text="selectedDetailButir.pic_utama"></span>
+                                    </div>
+
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Komite Dewas
+                                        </p>
+                                        <span class="mt-3 inline-flex rounded-full px-4 py-1.5 text-xs font-bold text-white"
+                                            style="background-color: #2377b9;"
+                                            x-text="selectedDetailButir.komite"></span>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        PIC Pendukung
+                                    </p>
+                                    <div class="mt-3 flex flex-wrap gap-2"
+                                        x-show="selectedDetailButir.pic_pendukung.length > 0">
+                                        <template x-for="unit in selectedDetailButir.pic_pendukung" :key="unit">
+                                            <span class="rounded-full px-3 py-1 text-xs font-bold text-slate-700"
+                                                style="background-color: #c8e079;" x-text="unit"></span>
+                                        </template>
+                                    </div>
+                                    <p class="mt-2 text-sm text-slate-400"
+                                        x-show="selectedDetailButir.pic_pendukung.length === 0">
+                                        -
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="!selectedDetailButir"
+                            class="rounded-xl border border-dashed border-slate-200 px-4 py-14 text-center text-sm text-slate-400">
+                            Surat ini belum memiliki butir DJSN.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                    <button type="button" @click="openDetailModal = false"
+                        class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Tutup
+                    </button>
+                </div>
             </div>
         </div>
 

@@ -21,6 +21,7 @@ class RagabButir extends Model
         'tanggal_ragab',
         'agenda_ragab',
         'keputusan_ragab',
+        'status',
         'created_by',
         'updated_by',
     ];
@@ -34,6 +35,10 @@ class RagabButir extends Model
         static::creating(function ($butir) {
             if (empty($butir->id_butir_ragab)) {
                 $butir->id_butir_ragab = static::generateIdButirRagab($butir->id_ragab);
+            }
+
+            if (empty($butir->status)) {
+                $butir->status = 'terbit';
             }
         });
     }
@@ -62,6 +67,23 @@ class RagabButir extends Model
     public function subCluster()
     {
         return $this->belongsTo(RagabSubCluster::class, 'sub_cluster_id', 'id');
+    }
+
+    public function butirSubClusters()
+    {
+        return $this->hasMany(RagabButirSubCluster::class, 'id_butir_ragab', 'id_butir_ragab');
+    }
+
+    public function subClusters()
+    {
+        return $this->belongsToMany(
+            RagabSubCluster::class,
+            'tb_butir_sub_cluster',
+            'id_butir_ragab',
+            'sub_cluster_id',
+            'id_butir_ragab',
+            'id'
+        )->withTimestamps();
     }
 
     public function butirPics()
@@ -145,17 +167,58 @@ class RagabButir extends Model
 
     public function statusTindakLanjut(): string
     {
+        if (! empty($this->status)) {
+            return $this->status;
+        }
+
+        if ($this->tindakLanjutUnitKerjaIds() === []) {
+            return 'terbit';
+        }
+
         return $this->isTindakLanjutLengkap()
             ? 'diusulkan_tuntas'
-            : 'dalam_proses_tindak_lanjut';
+            : 'dalam_proses';
     }
 
     public function statusTindakLanjutLabel(): string
     {
         return match ($this->statusTindakLanjut()) {
+            'terbit' => 'Terbit',
+            'dalam_proses' => 'Dalam Proses',
             'diusulkan_tuntas' => 'Diusulkan Tuntas',
+            'selesai_tuntas' => 'Selesai Tuntas',
             default => 'Dalam Proses Tindak Lanjut',
         };
+    }
+
+    public function syncStatusFromTindakLanjut(?int $updatedBy = null): void
+    {
+        $this->loadMissing('butirPics', 'tindakLanjuts');
+
+        $status = match (true) {
+            $this->tindakLanjutUnitKerjaIds() === [] => 'terbit',
+            $this->isTindakLanjutLengkap() => 'diusulkan_tuntas',
+            default => 'dalam_proses',
+        };
+
+        $attributes = ['status' => $status];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
+    }
+
+    public function markSelesaiTuntas(?int $updatedBy = null): void
+    {
+        $attributes = ['status' => 'selesai_tuntas'];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
     }
 
     public function progressTindakLanjutLabel(): string

@@ -107,9 +107,7 @@ class PerekamanEksternalController extends Controller
         $statistik = [
             'total' => EksternalRecord::count(),
             'draft' => EksternalRecord::where('status', 'draft')->count(),
-            'terbit' => EksternalRecord::where('status', 'terbit')->count(),
             'dalam_proses' => EksternalRecord::where('status', 'dalam_proses')->count(),
-            'diusulkan_tuntas' => EksternalRecord::where('status', 'diusulkan_tuntas')->count(),
             'tuntas' => EksternalRecord::where('status', 'tuntas')->count(),
         ];
 
@@ -129,9 +127,7 @@ class PerekamanEksternalController extends Controller
 
         $statusOptions = [
             'draft' => 'Draft',
-            'terbit' => 'Terbit',
             'dalam_proses' => 'Dalam Proses',
-            'diusulkan_tuntas' => 'Diusulkan Tuntas',
             'tuntas' => 'Tuntas',
         ];
 
@@ -215,6 +211,14 @@ class PerekamanEksternalController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk menambah butir EKSTERNAL.');
         }
 
+        if ($record->isButirAdditionLocked()) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'keputusan_eksternal' => 'Butir tidak dapat ditambah karena satu-satunya butir pada surat ini sudah selesai tuntas.',
+                ]);
+        }
+
         $validated = $request->validate([
             'cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_cluster,id'],
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_sub_cluster,id'],
@@ -273,6 +277,7 @@ class PerekamanEksternalController extends Controller
                 'tanggal_eksternal' => $validated['tanggal_eksternal'],
                 'agenda_eksternal' => $validated['agenda_eksternal'],
                 'keputusan_eksternal' => $validated['keputusan_eksternal'],
+                'status' => 'terbit',
                 'created_by' => $user->id,
                 'updated_by' => $user->id,
             ]);
@@ -306,12 +311,7 @@ class PerekamanEksternalController extends Controller
                 ]);
             }
 
-            if ($record->status === 'draft') {
-                $record->update([
-                    'status' => 'terbit',
-                    'updated_by' => $user->id,
-                ]);
-            }
+            $record->refresh()->syncStatusFromButir($user->id);
 
             LogActivity::create([
                 'user_id' => $user->id,

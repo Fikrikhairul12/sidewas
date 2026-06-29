@@ -10,8 +10,10 @@ use App\Models\LogActivity;
 use App\Models\RagabButir;
 use App\Models\RagabButirDirektorat;
 use App\Models\RagabButirPic;
+use App\Models\RagabButirSubCluster;
 use App\Models\RagabCluster;
 use App\Models\RagabRecord;
+use App\Models\RagabSubCluster;
 use App\Models\UnitKerja;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -33,6 +35,7 @@ class PerekamanRagabController extends Controller
             'creator',
             'butirRagab.cluster',
             'butirRagab.subCluster',
+            'butirRagab.subClusters',
             'butirRagab.butirPics.unitKerja.direktorat',
             'butirRagab.butirPics.komite',
             'butirRagab.butirDirektorats.direktorat',
@@ -59,7 +62,11 @@ class PerekamanRagabController extends Controller
 
         if ($request->filled('sub_cluster_id')) {
             $recordsQuery->whereHas('butirRagab', function ($butirQuery) use ($request) {
-                $butirQuery->where('sub_cluster_id', $request->sub_cluster_id);
+                $butirQuery
+                    ->where('sub_cluster_id', $request->sub_cluster_id)
+                    ->orWhereHas('subClusters', function ($subClusterQuery) use ($request) {
+                        $subClusterQuery->where('tb_sub_cluster.id', $request->sub_cluster_id);
+                    });
             });
         }
 
@@ -106,9 +113,7 @@ class PerekamanRagabController extends Controller
         $statistik = [
             'total' => RagabRecord::count(),
             'draft' => RagabRecord::where('status', 'draft')->count(),
-            'terbit' => RagabRecord::where('status', 'terbit')->count(),
             'dalam_proses' => RagabRecord::where('status', 'dalam_proses')->count(),
-            'diusulkan_tuntas' => RagabRecord::where('status', 'diusulkan_tuntas')->count(),
             'tuntas' => RagabRecord::where('status', 'tuntas')->count(),
         ];
 
@@ -128,9 +133,7 @@ class PerekamanRagabController extends Controller
 
         $statusOptions = [
             'draft' => 'Draft',
-            'terbit' => 'Terbit',
             'dalam_proses' => 'Dalam Proses',
-            'diusulkan_tuntas' => 'Diusulkan Tuntas',
             'tuntas' => 'Tuntas',
         ];
 
@@ -212,9 +215,18 @@ class PerekamanRagabController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk menambah butir RAGAB.');
         }
 
+        if ($record->isButirAdditionLocked()) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'keputusan_ragab' => 'Butir tidak dapat ditambah karena satu-satunya butir pada surat ini sudah selesai tuntas.',
+                ]);
+        }
+
         $validated = $request->validate([
             'cluster_id' => ['required', 'integer', 'exists:mysql_ragab.tb_cluster,id'],
-            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_ragab.tb_sub_cluster,id'],
+            'sub_cluster_ids' => ['required', 'array', 'min:1'],
+            'sub_cluster_ids.*' => ['integer', 'exists:mysql_ragab.tb_sub_cluster,id'],
 
             'tanggal_ragab' => ['required', 'date'],
             'agenda_ragab' => ['required', 'string'],
@@ -229,13 +241,30 @@ class PerekamanRagabController extends Controller
             'komite_id' => ['nullable', 'integer'],
         ]);
 
+        $selectedSubClusterIds = collect($validated['sub_cluster_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $invalidSubClusterIds = RagabSubCluster::whereIn('id', $selectedSubClusterIds)
+            ->where('cluster_id', '!=', $validated['cluster_id'])
+            ->pluck('nama_sub_cluster');
+
+        if ($invalidSubClusterIds->isNotEmpty()) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'sub_cluster_ids' => 'Sub-cluster berikut tidak sesuai dengan cluster yang dipilih: ' . $invalidSubClusterIds->implode(', '),
+                ]);
+        }
+
         $selectedDirektoratIds = collect($validated['direktorat_ids'])
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
         $selectedUnitKerjaIds = collect($validated['unit_kerja_ids'])
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
@@ -246,7 +275,7 @@ class PerekamanRagabController extends Controller
 
         $missingDirektoratIds = $selectedDirektoratIds
             ->filter(function ($direktoratId) use ($unitKerjasByDirektorat) {
-                return !$unitKerjasByDirektorat->has($direktoratId);
+                return ! $unitKerjasByDirektorat->has($direktoratId);
             })
             ->values();
 
@@ -262,17 +291,25 @@ class PerekamanRagabController extends Controller
                 ]);
         }
 
-        DB::connection('mysql_ragab')->transaction(function () use ($request, $validated, $record, $user) {
+        DB::connection('mysql_ragab')->transaction(function () use ($request, $validated, $record, $selectedSubClusterIds, $user) {
             $butir = RagabButir::create([
                 'id_ragab' => $record->id_ragab,
                 'cluster_id' => $validated['cluster_id'],
-                'sub_cluster_id' => $validated['sub_cluster_id'],
+                'sub_cluster_id' => $selectedSubClusterIds->first(),
                 'tanggal_ragab' => $validated['tanggal_ragab'],
                 'agenda_ragab' => $validated['agenda_ragab'],
                 'keputusan_ragab' => $validated['keputusan_ragab'],
+                'status' => 'terbit',
                 'created_by' => $user->id,
                 'updated_by' => $user->id,
             ]);
+
+            foreach ($selectedSubClusterIds as $subClusterId) {
+                RagabButirSubCluster::create([
+                    'id_butir_ragab' => $butir->id_butir_ragab,
+                    'sub_cluster_id' => $subClusterId,
+                ]);
+            }
 
             foreach (array_unique($validated['direktorat_ids']) as $direktoratId) {
                 RagabButirDirektorat::create([
@@ -303,12 +340,7 @@ class PerekamanRagabController extends Controller
                 ]);
             }
 
-            if ($record->status === 'draft') {
-                $record->update([
-                    'status' => 'terbit',
-                    'updated_by' => $user->id,
-                ]);
-            }
+            $record->refresh()->syncStatusFromButir($user->id);
 
             LogActivity::create([
                 'user_id' => $user->id,
@@ -324,6 +356,7 @@ class PerekamanRagabController extends Controller
                         'record',
                         'cluster',
                         'subCluster',
+                        'subClusters',
                         'butirPics',
                         'butirDirektorats',
                     ])->toArray(),
@@ -383,6 +416,7 @@ class PerekamanRagabController extends Controller
                     'butirragab.butirPics',
                     'butirragab.cluster',
                     'butirragab.subCluster',
+                    'butirragab.subClusters',
                 ])->toArray();
 
                 $recordKey = $record->id_ragab;

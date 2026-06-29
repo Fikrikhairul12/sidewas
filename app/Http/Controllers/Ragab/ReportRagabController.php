@@ -20,7 +20,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabPerekaman()) {
+        if (!$user || !$user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report RAGAB.');
         }
 
@@ -89,9 +89,7 @@ class ReportRagabController extends Controller
 
         $statusOptions = [
             'draft' => 'Draft',
-            'terbit' => 'Terbit',
             'dalam_proses' => 'Dalam Proses',
-            'diusulkan_tuntas' => 'Diusulkan Tuntas',
             'tuntas' => 'Tuntas',
         ];
 
@@ -110,7 +108,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabPerekaman()) {
+        if (!$user || !$user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 
@@ -137,7 +135,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabPerekaman()) {
+        if (!$user || !$user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 
@@ -197,7 +195,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabPerekaman()) {
+        if (!$user || !$user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 
@@ -219,7 +217,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabPerekaman()) {
+        if (!$user || !$user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 

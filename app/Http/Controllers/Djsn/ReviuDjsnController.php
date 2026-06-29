@@ -239,22 +239,18 @@ class ReviuDjsnController extends Controller
                 $review->tahap_review === 'tanggapan'
                 && $validated['status'] === 'dalam_proses_tindak_lanjut_direksi'
                 && $review->butir
-                && $review->butir->record
             ) {
-                $review->butir->record->update([
-                    'status' => 'dalam_proses',
-                ]);
+                $review->butir->markDalamProses($user->id);
+                $review->butir->record?->refresh()->syncStatusFromButir($user->id);
             }
 
             if (
                 $review->tahap_review === 'tindak_lanjut'
                 && $validated['status'] === 'selesai_tuntas'
                 && $review->butir
-                && $review->butir->record
             ) {
-                $review->butir->record->update([
-                    'status' => 'selesai',
-                ]);
+                $review->butir->markSelesaiTuntas($user->id);
+                $review->butir->record?->refresh()->syncStatusFromButir($user->id);
             }
 
             if ($review->tahap_review === 'tanggapan' && $review->tanggapan) {

@@ -159,6 +159,15 @@
                                 $review = $butir?->reviewTindakLanjut;
                                 $komitePic = $butir?->butirPics?->where('jenis_pic', 'komite')->first();
                                 $unitPics = $butir?->butirPics?->where('jenis_pic', 'unit') ?? collect();
+                                $statusButir = $butir?->statusTindakLanjut() ?? 'terbit';
+                                $statusButirLabel = $butir?->statusTindakLanjutLabel() ?? 'Terbit';
+                                $statusButirColor = [
+                                    'terbit' => '#2377b9',
+                                    'dalam_proses' => '#c8e079',
+                                    'diusulkan_tuntas' => '#f59e0b',
+                                    'selesai_tuntas' => '#6bb17e',
+                                ][$statusButir] ?? '#64748b';
+                                $statusButirTextColor = $statusButir === 'dalam_proses' ? 'text-black' : 'text-white';
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -353,7 +362,13 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    <div class="flex justify-center">
+                                    <div class="flex flex-col items-center gap-3">
+                                        <span
+                                            class="inline-flex rounded-full px-4 py-1.5 text-center text-xs font-bold {{ $statusButirTextColor }}"
+                                            style="background-color: {{ $statusButirColor }};">
+                                            {{ $statusButirLabel }}
+                                        </span>
+
                                         @if ($item)
                                             <a href="#"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"

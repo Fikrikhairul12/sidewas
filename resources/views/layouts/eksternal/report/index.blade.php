@@ -2,15 +2,15 @@
     <div class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                Keputusan EKSTERNAL
+                Rapat EKSTERNAL
             </p>
 
             <h1 class="mt-2 text-3xl font-bold text-slate-800">
-                Cetak Report Keputusan EKSTERNAL
+                Cetak Report Rapat EKSTERNAL
             </h1>
 
             <p class="mt-2 text-sm text-slate-500">
-                Pilih satu atau lebih surat Keputusan EKSTERNAL untuk dicetak ke PDF atau Excel.
+                Pilih satu atau lebih surat Rapat EKSTERNAL untuk dicetak ke PDF atau Excel.
             </p>
         </div>
 
@@ -80,7 +80,7 @@
                                 Kata Kunci
                             </label>
                             <input type="text" name="keyword" value="{{ request('keyword') }}"
-                                placeholder="Cari nomor surat, instansi, perihal, agenda, keputusan, atau TL..."
+                                placeholder="Cari nomor surat, instansi, perihal, agenda, atau TL..."
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
 
@@ -125,7 +125,7 @@
                     class="flex flex-col gap-4 border-b border-blue-50 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <h2 class="text-lg font-bold text-slate-800">
-                            Daftar Surat Keputusan EKSTERNAL
+                            Daftar Surat Rapat EKSTERNAL
                         </h2>
                         <p class="mt-1 text-sm text-slate-500">
                             Centang surat yang ingin dicetak.
@@ -165,7 +165,7 @@
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                    Butir Keputusan EKSTERNAL
+                                    Butir Rapat EKSTERNAL
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">

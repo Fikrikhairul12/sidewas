@@ -176,7 +176,7 @@ class PerekamanDjsnController extends Controller
 
         $statistik = [
             'total' => DjsnRecord::count(),
-            'selesai' => DjsnRecord::where('status', 'selesai')->count(),
+            'tuntas' => DjsnRecord::where('status', 'tuntas')->count(),
             'proses' => DjsnRecord::where('status', 'dalam_proses')->count(),
             'draft' => DjsnRecord::where('status', 'draft')->count(),
         ];
@@ -249,6 +249,14 @@ class PerekamanDjsnController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman DJSN.');
         }
 
+        if ($record->isButirAdditionLocked()) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'butir_djsn' => 'Butir tidak dapat ditambah karena satu-satunya butir pada surat ini sudah selesai tuntas.',
+                ]);
+        }
+
         $validated = $request->validate([
             'butir_djsn' => ['required', 'string'],
             'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id'],
@@ -268,6 +276,7 @@ class PerekamanDjsnController extends Controller
                 'butir_djsn' => $validated['butir_djsn'],
                 'cluster_id' => $validated['cluster_id'],
                 'sub_cluster_id' => $validated['sub_cluster_id'],
+                'status' => 'terbit',
             ]);
 
             DjsnButirPic::create([
@@ -295,11 +304,7 @@ class PerekamanDjsnController extends Controller
                 'jenis_pic' => 'komite',
             ]);
 
-            if ($record->status === 'draft') {
-                $record->update([
-                    'status' => 'terbit',
-                ]);
-            }
+            $record->refresh()->syncStatusFromButir(Auth::id());
 
             LogActivity::create([
                 'user_id' => Auth::id(),

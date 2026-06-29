@@ -2,9 +2,7 @@
     @php
         $summaryTotal = $statistik['total'] ?? $records->total();
         $summaryDraft = $statistik['draft'] ?? $records->getCollection()->where('status', 'draft')->count();
-        $summaryTerbit = $statistik['terbit'] ?? $records->getCollection()->where('status', 'terbit')->count();
         $summaryProses = $statistik['dalam_proses'] ?? $statistik['proses'] ?? $records->getCollection()->where('status', 'dalam_proses')->count();
-        $summaryDiusulkanTuntas = $statistik['diusulkan_tuntas'] ?? $records->getCollection()->where('status', 'diusulkan_tuntas')->count();
         $summaryTuntas = $statistik['tuntas'] ?? $records->getCollection()->where('status', 'tuntas')->count();
     @endphp
 
@@ -78,13 +76,13 @@
                 </div>
             </div>
 
-            {{-- Terbit --}}
+            {{-- Draft --}}
             <div class="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-slate-500">Terbit</p>
+                        <p class="text-sm font-medium text-slate-500">Draft</p>
                         <p class="mt-2 text-3xl font-bold" style="color: #2377b9;">
-                            {{ $summaryTerbit }}
+                            {{ $summaryDraft }}
                         </p>
                     </div>
 
@@ -146,12 +144,10 @@
             'action' => route('eksternal.perekaman'),
             'statusOptions' => $statusOptions ?? [
                 'draft' => 'Draft',
-                'terbit' => 'Terbit',
                 'dalam_proses' => 'Dalam Proses',
-                'diusulkan_tuntas' => 'Diusulkan Tuntas',
                 'tuntas' => 'Tuntas',
             ],
-            'keywordPlaceholder' => 'Cari ID Keputusan EKSTERNAL, ID butir, nomor surat, perihal, agenda, keputusan, atau PIC unit...',
+            'keywordPlaceholder' => 'Cari ID Rapat EKSTERNAL, ID butir, nomor surat, perihal, agenda, atau PIC unit...',
         ])
 
         {{-- Table --}}
@@ -163,7 +159,7 @@
                         Riwayat Perekaman
                     </h2>
                     <p class="mt-1 text-sm text-slate-500">
-                        Daftar Keputusan EKSTERNAL Dewas yang sudah pernah direkam ke sistem.
+                        Daftar Rapat EKSTERNAL Dewas yang sudah pernah direkam ke sistem.
                     </p>
                 </div>
             </div>
@@ -176,7 +172,7 @@
                                 Informasi Surat
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Butir Keputusan EKSTERNAL
+                                Butir Rapat EKSTERNAL
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 Cluster
@@ -276,7 +272,7 @@
 
                                         <div class="mt-3">
                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                Dokumen Surat
+                                                Dokumen Surat Undangan
                                             </p>
 
                                             @if ($record->dokumen)
@@ -294,7 +290,7 @@
 
                                         <div class="mt-3">
                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                Dokumen Memo
+                                                Dokumen Laporan/Notulensi
                                             </p>
 
                                             @if ($record->dokumen_memo)
@@ -360,7 +356,7 @@
 
                                                         <div>
                                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                                Keputusan EKSTERNAL
+                                                                Rapat EKSTERNAL
                                                             </p>
                                                             <p class="mt-1 max-w-xl whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
                                                                 {{ $butir->keputusan_eksternal ?? '-' }}
@@ -498,27 +494,21 @@
                                         $statusLabel =
                                             [
                                                 'draft' => 'Draft',
-                                                'terbit' => 'Terbit',
                                                 'dalam_proses' => 'Dalam Proses',
-                                                'diusulkan_tuntas' => 'Diusulkan Tuntas',
                                                 'tuntas' => 'Tuntas',
                                             ][$record->status] ?? ucwords(str_replace('_', ' ', $record->status));
 
                                         $statusColor =
                                             [
                                                 'draft' => '#64748b',
-                                                'terbit' => '#2377b9',
                                                 'dalam_proses' => '#c8e079',
-                                                'diusulkan_tuntas' => '#f59e0b',
                                                 'tuntas' => '#6bb17e',
                                             ][$record->status] ?? '#64748b';
 
                                         $teksColor =
                                             [
                                                 'draft' => 'text-white',
-                                                'terbit' => 'text-white',
                                                 'dalam_proses' => 'text-black',
-                                                'diusulkan_tuntas' => 'text-white',
                                                 'tuntas' => 'text-white',
                                             ][$record->status] ?? 'text-white';
                                     @endphp
@@ -538,16 +528,24 @@
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex flex-wrap justify-center gap-2">
                                         @if (auth()->user()->canCreateEksternalPerekaman())
-                                            <button type="button"
-                                                @click="openButirModalFor({
-                                                    id: {{ $record->id }},
-                                                    id_eksternal: @js($record->id_eksternal),
-                                                    nomor_surat: @js($record->nomor_surat)
-                                                })"
-                                                class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
-                                                style="background-color: #c8e079;">
-                                                + Butir
-                                            </button>
+                                            @if ($record->isButirAdditionLocked())
+                                                <button type="button" disabled
+                                                    class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500 shadow-sm"
+                                                    title="Butir tidak dapat ditambah karena satu-satunya butir sudah selesai tuntas.">
+                                                    Butir Tuntas
+                                                </button>
+                                            @else
+                                                <button type="button"
+                                                    @click="openButirModalFor({
+                                                        id: {{ $record->id }},
+                                                        id_eksternal: @js($record->id_eksternal),
+                                                        nomor_surat: @js($record->nomor_surat)
+                                                    })"
+                                                    class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
+                                                    style="background-color: #c8e079;">
+                                                    + Butir
+                                                </button>
+                                            @endif
                                         @endif
 
                                         <button type="button"
@@ -583,7 +581,7 @@
                             <tr class="border-b-4 border-slate-200 transition hover:bg-blue-50/40">
                                 <td colspan="5" class="px-6 py-14 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada data perekaman Keputusan EKSTERNAL.
+                                        Belum ada data perekaman Rapat EKSTERNAL.
                                     </p>
                                     <p class="mt-1 text-xs text-slate-400">
                                         Klik tombol Tambah Perekaman untuk menambahkan data pertama.
@@ -720,7 +718,7 @@
                                 </div>
 
                                 <div>
-                                    <p class="mb-2 text-sm font-bold text-slate-700">Keputusan EKSTERNAL</p>
+                                    <p class="mb-2 text-sm font-bold text-slate-700">Rapat EKSTERNAL</p>
                                     <div
                                         class="min-h-28 rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium leading-relaxed text-slate-700">
                                         <p x-text="selectedDetailButir.keputusan_eksternal"></p>
@@ -878,7 +876,7 @@
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Dokumen Surat
+                                Dokumen Surat Undangan
                             </label>
 
                             <input type="file" name="dokumen"
@@ -891,7 +889,7 @@
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Dokumen Memo
+                                Dokumen Laporan / Notulensi
                             </label>
 
                             <input type="file" name="dokumen_memo"
@@ -939,13 +937,13 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Tambah Butir Keputusan EKSTERNAL
+                            Tambah Butir Rapat EKSTERNAL
                         </p>
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
                             Surat <span x-text="selectedRecord?.id_eksternal"></span>
                         </h2>
                         <p class="mt-1 text-sm text-slate-500">
-                            ID Butir Keputusan EKSTERNAL akan dibuat otomatis.
+                            ID Butir Rapat EKSTERNAL akan dibuat otomatis.
                         </p>
                     </div>
 
@@ -980,12 +978,12 @@
 
                         <div class="lg:col-span-2">
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Butir Keputusan EKSTERNAL
+                                Butir Rapat EKSTERNAL
                             </label>
 
                             <textarea name="keputusan_eksternal" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan butir keputusan EKSTERNAL..."></textarea>
+                                placeholder="Masukkan butir Rapat EKSTERNAL..."></textarea>
                         </div>
 
                         <div class="lg:col-span-2">

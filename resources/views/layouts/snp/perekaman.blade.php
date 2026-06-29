@@ -63,13 +63,13 @@
                 </div>
             </div>
 
-            {{-- Selesai --}}
+            {{-- Tuntas --}}
             <div class="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-slate-500">Selesai</p>
+                        <p class="text-sm font-medium text-slate-500">Tuntas</p>
                         <p class="mt-2 text-3xl font-bold" style="color: #6bb17e;">
-                            {{ $statistik['selesai'] ?? 0 }}
+                            {{ $statistik['tuntas'] ?? 0 }}
                         </p>
                     </div>
 
@@ -165,9 +165,8 @@
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">Semua Status</option>
                                 <option value="draft" @selected(request('status') === 'draft')>Draft</option>
-                                <option value="terbit" @selected(request('status') === 'terbit')>Terbit</option>
                                 <option value="dalam_proses" @selected(request('status') === 'dalam_proses')>Dalam Proses</option>
-                                <option value="selesai" @selected(request('status') === 'selesai')>Selesai</option>
+                                <option value="tuntas" @selected(request('status') === 'tuntas')>Tuntas</option>
                             </select>
                         </div>
 
@@ -606,25 +605,22 @@
                                         $statusLabel =
                                             [
                                                 'draft' => 'Draft',
-                                                'terbit' => 'Terbit',
                                                 'dalam_proses' => 'Proses',
-                                                'selesai' => 'Selesai',
+                                                'tuntas' => 'Tuntas',
                                             ][$record->status] ?? ucwords(str_replace('_', ' ', $record->status));
 
                                         $statusColor =
                                             [
                                                 'draft' => '#64748b',
-                                                'terbit' => '#2377b9',
                                                 'dalam_proses' => '#c8e079',
-                                                'selesai' => '#6bb17e',
+                                                'tuntas' => '#6bb17e',
                                             ][$record->status] ?? '#64748b';
 
                                         $teksColor =
                                             [
                                                 'draft' => 'text-white',
-                                                'terbit' => 'text-white',
                                                 'dalam_proses' => 'text-black',
-                                                'selesai' => 'text-white',
+                                                'tuntas' => 'text-white',
                                             ][$record->status] ?? 'text-white';
                                     @endphp
 
@@ -643,16 +639,24 @@
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex flex-wrap justify-center gap-2">
                                         @if (auth()->user()->canCreateSnpPerekaman())
-                                            <button type="button"
-                                                @click="openButirModalFor({
-                                                    id: {{ $record->id }},
-                                                    id_snp: @js($record->id_snp),
-                                                    nomor_surat: @js($record->nomor_surat)
-                                                })"
-                                                class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
-                                                style="background-color: #c8e079;">
-                                                + Butir
-                                            </button>
+                                            @if ($record->isButirAdditionLocked())
+                                                <button type="button" disabled
+                                                    class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500 shadow-sm"
+                                                    title="Butir tidak dapat ditambah karena satu-satunya butir sudah selesai tuntas.">
+                                                    Butir Tuntas
+                                                </button>
+                                            @else
+                                                <button type="button"
+                                                    @click="openButirModalFor({
+                                                        id: {{ $record->id }},
+                                                        id_snp: @js($record->id_snp),
+                                                        nomor_surat: @js($record->nomor_surat)
+                                                    })"
+                                                    class="rounded-lg px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:opacity-90"
+                                                    style="background-color: #c8e079;">
+                                                    + Butir
+                                                </button>
+                                            @endif
                                         @endif
 
                                         <button type="button" @click="openDetailModalFor(@js($detailRecordPayload))"

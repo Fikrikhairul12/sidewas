@@ -21,6 +21,7 @@ class RawasButir extends Model
         'tanggal_rawas',
         'agenda_rawas',
         'keputusan_rawas',
+        'status',
         'created_by',
         'updated_by',
     ];
@@ -34,6 +35,10 @@ class RawasButir extends Model
         static::creating(function ($butir) {
             if (empty($butir->id_butir_rawas)) {
                 $butir->id_butir_rawas = static::generateIdButirRawas($butir->id_rawas);
+            }
+
+            if (empty($butir->status)) {
+                $butir->status = 'terbit';
             }
         });
     }
@@ -151,22 +156,58 @@ class RawasButir extends Model
 
     public function statusTindakLanjut(): string
     {
-        if (count($this->tindakLanjutButirPicIds()) === 0) {
-            return 'belum_ditindaklanjuti';
+        if (! empty($this->status)) {
+            return $this->status;
+        }
+
+        if ($this->tindakLanjutButirPicIds() === []) {
+            return 'terbit';
         }
 
         return $this->isTindakLanjutLengkap()
             ? 'diusulkan_tuntas'
-            : 'dalam_proses_tindak_lanjut';
+            : 'dalam_proses';
     }
 
     public function statusTindakLanjutLabel(): string
     {
         return match ($this->statusTindakLanjut()) {
-            'belum_ditindaklanjuti' => 'Belum Ditindaklanjuti',
+            'terbit' => 'Terbit',
+            'dalam_proses' => 'Dalam Proses',
             'diusulkan_tuntas' => 'Diusulkan Tuntas',
-            default => 'Dalam Proses Tindak Lanjut',
+            'selesai_tuntas' => 'Selesai Tuntas',
+            default => 'Dalam Proses',
         };
+    }
+
+    public function syncStatusFromTindakLanjut(?int $updatedBy = null): void
+    {
+        $this->loadMissing('butirPics', 'tindakLanjuts');
+
+        $status = match (true) {
+            $this->tindakLanjutButirPicIds() === [] => 'terbit',
+            $this->isTindakLanjutLengkap() => 'diusulkan_tuntas',
+            default => 'dalam_proses',
+        };
+
+        $attributes = ['status' => $status];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
+    }
+
+    public function markSelesaiTuntas(?int $updatedBy = null): void
+    {
+        $attributes = ['status' => 'selesai_tuntas'];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
     }
 
     public function progressTindakLanjutLabel(): string

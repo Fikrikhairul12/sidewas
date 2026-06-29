@@ -45,9 +45,7 @@ return new class extends Migration
 
             $table->enum('status', [
                 'draft',
-                'terbit',
                 'dalam_proses',
-                'diusulkan_tuntas',
                 'tuntas',
             ])->default('draft');
 
@@ -70,6 +68,12 @@ return new class extends Migration
             $table->date('tanggal_eksternal')->nullable();
             $table->text('agenda_eksternal')->nullable();
             $table->text('keputusan_eksternal')->nullable();
+            $table->enum('status', [
+                'terbit',
+                'dalam_proses',
+                'diusulkan_tuntas',
+                'selesai_tuntas',
+            ])->default('terbit');
 
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
@@ -79,6 +83,7 @@ return new class extends Migration
             $table->index('cluster_id');
             $table->index('sub_cluster_id');
             $table->index('tanggal_eksternal');
+            $table->index('status');
 
             $table->foreign('id_eksternal')
                 ->references('id_eksternal')

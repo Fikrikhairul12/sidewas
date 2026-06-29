@@ -223,6 +223,7 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
         selectedDetailButir: null,
 
         selectedClusterId: '',
+        selectedSubClusterIds: [],
         selectedDirektoratIds: [],
         selectedUnitKerjaIds: [],
 
@@ -237,6 +238,7 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
             this.selectedRecord = record;
 
             this.selectedClusterId = '';
+            this.selectedSubClusterIds = [];
             this.selectedDirektoratIds = [];
             this.selectedUnitKerjaIds = [];
             this.unitKerjaSearch = '';
@@ -258,6 +260,16 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
         get filteredSubClusters() {
             const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
             return cluster ? cluster.sub_clusters : [];
+        },
+
+        get selectedSubClusterDetail() {
+            return this.filteredSubClusters.filter(subCluster => {
+                return this.selectedSubClusterIds.some(id => String(id) === String(subCluster.id));
+            });
+        },
+
+        removeSubCluster(id) {
+            this.selectedSubClusterIds = this.selectedSubClusterIds.filter(item => String(item) !== String(id));
         },
 
         get filteredDetailButirs() {
@@ -798,13 +810,17 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
     return {
         openCreateModal: false,
         openButirModal: false,
+        openDetailModal: false,
 
         selectedRecord: null,
+        detailRecord: null,
+        selectedDetailButir: null,
 
         selectedClusterId: '',
         selectedDirektoratUtamaId: '',
 
         picPendukungSearch: '',
+        detailSearch: '',
         selectedPicPendukung: [],
 
         clusters: clusters,
@@ -820,9 +836,41 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
             this.openButirModal = true;
         },
 
+        openDetailModalFor(record) {
+            this.detailRecord = record;
+            this.detailSearch = '';
+            this.selectedDetailButir = record?.butirs?.[0] ?? null;
+            this.openDetailModal = true;
+        },
+
+        selectDetailButir(butir) {
+            this.selectedDetailButir = butir;
+        },
+
         get filteredSubClusters() {
             const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
             return cluster ? cluster.sub_clusters : [];
+        },
+
+        get filteredDetailButirs() {
+            const butirs = this.detailRecord?.butirs ?? [];
+            const keyword = this.detailSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return butirs;
+            }
+
+            return butirs.filter(butir => {
+                const id = String(butir.id_butir_djsn || '').toLowerCase();
+                const isi = String(butir.butir_djsn || '').toLowerCase();
+                const cluster = String(butir.cluster || '').toLowerCase();
+                const subCluster = String(butir.sub_cluster || '').toLowerCase();
+
+                return id.includes(keyword)
+                    || isi.includes(keyword)
+                    || cluster.includes(keyword)
+                    || subCluster.includes(keyword);
+            });
         },
 
         get filteredUnitKerjaUtama() {

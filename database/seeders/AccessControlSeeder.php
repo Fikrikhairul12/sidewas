@@ -64,7 +64,7 @@ class AccessControlSeeder extends Seeder
                     ['role_id' => $roleId, 'type_id' => $typeId],
                     [
                         'name' => $roleName . '_' . $typeCode,
-                        'keterangan' => ucfirst($roleName) . ' ' . strtoupper($typeCode),
+                        'keterangan' => ucfirst($roleName) . ' ' . strtoupper(str_replace('_', ' ', $typeCode)),
                         'created_at' => $now,
                         'updated_at' => $now,
                     ]

@@ -32,7 +32,7 @@ return new class extends Migration
             $table->text('abstrak')->nullable();
             $table->string('status_peraturan')->nullable();
             $table->enum('sifat_dokumen', ['publik', 'rahasia'])->default('publik');
-            $table->enum('status_publish', ['draft', 'terbit', 'arsip'])->default('draft');
+            $table->enum('status_publish', ['draft', 'berlaku', 'tidak_berlaku'])->default('draft');
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
 

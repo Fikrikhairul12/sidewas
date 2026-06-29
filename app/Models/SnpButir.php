@@ -22,6 +22,7 @@ class SnpButir extends Model
         'id_butir_snp',
         'id_snp',
         'butir_snp',
+        'status',
         'created_by',
         'updated_by',
     ];
@@ -31,6 +32,10 @@ class SnpButir extends Model
         static::creating(function ($butir) {
             if (empty($butir->id_butir_snp)) {
                 $butir->id_butir_snp = static::generateIdButirSnp($butir->id_snp);
+            }
+
+            if (empty($butir->status)) {
+                $butir->status = 'terbit';
             }
         });
     }
@@ -113,8 +118,114 @@ class SnpButir extends Model
         return $this->belongsTo(User::class, 'updated_by', 'id');
     }
 
-    // public function kompilasis()
-    // {
-    //     return $this->hasMany(SnpKompilasi::class, 'id_butir_snp', 'id_butir_snp');
-    // }
+    public function picUnitButirPicIds(): array
+    {
+        $this->loadMissing('butirPics');
+
+        return $this->butirPics
+            ->whereIn('jenis_pic', ['utama', 'pendukung'])
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->toArray();
+    }
+
+    public function tindakLanjutButirPicIds(?int $putaranTl = null): array
+    {
+        $this->loadMissing('tindakLanjuts');
+
+        $tindakLanjuts = $this->tindakLanjuts;
+
+        if ($putaranTl !== null) {
+            $tindakLanjuts = $tindakLanjuts->where('putaran_tl', $putaranTl);
+        }
+
+        return $tindakLanjuts
+            ->pluck('butir_pic_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->toArray();
+    }
+
+    public function isTindakLanjutLengkap(?int $putaranTl = null): bool
+    {
+        $picUnitIds = $this->picUnitButirPicIds();
+
+        if (count($picUnitIds) === 0) {
+            return false;
+        }
+
+        return empty(array_diff($picUnitIds, $this->tindakLanjutButirPicIds($putaranTl)));
+    }
+
+    public function statusTindakLanjut(): string
+    {
+        if (! empty($this->status)) {
+            return $this->status;
+        }
+
+        if ($this->tindakLanjutButirPicIds() === []) {
+            return 'terbit';
+        }
+
+        return $this->isTindakLanjutLengkap()
+            ? 'diusulkan_tuntas'
+            : 'dalam_proses';
+    }
+
+    public function statusTindakLanjutLabel(): string
+    {
+        return match ($this->statusTindakLanjut()) {
+            'terbit' => 'Terbit',
+            'dalam_proses' => 'Dalam Proses',
+            'diusulkan_tuntas' => 'Diusulkan Tuntas',
+            'selesai_tuntas' => 'Selesai Tuntas',
+            default => 'Dalam Proses',
+        };
+    }
+
+    public function syncStatusFromTindakLanjut(?int $putaranTl = null, ?int $updatedBy = null): void
+    {
+        $this->loadMissing('butirPics', 'tindakLanjuts');
+
+        $status = match (true) {
+            $this->tindakLanjutButirPicIds($putaranTl) === [] => 'dalam_proses',
+            $this->isTindakLanjutLengkap($putaranTl) => 'diusulkan_tuntas',
+            default => 'dalam_proses',
+        };
+
+        $attributes = ['status' => $status];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
+    }
+
+    public function markDalamProses(?int $updatedBy = null): void
+    {
+        $attributes = ['status' => 'dalam_proses'];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
+    }
+
+    public function markSelesaiTuntas(?int $updatedBy = null): void
+    {
+        $attributes = ['status' => 'selesai_tuntas'];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
+    }
 }

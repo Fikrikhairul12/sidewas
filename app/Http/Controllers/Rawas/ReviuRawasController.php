@@ -234,20 +234,9 @@ class ReviuRawasController extends Controller
 
             $record = $review->butir?->record;
 
-            if ($record && $validated['status'] === 'selesai_tuntas') {
-                $record->load('butirRawas.reviewTindakLanjut');
-
-                $allButirsReviewed = $record->butirRawas->count() > 0
-                    && $record->butirRawas->every(function ($butir) {
-                        return $butir->reviewTindakLanjut?->status === 'selesai_tuntas';
-                    });
-
-                if ($allButirsReviewed) {
-                    $record->update([
-                        'status' => 'tuntas',
-                        'updated_by' => $user->id,
-                    ]);
-                }
+            if ($validated['status'] === 'selesai_tuntas' && $review->butir) {
+                $review->butir->markSelesaiTuntas($user->id);
+                $record?->refresh()->syncStatusFromButir($user->id);
             }
 
             LogActivity::create([

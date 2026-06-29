@@ -176,7 +176,7 @@ class PerekamanSnpController extends Controller
 
         $statistik = [
             'total' => SnpRecord::count(),
-            'selesai' => SnpRecord::where('status', 'selesai')->count(),
+            'tuntas' => SnpRecord::where('status', 'tuntas')->count(),
             'proses' => SnpRecord::where('status', 'dalam_proses')->count(),
             'draft' => SnpRecord::where('status', 'draft')->count(),
         ];
@@ -260,6 +260,14 @@ class PerekamanSnpController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman SNP.');
         }
 
+        if ($record->isButirAdditionLocked()) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'butir_snp' => 'Butir tidak dapat ditambah karena satu-satunya butir pada surat ini sudah selesai tuntas.',
+                ]);
+        }
+
         $validated = $request->validate([
             'butir_snp' => ['required', 'string'],
 
@@ -275,6 +283,7 @@ class PerekamanSnpController extends Controller
             $butir = SnpButir::create([
                 'id_snp' => $record->id_snp,
                 'butir_snp' => $validated['butir_snp'],
+                'status' => 'terbit',
             ]);
 
             SnpButirPic::create([
@@ -302,11 +311,7 @@ class PerekamanSnpController extends Controller
                 'jenis_pic' => 'komite',
             ]);
 
-            if ($record->status === 'draft') {
-                $record->update([
-                    'status' => 'terbit',
-                ]);
-            }
+            $record->refresh()->syncStatusFromButir(Auth::id());
 
             LogActivity::create([
                 'user_id' => Auth::id(),

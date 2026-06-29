@@ -93,7 +93,7 @@
                         <div x-show="openUserMenu" x-transition
                             class="absolute right-0 mt-2 w-48 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg"
                             style="display: none;">
-                            <a href="#"
+                            <a href="{{ route('profile.edit') }}"
                                 class="block px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-100">
                                 Profil
                             </a>

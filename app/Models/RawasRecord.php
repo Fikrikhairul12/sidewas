@@ -72,6 +72,50 @@ class RawasRecord extends Model
         return $this->hasMany(RawasButir::class, 'id_rawas', 'id_rawas');
     }
 
+    public function isEveryButirSelesaiTuntas(): bool
+    {
+        $this->loadMissing('butirRawas');
+
+        if ($this->butirRawas->isEmpty()) {
+            return false;
+        }
+
+        return $this->butirRawas->every(function (RawasButir $butir): bool {
+            return $butir->statusTindakLanjut() === 'selesai_tuntas';
+        });
+    }
+
+    public function isButirAdditionLocked(): bool
+    {
+        $this->loadMissing('butirRawas');
+
+        if ($this->butirRawas->count() !== 1) {
+            return false;
+        }
+
+        return $this->status === 'tuntas'
+            || $this->butirRawas->first()?->statusTindakLanjut() === 'selesai_tuntas';
+    }
+
+    public function syncStatusFromButir(?int $updatedBy = null): void
+    {
+        $this->loadMissing('butirRawas');
+
+        $status = match (true) {
+            $this->butirRawas->isEmpty() => 'draft',
+            $this->isEveryButirSelesaiTuntas() => 'tuntas',
+            default => 'dalam_proses',
+        };
+
+        $attributes = ['status' => $status];
+
+        if ($updatedBy !== null) {
+            $attributes['updated_by'] = $updatedBy;
+        }
+
+        $this->update($attributes);
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'id');

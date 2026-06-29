@@ -129,20 +129,7 @@ class TindakLanjutEksternalController extends Controller
                 $butir = $row['butir'];
                 $item = $row['item'];
 
-                if ($status === 'belum_ditindaklanjuti') {
-                    return empty($item);
-                }
-
-                if (in_array($status, ['dalam_proses_tindak_lanjut', 'diusulkan_tuntas'], true)) {
-                    return $butir->statusTindakLanjut() === $status;
-                }
-
-                $reviewTerakhir = $butir->reviews
-                    ->where('tahap_review', 'tindak_lanjut')
-                    ->sortByDesc('id')
-                    ->first();
-
-                return $reviewTerakhir?->status === $status;
+                return $butir->statusTindakLanjut() === $status;
             });
         }
 
@@ -265,11 +252,9 @@ class TindakLanjutEksternalController extends Controller
         $komites = Komite::orderBy('nama_komite')->get();
 
         $statusOptions = [
-            'belum_ditindaklanjuti' => 'Belum Ditindaklanjuti',
-            'dalam_proses_tindak_lanjut' => 'Dalam Proses Tindak Lanjut',
+            'terbit' => 'Terbit',
+            'dalam_proses' => 'Dalam Proses',
             'diusulkan_tuntas' => 'Diusulkan Tuntas',
-            'belum_ditanggapi' => 'Belum Direviu',
-            'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
             'selesai_tuntas' => 'Selesai Tuntas',
         ];
 
@@ -338,21 +323,8 @@ class TindakLanjutEksternalController extends Controller
                 'updated_by' => $user->id,
             ]);
 
-            $record = $butir->record;
-
-            if ($record) {
-                $record->loadMissing('butirEksternal.butirPics', 'butirEksternal.tindakLanjuts');
-
-                $allButirsReady = $record->butirEksternal->count() > 0
-                    && $record->butirEksternal->every(fn ($recordButir) => $recordButir->isTindakLanjutLengkap());
-
-                $hasAnyTl = $record->butirEksternal->contains(fn ($recordButir) => $recordButir->tindakLanjuts->count() > 0);
-
-                $record->update([
-                    'status' => $allButirsReady ? 'diusulkan_tuntas' : ($hasAnyTl ? 'dalam_proses' : $record->status),
-                    'updated_by' => $user->id,
-                ]);
-            }
+            $butir->refresh()->syncStatusFromTindakLanjut($user->id);
+            $butir->record?->refresh()->syncStatusFromButir($user->id);
 
             LogActivity::create([
                 'user_id' => $user->id,
@@ -367,6 +339,7 @@ class TindakLanjutEksternalController extends Controller
                     'butir' => $butir->load('record')->toArray(),
                     'tindak_lanjut' => $tindakLanjut->toArray(),
                     'status_tindak_lanjut_butir' => $butir->fresh()->statusTindakLanjut(),
+                    'status_record' => $butir->record?->fresh()?->status,
                 ],
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),

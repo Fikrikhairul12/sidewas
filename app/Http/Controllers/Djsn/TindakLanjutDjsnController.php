@@ -147,22 +147,7 @@ class TindakLanjutDjsnController extends Controller
             $status = $request->status;
 
             $rows = $rows->filter(function ($row) use ($status) {
-                $item = $row['item'];
-
-                if ($status === 'belum_ditindaklanjuti') {
-                    return empty($item);
-                }
-
-                if (!$item) {
-                    return false;
-                }
-
-                $reviewTerakhir = $item->reviews
-                    ->where('tahap_review', 'tindak_lanjut')
-                    ->sortByDesc('id')
-                    ->first();
-
-                return $reviewTerakhir?->status === $status;
+                return $row['butir']?->statusTindakLanjut() === $status;
             });
         }
 
@@ -266,9 +251,9 @@ class TindakLanjutDjsnController extends Controller
         $komites = Komite::orderBy('nama_komite')->get();
 
         $statusOptions = [
-            'belum_ditanggapi' => 'Belum Ditanggapi',
-            'dalam_proses_reviu_dewan_pengawas' => 'Dalam Proses Reviu Dewan Pengawas',
-            'dalam_proses_tindak_lanjut_direksi' => 'Dalam Proses Tindak Lanjut Direksi',
+            'terbit' => 'Terbit',
+            'dalam_proses' => 'Dalam Proses',
+            'diusulkan_tuntas' => 'Diusulkan Tuntas',
             'selesai_tuntas' => 'Selesai Tuntas',
         ];
 
@@ -345,6 +330,9 @@ class TindakLanjutDjsnController extends Controller
                 'status' => 'belum_ditanggapi',
             ]);
 
+            $butir->refresh()->syncStatusFromTindakLanjut($user->id);
+            $butir->record?->refresh()->syncStatusFromButir($user->id);
+
             LogActivity::create([
                 'user_id' => $user->id,
                 'type_code' => 'djsn',
@@ -358,6 +346,8 @@ class TindakLanjutDjsnController extends Controller
                     'butir' => $butir->load('record')->toArray(),
                     'tindak_lanjut' => $tindakLanjut->toArray(),
                     'review' => $review->toArray(),
+                    'status_butir' => $butir->fresh()->statusTindakLanjut(),
+                    'status_record' => $butir->record?->fresh()?->status,
                 ],
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),

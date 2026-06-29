@@ -21,7 +21,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnPerekaman()) {
+        if (!$user || !$user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report DJSN.');
         }
 
@@ -114,7 +114,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnPerekaman()) {
+        if (!$user || !$user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
 
@@ -151,7 +151,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnPerekaman()) {
+        if (!$user || !$user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
 
@@ -312,7 +312,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnPerekaman()) {
+        if (!$user || !$user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
 
@@ -363,7 +363,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnPerekaman()) {
+        if (!$user || !$user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
 
