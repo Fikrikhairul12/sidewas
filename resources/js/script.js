@@ -8,8 +8,11 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
         openCreateModal: false,
         openButirModal: false,
         openDetailModal: false,
+        openEditModal: false,
 
         selectedRecord: null,
+        editRecord: null,
+        selectedEditButirId: null,
         detailRecord: null,
         selectedDetailButirId: null,
         detailSearch: '',
@@ -17,9 +20,14 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
         selectedClusterId: '',
         selectedSubClusterId: '',
         selectedDirektoratUtamaId: '',
+        editClusterId: '',
+        editSubClusterId: '',
+        editDirektoratUtamaId: '',
 
         picPendukungSearch: '',
         selectedPicPendukung: [],
+        editPicPendukungSearch: '',
+        selectedEditPicPendukung: [],
 
         clusters: clusters,
         direktorats: direktorats,
@@ -32,6 +40,20 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
             this.picPendukungSearch = '';
             this.selectedPicPendukung = [];
             this.openButirModal = true;
+        },
+
+        openEditModalFor(record) {
+            this.editRecord = record;
+            this.selectedEditButirId = record.butirs?.[0]?.id ? String(record.butirs[0].id) : null;
+            this.editClusterId = record.cluster_id ? String(record.cluster_id) : '';
+            this.editSubClusterId = '';
+            this.editPicPendukungSearch = '';
+            this.openEditModal = true;
+
+            this.$nextTick(() => {
+                this.editSubClusterId = record.sub_cluster_id ? String(record.sub_cluster_id) : '';
+                this.syncEditButirPic();
+            });
         },
 
         openDetailModalFor(record) {
@@ -79,8 +101,18 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
             return cluster ? cluster.sub_clusters : [];
         },
 
+        get filteredEditSubClusters() {
+            const cluster = this.clusters.find(item => String(item.id) === String(this.editClusterId));
+            return cluster ? cluster.sub_clusters : [];
+        },
+
         get filteredUnitKerjaUtama() {
             const direktorat = this.direktorats.find(item => String(item.id) === String(this.selectedDirektoratUtamaId));
+            return direktorat ? direktorat.unit_kerja : [];
+        },
+
+        get filteredEditUnitKerjaUtama() {
+            const direktorat = this.direktorats.find(item => String(item.id) === String(this.editDirektoratUtamaId));
             return direktorat ? direktorat.unit_kerja : [];
         },
 
@@ -111,14 +143,73 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
             });
         },
 
+        get editButirs() {
+            return this.editRecord?.butirs ?? [];
+        },
+
+        get selectedEditButir() {
+            return this.editButirs.find(butir => String(butir.id) === String(this.selectedEditButirId))
+                ?? this.editButirs[0]
+                ?? null;
+        },
+
+        syncEditButirPic() {
+            const butir = this.selectedEditButir;
+
+            this.editDirektoratUtamaId = butir?.pic_utama_direktorat_id
+                ? String(butir.pic_utama_direktorat_id)
+                : '';
+            this.selectedEditPicPendukung = (butir?.pic_pendukung_ids ?? [])
+                .filter(id => id !== null && id !== undefined && id !== '')
+                .map(id => String(id));
+
+            this.$nextTick(() => {
+                if (butir?.pic_utama_id) {
+                    butir.pic_utama_id = String(butir.pic_utama_id);
+                }
+
+                if (butir?.komite_id) {
+                    butir.komite_id = String(butir.komite_id);
+                }
+            });
+        },
+
+        get filteredEditAllUnitKerjaPendukung() {
+            const keyword = this.editPicPendukungSearch.toLowerCase().trim();
+
+            if (!keyword) {
+                return this.allUnitKerjaPendukung;
+            }
+
+            return this.allUnitKerjaPendukung.filter(unit => {
+                const kode = String(unit.kode_unit || '').toLowerCase();
+                const nama = String(unit.nama_unit || '').toLowerCase();
+                const direktorat = String(unit.direktorat_nama || '').toLowerCase();
+
+                return kode.includes(keyword)
+                    || nama.includes(keyword)
+                    || direktorat.includes(keyword);
+            });
+        },
+
         get selectedPicPendukungDetail() {
             return this.allUnitKerjaPendukung.filter(unit => {
                 return this.selectedPicPendukung.includes(String(unit.id));
             });
         },
 
+        get selectedEditPicPendukungDetail() {
+            return this.allUnitKerjaPendukung.filter(unit => {
+                return this.selectedEditPicPendukung.includes(String(unit.id));
+            });
+        },
+
         removePicPendukung(id) {
             this.selectedPicPendukung = this.selectedPicPendukung.filter(item => String(item) !== String(id));
+        },
+
+        removeEditPicPendukung(id) {
+            this.selectedEditPicPendukung = this.selectedEditPicPendukung.filter(item => String(item) !== String(id));
         },
     };
 };
@@ -217,8 +308,11 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
         openCreateModal: false,
         openButirModal: false,
         openDetailModal: false,
+        openEditModal: false,
 
         selectedRecord: null,
+        editRecord: null,
+        selectedEditButirId: '',
         detailRecord: null,
         selectedDetailButir: null,
 
@@ -226,8 +320,10 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
         selectedSubClusterIds: [],
         selectedDirektoratIds: [],
         selectedUnitKerjaIds: [],
+        unitKerjaValidationMessage: '',
 
         unitKerjaSearch: '',
+        editUnitKerjaSearch: '',
         detailSearch: '',
 
         clusters: clusters,
@@ -241,6 +337,7 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
             this.selectedSubClusterIds = [];
             this.selectedDirektoratIds = [];
             this.selectedUnitKerjaIds = [];
+            this.unitKerjaValidationMessage = '';
             this.unitKerjaSearch = '';
 
             this.openButirModal = true;
@@ -251,6 +348,43 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
             this.detailSearch = '';
             this.selectedDetailButir = record?.butirs?.[0] ?? null;
             this.openDetailModal = true;
+        },
+
+        openEditModalFor(record) {
+            this.editRecord = JSON.parse(JSON.stringify(record));
+            this.selectedEditButirId = this.editRecord?.butirs?.[0]?.id ?? '';
+            this.syncEditButir();
+            this.openEditModal = true;
+        },
+
+        syncEditButir() {
+            const butir = this.selectedEditButir;
+
+            if (!butir) {
+                return;
+            }
+
+            this.selectedClusterId = butir.cluster_id ? String(butir.cluster_id) : '';
+            this.selectedSubClusterIds = (butir.sub_cluster_ids || (butir.sub_cluster_id ? [butir.sub_cluster_id] : []))
+                .map(id => String(id));
+            this.selectedDirektoratIds = (butir.direktorat_ids || []).map(id => String(id));
+            this.selectedUnitKerjaIds = (butir.unit_kerja_ids || []).map(id => String(id));
+            this.unitKerjaValidationMessage = '';
+            this.editUnitKerjaSearch = '';
+        },
+
+        get selectedEditButir() {
+            const butirs = this.editRecord?.butirs ?? [];
+            return butirs.find(butir => String(butir.id) === String(this.selectedEditButirId)) ?? butirs[0] ?? null;
+        },
+
+        get editFilteredUnitKerjas() {
+            const previousSearch = this.unitKerjaSearch;
+            this.unitKerjaSearch = this.editUnitKerjaSearch;
+            const filtered = this.filteredUnitKerjas;
+            this.unitKerjaSearch = previousSearch;
+
+            return filtered;
         },
 
         selectDetailButir(butir) {
@@ -293,12 +427,23 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
 
         get filteredUnitKerjas() {
             const keyword = this.unitKerjaSearch.toLowerCase().trim();
+            const selectedDirektoratIds = this.selectedDirektoratIds.map(id => String(id));
+            let unitKerjas = this.unitKerjas;
 
-            if (!keyword) {
-                return this.unitKerjas;
+            if (selectedDirektoratIds.length > 0) {
+                unitKerjas = unitKerjas
+                    .map(unit => ({
+                        ...unit,
+                        isSelectedDirektorat: selectedDirektoratIds.includes(String(unit.direktorat_id)),
+                    }))
+                    .sort((a, b) => Number(b.isSelectedDirektorat) - Number(a.isSelectedDirektorat));
             }
 
-            return this.unitKerjas.filter(unit => {
+            if (!keyword) {
+                return unitKerjas;
+            }
+
+            return unitKerjas.filter(unit => {
                 const kode = String(unit.kode_unit || '').toLowerCase();
                 const nama = String(unit.nama_unit || '').toLowerCase();
                 const direktorat = String(unit.direktorat?.nama_direktorat || unit.direktorat_nama || '').toLowerCase();
@@ -315,8 +460,41 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
             });
         },
 
+        get selectedDirektoratDetail() {
+            return this.direktorats.filter(direktorat => {
+                return this.selectedDirektoratIds.includes(String(direktorat.id));
+            });
+        },
+
+        get missingDirektoratUnitDetail() {
+            return this.selectedDirektoratDetail.filter(direktorat => {
+                return !this.selectedUnitKerjaDetail.some(unit => {
+                    return String(unit.direktorat_id) === String(direktorat.id);
+                });
+            });
+        },
+
         removeUnitKerja(id) {
             this.selectedUnitKerjaIds = this.selectedUnitKerjaIds.filter(item => String(item) !== String(id));
+            this.unitKerjaValidationMessage = '';
+        },
+
+        validateButirBeforeSubmit() {
+            if (this.missingDirektoratUnitDetail.length === 0) {
+                this.unitKerjaValidationMessage = '';
+                return true;
+            }
+
+            const missingNames = this.missingDirektoratUnitDetail
+                .map(direktorat => direktorat.nama_direktorat)
+                .join(', ');
+
+            this.unitKerjaValidationMessage = `Pilih minimal 1 PIC Unit untuk setiap direktorat terkait. Direktorat yang belum terwakili: ${missingNames}.`;
+            return false;
+        },
+
+        validateEditBeforeSubmit() {
+            return this.validateButirBeforeSubmit();
         },
     };
 };
@@ -712,12 +890,16 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
         openCreateModal: false,
         openButirModal: false,
         openDetailModal: false,
+        openEditModal: false,
 
         selectedRecord: null,
+        editRecord: null,
+        selectedEditButirId: '',
         detailRecord: null,
         selectedDetailButir: null,
 
         selectedClusterId: '',
+        selectedSubClusterId: '',
         selectedPicIds: [],
 
         picSearch: '',
@@ -739,6 +921,31 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
             this.detailSearch = '';
             this.selectedDetailButir = record?.butirs?.[0] ?? null;
             this.openDetailModal = true;
+        },
+
+        openEditModalFor(record) {
+            this.editRecord = JSON.parse(JSON.stringify(record));
+            this.selectedEditButirId = this.editRecord?.butirs?.[0]?.id ?? '';
+            this.syncEditButir();
+            this.openEditModal = true;
+        },
+
+        syncEditButir() {
+            const butir = this.selectedEditButir;
+
+            if (!butir) {
+                return;
+            }
+
+            this.selectedClusterId = butir.cluster_id ? String(butir.cluster_id) : '';
+            this.selectedSubClusterId = butir.sub_cluster_id ? String(butir.sub_cluster_id) : '';
+            this.selectedPicIds = (butir.pic_ids || []).map(id => String(id));
+            this.picSearch = '';
+        },
+
+        get selectedEditButir() {
+            const butirs = this.editRecord?.butirs ?? [];
+            return butirs.find(butir => String(butir.id) === String(this.selectedEditButirId)) ?? butirs[0] ?? null;
         },
 
         selectDetailButir(butir) {
@@ -811,12 +1018,16 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
         openCreateModal: false,
         openButirModal: false,
         openDetailModal: false,
+        openEditModal: false,
 
         selectedRecord: null,
+        editRecord: null,
+        selectedEditButirId: '',
         detailRecord: null,
         selectedDetailButir: null,
 
         selectedClusterId: '',
+        selectedSubClusterId: '',
         selectedDirektoratUtamaId: '',
 
         picPendukungSearch: '',
@@ -841,6 +1052,32 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
             this.detailSearch = '';
             this.selectedDetailButir = record?.butirs?.[0] ?? null;
             this.openDetailModal = true;
+        },
+
+        openEditModalFor(record) {
+            this.editRecord = JSON.parse(JSON.stringify(record));
+            this.selectedEditButirId = this.editRecord?.butirs?.[0]?.id ?? '';
+            this.syncEditButir();
+            this.openEditModal = true;
+        },
+
+        syncEditButir() {
+            const butir = this.selectedEditButir;
+
+            if (!butir) {
+                return;
+            }
+
+            this.selectedClusterId = butir.cluster_id ? String(butir.cluster_id) : '';
+            this.selectedSubClusterId = butir.sub_cluster_id ? String(butir.sub_cluster_id) : '';
+            this.selectedDirektoratUtamaId = butir.direktorat_utama_id ? String(butir.direktorat_utama_id) : '';
+            this.selectedPicPendukung = (butir.unit_kerja_pendukung_ids || []).map(id => String(id));
+            this.picPendukungSearch = '';
+        },
+
+        get selectedEditButir() {
+            const butirs = this.editRecord?.butirs ?? [];
+            return butirs.find(butir => String(butir.id) === String(this.selectedEditButirId)) ?? butirs[0] ?? null;
         },
 
         selectDetailButir(butir) {
@@ -916,3 +1153,85 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
         },
     };
 };
+
+/**
+ * ============================================================
+ * PENGAJUAN - DETAIL EDIT PEREKAMAN
+ * ============================================================
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('pengajuanDetailModal');
+    const dialog = document.getElementById('pengajuanDetailDialog');
+    const title = document.getElementById('pengajuanDetailTitle');
+    const subtitle = document.getElementById('pengajuanDetailSubtitle');
+    const recordKey = document.getElementById('pengajuanDetailRecordKey');
+    const suratContainer = document.getElementById('pengajuanDetailSurat');
+    const butirContainer = document.getElementById('pengajuanDetailButir');
+    const isiButir = document.getElementById('pengajuanDetailIsiButir');
+
+    if (!modal || !dialog || !title || !subtitle || !recordKey || !suratContainer || !butirContainer || !isiButir) {
+        return;
+    }
+
+    const renderDetailRows = (container, rows = {}) => {
+        container.innerHTML = '';
+
+        Object.entries(rows).forEach(([label, value]) => {
+            const wrapper = document.createElement('div');
+            const labelElement = document.createElement('p');
+            const valueElement = document.createElement('p');
+
+            labelElement.className = 'text-xs font-bold uppercase tracking-wide text-slate-400';
+            labelElement.textContent = label;
+
+            valueElement.className = 'mt-1 text-sm font-semibold text-slate-700';
+            valueElement.textContent = value || '-';
+
+            wrapper.append(labelElement, valueElement);
+            container.appendChild(wrapper);
+        });
+    };
+
+    const openModal = (detail) => {
+        title.textContent = detail.title || 'Detail Pengajuan';
+        subtitle.textContent = detail.subtitle || '-';
+        recordKey.textContent = detail.record_key || '-';
+        isiButir.textContent = detail.isi_butir || '-';
+        renderDetailRows(suratContainer, detail.surat || {});
+        renderDetailRows(butirContainer, detail.butir || {});
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    };
+
+    const closeModal = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    };
+
+    document.querySelectorAll('[data-pengajuan-detail-trigger]').forEach((button) => {
+        button.addEventListener('click', () => {
+            try {
+                const encodedDetail = button.dataset.detailPengajuan || '';
+                openModal(JSON.parse(atob(encodedDetail)));
+            } catch (error) {
+                openModal({});
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-pengajuan-detail-close]').forEach((button) => {
+        button.addEventListener('click', closeModal);
+    });
+
+    modal.addEventListener('click', closeModal);
+    dialog.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeModal();
+        }
+    });
+});

@@ -133,6 +133,39 @@
     <div class="watermark">
         SIDEWAS SNP DEWAS
     </div>
+    @php
+        $normalizeReportText = function ($value): string {
+            $value = trim((string) ($value ?? ''));
+
+            if ($value === '') {
+                return '-';
+            }
+
+            $value = str_replace(["\r\n", "\r"], "\n", $value);
+
+            return collect(explode("\n", $value))
+                ->map(fn($line) => preg_replace('/[ \t]+/', ' ', trim($line)))
+                ->implode("\n");
+        };
+
+        $reportSection = function (string $label, $value) use ($normalizeReportText): ?string {
+            $text = $normalizeReportText($value);
+
+            if ($text === '-') {
+                return null;
+            }
+
+            return $label . ":\n" . $text;
+        };
+
+        $joinReportSections = function (array $sections): string {
+            $text = collect($sections)
+                ->filter()
+                ->implode("\n\n");
+
+            return $text !== '' ? $text : '-';
+        };
+    @endphp
     <table>
         <thead>
             <tr>
@@ -152,8 +185,16 @@
                         $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
                         $komitePic = $butir->butirPics->where('jenis_pic', 'komite')->first();
 
-                        $kompilasiTanggapan = $butir->kompilasiTanggapan;
-                        $kompilasiTindakLanjut = $butir->kompilasiTindakLanjut;
+                        $kompilasiTanggapan =
+                            $butir->kompilasiTanggapan ??
+                            $butir->kompilasis->where('tahap_kompilasi', 'tanggapan')->sortByDesc('id')->first();
+
+                        $kompilasiTindakLanjut =
+                            $butir->kompilasiTindakLanjut ??
+                            $butir->kompilasis
+                                ->where('tahap_kompilasi', 'tindak_lanjut')
+                                ->sortByDesc('id')
+                                ->first();
 
                         $tanggapans = $butir->tanggapan ?? collect();
                         if ($tanggapans instanceof \Illuminate\Database\Eloquent\Model) {
@@ -213,15 +254,17 @@
                     <tr>
                         @foreach ($selectedFields as $field)
                             @if ($field === 'surat')
-                                <td>
-                                    {{ $record->nomor_surat }}
-                                    {{ $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-' }}
-                                    {{ $record->perihal_surat }}
+                                <td class="pre-line">
+                                    {{ $joinReportSections([
+                                        $record->nomor_surat,
+                                        $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : null,
+                                        $record->perihal_surat,
+                                    ]) }}
                                 </td>
                             @elseif ($field === 'id_butir')
                                 <td>{{ $butir->id_butir_snp }}</td>
                             @elseif ($field === 'isi_butir')
-                                <td>{{ $butir->butir_snp }}</td>
+                                <td class="pre-line">{{ $normalizeReportText($butir->butir_snp) }}</td>
                             @elseif ($field === 'pic_utama')
                                 <td>{{ $picUtama?->unitKerja?->kode_unit ?? '-' }}</td>
                             @elseif ($field === 'pic_pendukung')
@@ -233,16 +276,16 @@
                                     @endif
                                 </td>
                             @elseif ($field === 'pic_unit')
-                                <td>
-                                    PIC UNIT KERJA UTAMA:
-                                    {{ $picUtama?->unitKerja?->kode_unit ?? '-' }}
-
-                                    PIC UNIT KERJA PENDUKUNG:
-                                    @if ($picPendukung->count() > 0)
-                                        {{ $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
-                                    @else
-                                        -
-                                    @endif
+                                <td class="pre-line">
+                                    {{ $joinReportSections([
+                                        $reportSection('PIC UNIT KERJA UTAMA', $picUtama?->unitKerja?->kode_unit),
+                                        $reportSection(
+                                            'PIC UNIT KERJA PENDUKUNG',
+                                            $picPendukung->count() > 0
+                                                ? $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ')
+                                                : null,
+                                        ),
+                                    ]) }}
                                 </td>
                             @elseif ($field === 'tanggapan_unit' || $field === 'tanggapan')
                                 <td>
@@ -254,7 +297,7 @@
                                                 {{ $tanggapan->butirPic?->unitKerja?->nama_unit ?? '-' }}
                                             </span>
 
-                                            {{ $tanggapan->tanggapan ?? '-' }}
+                                            {{ $normalizeReportText($tanggapan->tanggapan) }}
                                         </div>
                                     @empty
                                         -
@@ -270,65 +313,63 @@
                                                 {{ $tl->butirPic?->unitKerja?->nama_unit ?? '-' }}
                                             </span>
 
-                                            {{ $tl->tindak_lanjut ?? '-' }}
+                                            {{ $normalizeReportText($tl->tindak_lanjut) }}
                                         </div>
                                     @empty
                                         -
                                     @endforelse
                                 </td>
                             @elseif ($field === 'kompilasi_tanggapan')
-                                <td>{{ $kompilasiTanggapan?->hasil_kompilasi ?? '-' }}</td>
+                                <td class="pre-line">{{ $normalizeReportText($kompilasiTanggapan?->hasil_kompilasi) }}</td>
                             @elseif ($field === 'kompilasi_tindak_lanjut')
-                                <td>{{ $kompilasiTindakLanjut?->hasil_kompilasi ?? '-' }}</td>
+                                <td class="pre-line">{{ $normalizeReportText($kompilasiTindakLanjut?->hasil_kompilasi) }}</td>
                             @elseif ($field === 'deliverable')
-                                <td>
-                                    Kompilasi Tanggapan:
-                                    {{ $kompilasiTanggapan?->deliverables ?? '-' }}
-
-                                    Kompilasi Tindak Lanjut:
-                                    {{ $kompilasiTindakLanjut?->deliverables ?? '-' }}
+                                <td class="pre-line">
+                                    {{ $joinReportSections([
+                                        $reportSection('Kompilasi Tanggapan', $kompilasiTanggapan?->deliverables),
+                                        $reportSection('Kompilasi Tindak Lanjut', $kompilasiTindakLanjut?->deliverables),
+                                    ]) }}
                                 </td>
                             @elseif ($field === 'dokumen')
-                                <td>
-                                    @if ($kompilasiTanggapan?->dokumen)
-                                        Dokumen Kompilasi Tanggapan:
-                                        {{ asset('storage/' . $kompilasiTanggapan->dokumen) }}
-                                    @endif
-
-                                    @if ($kompilasiTindakLanjut?->dokumen)
-                                        Dokumen Kompilasi Tindak Lanjut:
-                                        {{ asset('storage/' . $kompilasiTindakLanjut->dokumen) }}
-                                    @endif
-
-                                    @if (!$kompilasiTanggapan?->dokumen && !$kompilasiTindakLanjut?->dokumen)
-                                        -
-                                    @endif
+                                <td class="pre-line">
+                                    {{ $joinReportSections([
+                                        $reportSection(
+                                            'Dokumen Kompilasi Tanggapan',
+                                            $kompilasiTanggapan?->dokumen ? asset('storage/' . $kompilasiTanggapan->dokumen) : null,
+                                        ),
+                                        $reportSection(
+                                            'Dokumen Kompilasi Tindak Lanjut',
+                                            $kompilasiTindakLanjut?->dokumen ? asset('storage/' . $kompilasiTindakLanjut->dokumen) : null,
+                                        ),
+                                    ]) }}
                                 </td>
                             @elseif ($field === 'jatuh_tempo')
-                                <td>
-                                    Jatuh tempo awal:
-                                    {{ $jatuhTempoAwal ? $jatuhTempoAwal->format('d-M-Y') : '-' }}
-
-                                    @if ($kompilasiTanggapan?->ubah_tgl)
-                                        Pengajuan ubah tanggal:
-                                        {{ \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl)->format('d-M-Y') }}
-
-                                        Status:
-                                        {{ ucwords(str_replace('_', ' ', $kompilasiTanggapan->status_pengajuan_tgl ?? 'pending')) }}
-                                    @endif
-
-                                    Jatuh tempo final:
-                                    {{ $jatuhTempoFinal ? $jatuhTempoFinal->format('d-M-Y') : '-' }}
+                                <td class="pre-line">
+                                    {{ $joinReportSections([
+                                        $reportSection('Jatuh tempo awal', $jatuhTempoAwal ? $jatuhTempoAwal->format('d-M-Y') : null),
+                                        $kompilasiTanggapan?->ubah_tgl
+                                            ? $reportSection(
+                                                'Pengajuan ubah tanggal',
+                                                \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl)->format('d-M-Y'),
+                                            )
+                                            : null,
+                                        $kompilasiTanggapan?->ubah_tgl
+                                            ? $reportSection(
+                                                'Status pengajuan',
+                                                ucwords(str_replace('_', ' ', $kompilasiTanggapan->status_pengajuan_tgl ?? 'pending')),
+                                            )
+                                            : null,
+                                        $reportSection('Jatuh tempo final', $jatuhTempoFinal ? $jatuhTempoFinal->format('d-M-Y') : null),
+                                    ]) }}
                                 </td>
                             @elseif ($field === 'komite')
                                 <td>{{ $komitePic?->komite?->kode_komite ?? '-' }}</td>
                             @elseif ($field === 'hasil_reviu')
-                                <td>
-                                    Reviu Tanggapan:
-                                    {{ $reviewTanggapan?->hasil_review ?? '-' }}
-
-                                    Reviu Tindak Lanjut:
-                                    {{ $reviewTl?->hasil_review ?? '-' }}
+                                <td class="pre-line">
+                                    {{ $joinReportSections([
+                                        $reportSection('Reviu Tanggapan', $reviewTanggapan?->hasil_review),
+                                        $reportSection('Reviu Tindak Lanjut', $reviewTl?->hasil_review),
+                                    ]) }}
                                 </td>
                             @elseif ($field === 'status')
                                 <td>{{ ucwords(str_replace('_', ' ', $status)) }}</td>

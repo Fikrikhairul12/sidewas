@@ -10,47 +10,59 @@ return new class extends Migration
 
     public function up(): void
     {
+        Schema::connection($this->connectionName)->create('tb_jenis_peraturan', function (Blueprint $table) {
+            $table->id();
+            $table->string('nama')->unique();
+            $table->string('singkatan', 50)->nullable();
+            $table->unsignedSmallInteger('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+
+            $table->index('urutan');
+            $table->index('is_active');
+        });
+
         Schema::connection($this->connectionName)->create('tb_produk_hukum', function (Blueprint $table) {
             $table->id();
 
             $table->string('kode_produk_hukum', 80)->unique();
-            $table->string('tipe_dokumen')->nullable();
             $table->text('judul');
-            $table->string('nomor_peraturan')->nullable();
+            $table->string('nomor_peraturan_keputusan')->nullable();
             $table->year('tahun_peraturan')->nullable();
             $table->string('jenis_bentuk_peraturan')->nullable();
             $table->string('singkatan_peraturan', 50)->nullable();
-            $table->string('tempat_penetapan')->nullable();
             $table->date('tanggal_penetapan')->nullable();
             $table->date('tanggal_diundangkan')->nullable();
-            $table->string('sumber_ln')->nullable();
-            $table->string('sumber_tln')->nullable();
+            $table->string('sumber_ln_tbn')->nullable();
+            $table->string('sumber_tln_tbn')->nullable();
             $table->text('subjek')->nullable();
-            $table->string('bahasa')->default('Indonesia');
-            $table->string('lokasi')->nullable();
-            $table->string('bidang_hukum')->nullable();
+            $table->string('bidang_pengaturan')->nullable();
             $table->text('abstrak')->nullable();
-            $table->string('status_peraturan')->nullable();
+            $table->text('keterangan')->nullable();
+            $table->text('muatan_substansial')->nullable();
+            $table->enum('status_peraturan', ['draft', 'berlaku', 'tidak_berlaku'])->default('draft');
             $table->enum('sifat_dokumen', ['publik', 'rahasia'])->default('publik');
-            $table->enum('status_publish', ['draft', 'berlaku', 'tidak_berlaku'])->default('draft');
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
 
             $table->timestamps();
 
             $table->index('kode_produk_hukum');
-            $table->index('nomor_peraturan');
+            $table->index('nomor_peraturan_keputusan');
             $table->index('tahun_peraturan');
+            $table->index('jenis_bentuk_peraturan');
+            $table->index('bidang_pengaturan');
             $table->index('status_peraturan');
             $table->index('sifat_dokumen');
-            $table->index('status_publish');
         });
 
         Schema::connection($this->connectionName)->create('tb_produk_hukum_file', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('produk_hukum_id');
-            $table->string('nama_file');
-            $table->text('path_file');
+            $table->enum('bentuk_file', ['file', 'link'])->default('file');
+            $table->string('nama_file')->nullable();
+            $table->text('path_file')->nullable();
+            $table->text('link_file')->nullable();
             $table->string('mime_type')->nullable();
             $table->unsignedBigInteger('ukuran_file')->nullable();
             $table->string('jenis_file')->nullable();
@@ -59,6 +71,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('produk_hukum_id');
+            $table->index('bentuk_file');
             $table->index('jenis_file');
 
             $table->foreign('produk_hukum_id')
@@ -79,7 +92,7 @@ return new class extends Migration
                 'terkait',
             ]);
             $table->unsignedBigInteger('produk_hukum_terkait_id')->nullable();
-            $table->string('nomor_peraturan_terkait')->nullable();
+            $table->string('nomor_produk_hukum_terkait')->nullable();
             $table->text('judul_terkait')->nullable();
             $table->text('keterangan')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
@@ -112,5 +125,6 @@ return new class extends Migration
         Schema::connection($this->connectionName)->dropIfExists('tb_produk_hukum_relasi');
         Schema::connection($this->connectionName)->dropIfExists('tb_produk_hukum_file');
         Schema::connection($this->connectionName)->dropIfExists('tb_produk_hukum');
+        Schema::connection($this->connectionName)->dropIfExists('tb_jenis_peraturan');
     }
 };

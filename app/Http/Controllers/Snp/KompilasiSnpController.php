@@ -204,6 +204,7 @@ class KompilasiSnpController extends Controller
             'belum_dikompilasi' => 'Belum Dikompilasi',
             'dalam_proses_reviu_dewas' => 'Dalam Proses Reviu Dewas',
         ];
+        $canCreateKompilasi = $user->canCreateSnpKompilasi();
 
         return view('layouts.snp.kompilasi', compact(
             'kompilasiItems',
@@ -211,7 +212,8 @@ class KompilasiSnpController extends Controller
             'direktorats',
             'unitKerjas',
             'komites',
-            'statusOptions'
+            'statusOptions',
+            'canCreateKompilasi'
         ));
     }
 
@@ -219,7 +221,7 @@ class KompilasiSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpKompilasi()) {
+        if (!$user || !$user->canCreateSnpKompilasi()) {
             abort(403, 'Anda tidak memiliki akses untuk melakukan kompilasi SNP.');
         }
 

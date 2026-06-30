@@ -81,6 +81,9 @@ test('snp custom report labels are readable and repeated unit entries are separa
         ->toContain('.entry-block')
         ->toContain('class="entry-block"')
         ->toContain('class="entry-title"')
+        ->toContain('$butir->kompilasis->where(\'tahap_kompilasi\', \'tanggapan\')->sortByDesc(\'id\')->first();')
+        ->toContain('$normalizeReportText')
+        ->toContain('$joinReportSections')
         ->toContain('$tanggapan->butirPic?->unitKerja?->nama_unit')
         ->toContain('$tl->butirPic?->unitKerja?->nama_unit');
 

@@ -397,6 +397,43 @@
                                         ->values()
                                         ->all(),
                                 ];
+                                $editRecordPayload = [
+                                    'id' => $record->id,
+                                    'id_snp' => $record->id_snp,
+                                    'nomor_surat' => $record->nomor_surat,
+                                    'tanggal_surat' => optional($record->tanggal_surat)->format('Y-m-d'),
+                                    'perihal_surat' => $record->perihal_surat,
+                                    'cluster_id' => $record->cluster_id,
+                                    'sub_cluster_id' => $record->sub_cluster_id,
+                                    'status' => $record->status,
+                                    'butirs' => $record->butirSnp
+                                        ->map(function ($butir) {
+                                            $picUtama = $butir->butirPics
+                                                ->where('jenis_pic', 'utama')
+                                                ->first();
+                                            $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
+                                            $komite = $butir->butirPics
+                                                ->where('jenis_pic', 'komite')
+                                                ->first();
+
+                                            return [
+                                                'id' => $butir->id,
+                                                'id_butir_snp' => $butir->id_butir_snp,
+                                                'butir_snp' => $butir->butir_snp,
+                                                'status' => $butir->status,
+                                                'pic_utama_id' => $picUtama?->unit_kerja_id,
+                                                'pic_utama_direktorat_id' => $picUtama?->unitKerja?->direktorat_id,
+                                                'pic_pendukung_ids' => $picPendukung
+                                                    ->pluck('unit_kerja_id')
+                                                    ->filter()
+                                                    ->values()
+                                                    ->all(),
+                                                'komite_id' => $komite?->komite_id,
+                                            ];
+                                        })
+                                        ->values()
+                                        ->all(),
+                                ];
                             @endphp
                             <tr class="border-b border-slate-200 transition hover:bg-blue-50/40">
                                 {{-- Informasi Surat --}}
@@ -665,11 +702,11 @@
                                             Detail
                                         </button>
 
-                                        <a href="#"
+                                        <button type="button" @click="openEditModalFor(@js($editRecordPayload))"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
                                             style="background-color: #2377b9;">
                                             Edit
-                                        </a>
+                                        </button>
 
                                         @if (auth()->user()->canRequestDeleteSnpPerekaman())
                                             <form method="POST"
@@ -717,6 +754,297 @@
                 </p>
 
                 @include('layouts.partials.compact-pagination', ['paginator' => $records])
+            </div>
+        </div>
+
+        {{-- Modal Edit Perekaman --}}
+        <div x-show="openEditModal" x-transition.opacity
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openEditModal = false" x-transition
+                class="w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
+                            Form Edit Perekaman SNP
+                        </p>
+                        <h2 class="mt-1 text-2xl font-bold text-slate-800">
+                            <span x-text="editRecord?.id_snp"></span>
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            Admin dan moderator akan masuk alur pengajuan. Super Admin langsung memperbarui data.
+                        </p>
+                    </div>
+
+                    <button type="button" @click="openEditModal = false"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        ×
+                    </button>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" :action="`/snp/perekaman/${editRecord?.id}`"
+                    class="px-6 py-6">
+                    @csrf
+                    @method('PATCH')
+
+                    <template x-if="editRecord && selectedEditButir">
+                        <div class="grid gap-5 lg:grid-cols-2">
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                    Tanggal Surat
+                                </label>
+
+                                <input type="date" name="tanggal_surat" x-model="editRecord.tanggal_surat" required
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                    Status Surat
+                                </label>
+
+                                <select name="status" x-model="editRecord.status" required
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="draft">Draft</option>
+                                    <option value="dalam_proses">Dalam Proses</option>
+                                    <option value="tuntas">Tuntas</option>
+                                </select>
+                            </div>
+
+                            <div class="lg:col-span-2">
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                    Perihal Surat
+                                </label>
+
+                                <textarea name="perihal_surat" x-model="editRecord.perihal_surat" rows="3" required
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                    Cluster
+                                </label>
+
+                                <select name="cluster_id" x-model="editClusterId" @change="editSubClusterId = ''" required
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="">Pilih Cluster</option>
+                                    @foreach ($clusters as $cluster)
+                                        <option value="{{ $cluster->id }}">
+                                            {{ $cluster->nama_cluster }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                    Sub-Cluster
+                                </label>
+
+                                <select name="sub_cluster_id" x-model="editSubClusterId" required
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="">Pilih Sub-Cluster</option>
+                                    <template x-for="subCluster in filteredEditSubClusters" :key="subCluster.id">
+                                        <option :value="String(subCluster.id)" x-text="subCluster.nama_sub_cluster"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                    Dokumen Surat
+                                </label>
+
+                                <input type="file" name="dokumen"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200">
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Kosongkan jika tidak ingin mengganti dokumen.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                    Dokumen Memo
+                                </label>
+
+                                <input type="file" name="dokumen_memo"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200">
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Kosongkan jika tidak ingin mengganti memo.
+                                </p>
+                            </div>
+
+                            <div class="lg:col-span-2">
+                                <div class="rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                                    <div class="grid gap-4 lg:grid-cols-2">
+                                        <div>
+                                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                                Butir SNP
+                                            </label>
+
+                                            <select name="butir_id" x-model="selectedEditButirId" @change="syncEditButirPic()"
+                                                required
+                                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <template x-for="butir in editButirs" :key="butir.id">
+                                                    <option :value="String(butir.id)" x-text="butir.id_butir_snp"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                                Status Butir
+                                            </label>
+
+                                            <select name="butir_status" x-model="selectedEditButir.status" required
+                                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <option value="terbit">Terbit</option>
+                                                <option value="dalam_proses">Dalam Proses</option>
+                                                <option value="diusulkan_tuntas">Diusulkan Tuntas</option>
+                                                <option value="selesai_tuntas">Selesai Tuntas</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="lg:col-span-2">
+                                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                                Isi Butir
+                                            </label>
+
+                                            <textarea name="butir_snp" x-model="selectedEditButir.butir_snp" rows="4" required
+                                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                        </div>
+
+                                        <div>
+                                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                                Direktorat Butir
+                                            </label>
+
+                                            <select x-model="editDirektoratUtamaId"
+                                                @change="selectedEditButir.pic_utama_id = ''" required
+                                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <option value="">Pilih Direktorat</option>
+                                                @foreach ($direktorats as $direktorat)
+                                                    <option value="{{ $direktorat->id }}">
+                                                        {{ $direktorat->nama_direktorat }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                                PIC Utama
+                                            </label>
+
+                                            <select name="unit_kerja_utama_id" x-model="selectedEditButir.pic_utama_id"
+                                                required
+                                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <option value="">Pilih PIC Utama</option>
+                                                <template x-for="unit in filteredEditUnitKerjaUtama" :key="unit.id">
+                                                    <option :value="String(unit.id)"
+                                                        x-text="`${unit.kode_unit ?? '-'} - ${unit.nama_unit}`"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+
+                                        <div class="lg:col-span-2">
+                                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                                PIC Pendukung
+                                            </label>
+
+                                            <div class="rounded-xl border border-slate-300 bg-white">
+                                                <div class="border-b border-slate-200 p-3">
+                                                    <input type="text" x-model="editPicPendukungSearch"
+                                                        placeholder="Cari kode/nama unit kerja..."
+                                                        class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                </div>
+
+                                                <div x-show="selectedEditPicPendukungDetail.length > 0"
+                                                    class="border-b border-slate-200 bg-slate-50 p-3">
+                                                    <p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                        PIC Pendukung Terpilih
+                                                    </p>
+
+                                                    <div class="flex flex-wrap gap-2">
+                                                        <template x-for="unit in selectedEditPicPendukungDetail"
+                                                            :key="unit.id">
+                                                            <span
+                                                                class="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                                                                <span
+                                                                    x-text="`${unit.kode_unit ?? '-'} - ${unit.nama_unit}`"></span>
+
+                                                                <button type="button" @click="removeEditPicPendukung(unit.id)"
+                                                                    class="text-blue-500 hover:text-red-500">
+                                                                    ×
+                                                                </button>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+
+                                                <div class="max-h-56 overflow-y-auto p-3">
+                                                    <template x-for="unit in filteredEditAllUnitKerjaPendukung"
+                                                        :key="unit.id">
+                                                        <label
+                                                            class="mb-2 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm hover:bg-blue-50">
+                                                            <input type="checkbox" :value="String(unit.id)"
+                                                                x-model="selectedEditPicPendukung"
+                                                                class="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+
+                                                            <span>
+                                                                <span class="font-bold text-slate-700"
+                                                                    x-text="`${unit.kode_unit ?? '-'} - ${unit.nama_unit}`"></span>
+                                                                <br>
+                                                                <span class="text-xs text-slate-500"
+                                                                    x-text="unit.direktorat_nama ?? '-'"></span>
+                                                            </span>
+                                                        </label>
+                                                    </template>
+                                                </div>
+
+                                                <template x-for="unitId in selectedEditPicPendukung"
+                                                    :key="`edit-pic-pendukung-${unitId}`">
+                                                    <input type="hidden" name="unit_kerja_pendukung_id[]"
+                                                        :value="unitId">
+                                                </template>
+                                            </div>
+                                        </div>
+
+                                        <div class="lg:col-span-2">
+                                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                                Komite Dewas
+                                            </label>
+
+                                            <select name="komite_id" x-model="selectedEditButir.komite_id" required
+                                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <option value="">Pilih Komite</option>
+                                                @foreach ($komites as $komite)
+                                                    <option value="{{ $komite->id }}">
+                                                        {{ $komite->kode_komite }} - {{ $komite->nama_komite }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="mt-8 flex justify-end gap-3 border-t border-slate-100 pt-5">
+                        <button type="button" @click="openEditModal = false"
+                            class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            Batal
+                        </button>
+
+                        <button type="submit"
+                            class="rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+                            style="background-color: #2377b9;">
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 

@@ -17,7 +17,7 @@ class ProdukHukumRelasi extends Model
         'produk_hukum_id',
         'jenis_relasi',
         'produk_hukum_terkait_id',
-        'nomor_peraturan_terkait',
+        'nomor_produk_hukum_terkait',
         'judul_terkait',
         'keterangan',
         'created_by',

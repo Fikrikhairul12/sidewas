@@ -58,8 +58,8 @@ test('djsn perekaman validates cluster on butir form only', function () {
         ->toContain("'cluster_id' => \$validated['cluster_id']")
         ->toContain("'sub_cluster_id' => \$validated['sub_cluster_id']");
 
-    expect(substr_count($view, 'name="cluster_id"'))->toBe(2)
-        ->and(substr_count($view, 'name="sub_cluster_id"'))->toBe(2)
+    expect(substr_count($view, 'name="cluster_id"'))->toBe(3)
+        ->and(substr_count($view, 'name="sub_cluster_id"'))->toBe(3)
         ->and($view)->toContain('Tambah Butir Rekomendasi DJSN')
         ->and($view)->toContain('x-model="selectedSubClusterId"');
 

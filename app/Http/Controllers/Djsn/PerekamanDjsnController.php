@@ -10,9 +10,11 @@ use App\Models\DjsnButir;
 use App\Models\DjsnButirPic;
 use App\Models\DjsnCluster;
 use App\Models\DjsnRecord;
+use App\Models\DjsnSubCluster;
 use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -447,5 +449,234 @@ class PerekamanDjsnController extends Controller
         }
 
         return response()->download($filePath);
+    }
+
+    public function update(Request $request, DjsnRecord $record)
+    {
+        $user = User::find(Auth::id());
+
+        if (!$user || !$user->canCreateDjsnPerekaman()) {
+            abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman DJSN.');
+        }
+
+        $validated = $request->validate([
+            'nomor_surat' => ['required', 'string'],
+            'tanggal_surat' => ['required', 'date'],
+            'perihal_surat' => ['required', 'string'],
+            'status' => ['required', 'string', 'in:draft,dalam_proses,tuntas'],
+            'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+
+            'butir_id' => ['required', 'integer', 'exists:mysql_djsn.tb_butir_djsn,id'],
+            'butir_djsn' => ['required', 'string'],
+            'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id'],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id'],
+            'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'unit_kerja_pendukung_id' => ['nullable', 'array'],
+            'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'komite_id' => ['required', 'integer', 'exists:mysql.tb_komite,id'],
+        ]);
+
+        $subClusterBelongsToCluster = DjsnSubCluster::where('id', $validated['sub_cluster_id'])
+            ->where('cluster_id', $validated['cluster_id'])
+            ->exists();
+
+        if (! $subClusterBelongsToCluster) {
+            return back()->withInput()->withErrors([
+                'sub_cluster_id' => 'Sub-cluster tidak sesuai dengan cluster yang dipilih.',
+            ]);
+        }
+
+        $butir = $record->butirDjsn()->where('id', $validated['butir_id'])->firstOrFail();
+
+        if (! $user->isSuperAdmin()) {
+            $existingRequest = DeleteRequest::where('type_code', 'djsn')
+                ->where('table_name', 'tb_record')
+                ->where('record_key', $record->id_djsn)
+                ->where('reason', 'like', '%"action":"update_djsn_perekaman"%')
+                ->whereIn('status', ['pending_admin_verification', 'pending_super_admin_approval'])
+                ->first();
+
+            if ($existingRequest) {
+                return redirect()->route('djsn.perekaman')->with('error', 'Pengajuan untuk data ini masih menunggu proses approval.');
+            }
+        }
+
+        $payload = $this->buildDjsnPerekamanUpdatePayload($request, $validated, $butir);
+
+        if ($user->isSuperAdmin()) {
+            $this->applyDjsnPerekamanUpdate($record, $payload, $user, $request);
+
+            return redirect()->route('djsn.perekaman')->with('success', 'Perekaman DJSN berhasil diperbarui.');
+        }
+
+        $status = $user->isDjsnModerator() ? 'pending_admin_verification' : 'pending_super_admin_approval';
+
+        DeleteRequest::create([
+            'type_code' => 'djsn',
+            'database_name' => 'sidewas_djsn',
+            'table_name' => 'tb_record',
+            'record_key' => $record->id_djsn,
+            'record_label' => $record->id_djsn . ' - ' . $record->nomor_surat,
+            'reason' => json_encode([
+                'action' => 'update_djsn_perekaman',
+                'payload' => $payload,
+            ]),
+            'requested_by' => $user->id,
+            'status' => $status,
+            'requested_at' => now(),
+        ]);
+
+        LogActivity::create([
+            'user_id' => $user->id,
+            'type_code' => 'djsn',
+            'database_name' => 'sidewas_djsn',
+            'table_name' => 'tb_record',
+            'record_key' => $record->id_djsn,
+            'action' => 'request_update',
+            'description' => 'User mengajukan edit perekaman DJSN.',
+            'old_values' => $record->load(['butirDjsn.butirPics'])->toArray(),
+            'new_values' => [
+                'status_request' => $status,
+                'payload' => $payload,
+            ],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()->route('djsn.perekaman')->with('success', 'Pengajuan edit berhasil dikirim.');
+    }
+
+    private function buildDjsnPerekamanUpdatePayload(Request $request, array $validated, DjsnButir $butir): array
+    {
+        $payload = [
+            'record' => [
+                'nomor_surat' => $validated['nomor_surat'],
+                'tanggal_surat' => $validated['tanggal_surat'],
+                'perihal_surat' => $validated['perihal_surat'],
+                'status' => $validated['status'],
+            ],
+            'butir' => [
+                'id' => (int) $butir->id,
+                'id_butir_djsn' => $butir->id_butir_djsn,
+                'butir_djsn' => $validated['butir_djsn'],
+                'status' => $validated['butir_status'],
+                'cluster_id' => (int) $validated['cluster_id'],
+                'sub_cluster_id' => (int) $validated['sub_cluster_id'],
+                'unit_kerja_utama_id' => (int) $validated['unit_kerja_utama_id'],
+                'unit_kerja_pendukung_ids' => collect($validated['unit_kerja_pendukung_id'] ?? [])
+                    ->filter()
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all(),
+                'komite_id' => (int) $validated['komite_id'],
+            ],
+            'files' => [],
+        ];
+
+        if ($request->hasFile('dokumen')) {
+            $payload['files']['dokumen'] = [
+                'path' => $request->file('dokumen')->store('dokumen/pending-edit-djsn', 'public'),
+                'original_name' => $request->file('dokumen')->getClientOriginalName(),
+            ];
+        }
+
+        return $payload;
+    }
+
+    public function applyDjsnPerekamanUpdate(DjsnRecord $record, array $payload, User $user, Request $request): void
+    {
+        DB::connection('mysql_djsn')->transaction(function () use ($record, $payload, $user, $request) {
+            $oldValues = $record->load(['butirDjsn.butirPics'])->toArray();
+            $recordPayload = $payload['record'] ?? [];
+            $butirPayload = $payload['butir'] ?? [];
+            $filePayload = $payload['files'] ?? [];
+
+            $recordUpdates = [
+                'nomor_surat' => $recordPayload['nomor_surat'] ?? $record->nomor_surat,
+                'tanggal_surat' => $recordPayload['tanggal_surat'] ?? $record->tanggal_surat,
+                'perihal_surat' => $recordPayload['perihal_surat'] ?? $record->perihal_surat,
+                'status' => $recordPayload['status'] ?? $record->status,
+                'updated_by' => $user->id,
+            ];
+
+            if (!empty($recordUpdates['tanggal_surat'])) {
+                $recordUpdates['jth_tempo'] = Carbon::parse($recordUpdates['tanggal_surat'])->addDays(30);
+            }
+
+            if (!empty($filePayload['dokumen']['path'])) {
+                if ($record->dokumen && Storage::disk('public')->exists($record->dokumen)) {
+                    Storage::disk('public')->delete($record->dokumen);
+                }
+
+                $recordUpdates['dokumen'] = $filePayload['dokumen']['path'];
+            }
+
+            $record->update($recordUpdates);
+
+            if (!empty($butirPayload['id'])) {
+                $butir = $record->butirDjsn()->where('id', (int) $butirPayload['id'])->firstOrFail();
+
+                $butir->update([
+                    'butir_djsn' => $butirPayload['butir_djsn'],
+                    'cluster_id' => $butirPayload['cluster_id'],
+                    'sub_cluster_id' => $butirPayload['sub_cluster_id'],
+                    'status' => $butirPayload['status'],
+                    'updated_by' => $user->id,
+                ]);
+
+                $butir->butirPics()->delete();
+
+                DjsnButirPic::create([
+                    'id_butir_djsn' => $butir->id_butir_djsn,
+                    'unit_kerja_id' => (int) $butirPayload['unit_kerja_utama_id'],
+                    'komite_id' => null,
+                    'jenis_pic' => 'utama',
+                    'created_by' => $user->id,
+                    'updated_by' => $user->id,
+                ]);
+
+                foreach (($butirPayload['unit_kerja_pendukung_ids'] ?? []) as $unitKerjaPendukungId) {
+                    if ((int) $unitKerjaPendukungId === (int) $butirPayload['unit_kerja_utama_id']) {
+                        continue;
+                    }
+
+                    DjsnButirPic::create([
+                        'id_butir_djsn' => $butir->id_butir_djsn,
+                        'unit_kerja_id' => (int) $unitKerjaPendukungId,
+                        'komite_id' => null,
+                        'jenis_pic' => 'pendukung',
+                        'created_by' => $user->id,
+                        'updated_by' => $user->id,
+                    ]);
+                }
+
+                DjsnButirPic::create([
+                    'id_butir_djsn' => $butir->id_butir_djsn,
+                    'unit_kerja_id' => null,
+                    'komite_id' => (int) $butirPayload['komite_id'],
+                    'jenis_pic' => 'komite',
+                    'created_by' => $user->id,
+                    'updated_by' => $user->id,
+                ]);
+            }
+
+            $record->refresh()->syncStatusFromButir($user->id);
+
+            LogActivity::create([
+                'user_id' => $user->id,
+                'type_code' => 'djsn',
+                'database_name' => 'sidewas_djsn',
+                'table_name' => 'tb_record',
+                'record_key' => $record->id_djsn,
+                'action' => 'update',
+                'description' => 'User memperbarui perekaman DJSN.',
+                'old_values' => $oldValues,
+                'new_values' => $record->fresh()->load(['butirDjsn.butirPics'])->toArray(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        });
     }
 }

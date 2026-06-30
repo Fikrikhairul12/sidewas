@@ -3,6 +3,12 @@
 namespace App\Http\Controllers\Administrasi;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Djsn\PerekamanDjsnController;
+use App\Http\Controllers\Eksternal\PerekamanEksternalController;
+use App\Http\Controllers\ProdukHukum\ProdukHukumController;
+use App\Http\Controllers\Ragab\PerekamanRagabController;
+use App\Http\Controllers\Rawas\PerekamanRawasController;
+use App\Http\Controllers\Snp\PerekamanSnpController;
 use App\Models\DeleteRequest;
 use App\Models\DjsnRecord;
 use App\Models\EksternalRecord;
@@ -100,9 +106,35 @@ class PengajuanController extends Controller
         }
 
         if ($deleteRequest->type_code === 'produk_hukum' && $deleteRequest->table_name === 'tb_produk_hukum') {
-            $this->approveProdukHukumRequest($deleteRequest, $user);
+            $message = $this->approveProdukHukumRequest($deleteRequest, $user);
 
-            return back()->with('success', 'Pengajuan disetujui dan akses Produk Hukum berhasil diberikan.');
+            return back()->with('success', $message);
+        }
+
+        $requestPayload = json_decode($deleteRequest->reason ?? '', true);
+
+        if (
+            $deleteRequest->type_code === 'snp'
+            && $deleteRequest->table_name === 'tb_record'
+            && ($requestPayload['action'] ?? null) === 'update_snp_perekaman'
+        ) {
+            $this->approveSnpPerekamanUpdateRequest($deleteRequest, $user, $requestPayload);
+
+            return back()->with('success', 'Pengajuan disetujui dan perekaman SNP berhasil diperbarui.');
+        }
+
+        if (
+            $deleteRequest->table_name === 'tb_record'
+            && in_array($requestPayload['action'] ?? null, [
+                'update_ragab_perekaman',
+                'update_rawas_perekaman',
+                'update_djsn_perekaman',
+                'update_eksternal_perekaman',
+            ], true)
+        ) {
+            $this->approvePerekamanUpdateRequest($deleteRequest, $user, $requestPayload);
+
+            return back()->with('success', 'Pengajuan disetujui dan perekaman berhasil diperbarui.');
         }
 
         if ($deleteRequest->table_name !== 'tb_record') {
@@ -214,6 +246,135 @@ class PengajuanController extends Controller
         });
 
         return true;
+    }
+
+    private function approveSnpPerekamanUpdateRequest(DeleteRequest $deleteRequest, User $user, array $requestPayload): void
+    {
+        $payload = $requestPayload['payload'] ?? null;
+
+        if (! is_array($payload)) {
+            throw ValidationException::withMessages([
+                'pengajuan' => 'Payload pengajuan edit perekaman SNP tidak valid.',
+            ]);
+        }
+
+        $record = SnpRecord::where('id_snp', $deleteRequest->record_key)->firstOrFail();
+
+        app(PerekamanSnpController::class)->applySnpPerekamanUpdate($record, $payload, $user, request());
+
+        $deleteRequest->update([
+            'status' => 'approved',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        LogActivity::create([
+            'user_id' => $user->id,
+            'type_code' => 'snp',
+            'database_name' => 'sidewas_snp',
+            'table_name' => 'tb_delete_requests',
+            'record_key' => $deleteRequest->record_key,
+            'action' => 'approve_update_snp_perekaman_request',
+            'description' => 'Super Admin menyetujui pengajuan edit perekaman SNP.',
+            'old_values' => [
+                'request' => $deleteRequest->getOriginal(),
+            ],
+            'new_values' => [
+                'request' => $deleteRequest->fresh()->toArray(),
+                'payload' => $payload,
+            ],
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+    }
+
+    private function approvePerekamanUpdateRequest(DeleteRequest $deleteRequest, User $user, array $requestPayload): void
+    {
+        $payload = $requestPayload['payload'] ?? null;
+
+        if (! is_array($payload)) {
+            throw ValidationException::withMessages([
+                'pengajuan' => 'Payload pengajuan edit perekaman tidak valid.',
+            ]);
+        }
+
+        $configs = [
+            'ragab' => [
+                'model' => RagabRecord::class,
+                'key' => 'id_ragab',
+                'controller' => PerekamanRagabController::class,
+                'method' => 'applyRagabPerekamanUpdate',
+                'database' => 'sidewas_ragab',
+                'label' => 'RAGAB',
+                'action' => 'update_ragab_perekaman',
+            ],
+            'rawas' => [
+                'model' => RawasRecord::class,
+                'key' => 'id_rawas',
+                'controller' => PerekamanRawasController::class,
+                'method' => 'applyRawasPerekamanUpdate',
+                'database' => 'sidewas_rawas',
+                'label' => 'RAWAS',
+                'action' => 'update_rawas_perekaman',
+            ],
+            'djsn' => [
+                'model' => DjsnRecord::class,
+                'key' => 'id_djsn',
+                'controller' => PerekamanDjsnController::class,
+                'method' => 'applyDjsnPerekamanUpdate',
+                'database' => 'sidewas_djsn',
+                'label' => 'DJSN',
+                'action' => 'update_djsn_perekaman',
+            ],
+            'eksternal' => [
+                'model' => EksternalRecord::class,
+                'key' => 'id_eksternal',
+                'controller' => PerekamanEksternalController::class,
+                'method' => 'applyEksternalPerekamanUpdate',
+                'database' => 'sidewas_eksternal',
+                'label' => 'Rapat Eksternal',
+                'action' => 'update_eksternal_perekaman',
+            ],
+        ];
+
+        $config = $configs[$deleteRequest->type_code] ?? null;
+
+        if (! $config || ($requestPayload['action'] ?? null) !== $config['action']) {
+            throw ValidationException::withMessages([
+                'pengajuan' => 'Jenis pengajuan edit perekaman tidak valid.',
+            ]);
+        }
+
+        /** @var class-string<\Illuminate\Database\Eloquent\Model> $modelClass */
+        $modelClass = $config['model'];
+        $record = $modelClass::where($config['key'], $deleteRequest->record_key)->firstOrFail();
+
+        app($config['controller'])->{$config['method']}($record, $payload, $user, request());
+
+        $deleteRequest->update([
+            'status' => 'approved',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        LogActivity::create([
+            'user_id' => $user->id,
+            'type_code' => $deleteRequest->type_code,
+            'database_name' => $config['database'],
+            'table_name' => 'tb_delete_requests',
+            'record_key' => $deleteRequest->record_key,
+            'action' => 'approve_update_perekaman_request',
+            'description' => 'Super Admin menyetujui pengajuan edit perekaman ' . $config['label'] . '.',
+            'old_values' => [
+                'request' => $deleteRequest->getOriginal(),
+            ],
+            'new_values' => [
+                'request' => $deleteRequest->fresh()->toArray(),
+                'payload' => $payload,
+            ],
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
     }
 
     private function approveUserRequest(DeleteRequest $deleteRequest, User $user): void
@@ -362,14 +523,23 @@ class PengajuanController extends Controller
         });
     }
 
-    private function approveProdukHukumRequest(DeleteRequest $deleteRequest, User $user): void
+    private function approveProdukHukumRequest(DeleteRequest $deleteRequest, User $user): string
     {
         $requestPayload = json_decode($deleteRequest->reason ?? '', true);
+        $action = $requestPayload['action'] ?? null;
 
-        if (($requestPayload['action'] ?? null) !== 'view_produk_hukum') {
+        if (! in_array($action, ['view_produk_hukum', 'delete_produk_hukum'], true)) {
             throw ValidationException::withMessages([
                 'pengajuan' => 'Jenis pengajuan Produk Hukum tidak valid.',
             ]);
+        }
+
+        if ($action === 'delete_produk_hukum') {
+            $produkHukum = ProdukHukum::where('id', (int) $deleteRequest->record_key)->firstOrFail();
+
+            app(ProdukHukumController::class)->deleteProdukHukumData($produkHukum, $user, request(), $deleteRequest);
+
+            return 'Pengajuan disetujui dan Produk Hukum berhasil dihapus.';
         }
 
         DB::transaction(function () use ($deleteRequest, $requestPayload, $user) {
@@ -403,6 +573,8 @@ class PengajuanController extends Controller
                 'user_agent' => request()->userAgent(),
             ]);
         });
+
+        return 'Pengajuan disetujui dan akses Produk Hukum berhasil diberikan.';
     }
 
     public function reject(Request $request, DeleteRequest $deleteRequest)

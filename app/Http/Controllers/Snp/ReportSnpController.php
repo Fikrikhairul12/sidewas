@@ -227,6 +227,7 @@ class ReportSnpController extends Controller
             'butirSnp.tindakLanjuts.butirPic.unitKerja',
 
             // hasil kompilasi
+            'butirSnp.kompilasis',
             'butirSnp.kompilasiTanggapan',
             'butirSnp.kompilasiTindakLanjut',
             'butirSnp.kompilasiTindakLanjuts',

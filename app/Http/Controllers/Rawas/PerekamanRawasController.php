@@ -11,8 +11,10 @@ use App\Models\RawasButir;
 use App\Models\RawasButirPic;
 use App\Models\RawasCluster;
 use App\Models\RawasRecord;
+use App\Models\RawasSubCluster;
 use App\Models\UnitKerja;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -280,6 +282,216 @@ class PerekamanRawasController extends Controller
     public function downloadDokumen(RawasRecord $record)
     {
         return $this->downloadDokumenMemo($record);
+    }
+
+    public function update(Request $request, RawasRecord $record)
+    {
+        $user = User::find(Auth::id());
+
+        if (!$user || !$user->canCreateRawasPerekaman()) {
+            abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman RAWAS.');
+        }
+
+        $validated = $request->validate([
+            'nomor_surat' => ['required', 'string'],
+            'tanggal_surat' => ['required', 'date'],
+            'perihal_surat' => ['required', 'string'],
+            'status' => ['required', 'string', 'in:draft,dalam_proses,tuntas'],
+            'dokumen_memo' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+
+            'butir_id' => ['required', 'integer', 'exists:mysql_rawas.tb_butir_rawas,id'],
+            'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_cluster,id'],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_sub_cluster,id'],
+            'tanggal_rawas' => ['required', 'date'],
+            'agenda_rawas' => ['required', 'string'],
+            'keputusan_rawas' => ['required', 'string'],
+            'pic_ids' => ['required', 'array', 'min:1'],
+            'pic_ids.*' => ['required', 'string'],
+        ]);
+
+        $subClusterBelongsToCluster = RawasSubCluster::where('id', $validated['sub_cluster_id'])
+            ->where('cluster_id', $validated['cluster_id'])
+            ->exists();
+
+        if (! $subClusterBelongsToCluster) {
+            return back()->withInput()->withErrors([
+                'sub_cluster_id' => 'Sub-cluster tidak sesuai dengan cluster yang dipilih.',
+            ]);
+        }
+
+        $butir = $record->butirRawas()->where('id', $validated['butir_id'])->firstOrFail();
+
+        if (! $user->isSuperAdmin()) {
+            $existingRequest = DeleteRequest::where('type_code', 'rawas')
+                ->where('table_name', 'tb_record')
+                ->where('record_key', $record->id_rawas)
+                ->where('reason', 'like', '%"action":"update_rawas_perekaman"%')
+                ->whereIn('status', ['pending_admin_verification', 'pending_super_admin_approval'])
+                ->first();
+
+            if ($existingRequest) {
+                return redirect()->route('rawas.perekaman')->with('error', 'Pengajuan untuk data ini masih menunggu proses approval.');
+            }
+        }
+
+        $payload = $this->buildRawasPerekamanUpdatePayload($request, $validated, $butir);
+
+        if ($user->isSuperAdmin()) {
+            $this->applyRawasPerekamanUpdate($record, $payload, $user, $request);
+
+            return redirect()->route('rawas.perekaman')->with('success', 'Perekaman RAWAS berhasil diperbarui.');
+        }
+
+        $status = $user->isRawasModerator() ? 'pending_admin_verification' : 'pending_super_admin_approval';
+
+        DeleteRequest::create([
+            'type_code' => 'rawas',
+            'database_name' => 'sidewas_rawas',
+            'table_name' => 'tb_record',
+            'record_key' => $record->id_rawas,
+            'record_label' => $record->id_rawas . ' - ' . $record->nomor_surat,
+            'reason' => json_encode([
+                'action' => 'update_rawas_perekaman',
+                'payload' => $payload,
+            ]),
+            'requested_by' => $user->id,
+            'status' => $status,
+            'requested_at' => now(),
+        ]);
+
+        LogActivity::create([
+            'user_id' => $user->id,
+            'type_code' => 'rawas',
+            'database_name' => 'sidewas_rawas',
+            'table_name' => 'tb_record',
+            'record_key' => $record->id_rawas,
+            'action' => 'request_update',
+            'description' => 'User mengajukan edit perekaman RAWAS.',
+            'old_values' => $record->load(['butirRawas.butirPics'])->toArray(),
+            'new_values' => [
+                'status_request' => $status,
+                'payload' => $payload,
+            ],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()->route('rawas.perekaman')->with('success', 'Pengajuan edit berhasil dikirim.');
+    }
+
+    private function buildRawasPerekamanUpdatePayload(Request $request, array $validated, RawasButir $butir): array
+    {
+        $payload = [
+            'record' => [
+                'nomor_surat' => $validated['nomor_surat'],
+                'tanggal_surat' => $validated['tanggal_surat'],
+                'perihal_surat' => $validated['perihal_surat'],
+                'status' => $validated['status'],
+            ],
+            'butir' => [
+                'id' => (int) $butir->id,
+                'id_butir_rawas' => $butir->id_butir_rawas,
+                'status' => $validated['butir_status'],
+                'cluster_id' => (int) $validated['cluster_id'],
+                'sub_cluster_id' => (int) $validated['sub_cluster_id'],
+                'tanggal_rawas' => $validated['tanggal_rawas'],
+                'agenda_rawas' => $validated['agenda_rawas'],
+                'keputusan_rawas' => $validated['keputusan_rawas'],
+                'pic_ids' => collect($validated['pic_ids'])->filter()->unique()->values()->all(),
+            ],
+            'files' => [],
+        ];
+
+        if ($request->hasFile('dokumen_memo')) {
+            $payload['files']['dokumen_memo'] = [
+                'path' => $request->file('dokumen_memo')->store('dokumen/pending-edit-rawas', 'public'),
+                'original_name' => $request->file('dokumen_memo')->getClientOriginalName(),
+            ];
+        }
+
+        return $payload;
+    }
+
+    public function applyRawasPerekamanUpdate(RawasRecord $record, array $payload, User $user, Request $request): void
+    {
+        DB::connection('mysql_rawas')->transaction(function () use ($record, $payload, $user, $request) {
+            $oldValues = $record->load(['butirRawas.butirPics'])->toArray();
+            $recordPayload = $payload['record'] ?? [];
+            $butirPayload = $payload['butir'] ?? [];
+            $filePayload = $payload['files'] ?? [];
+
+            $recordUpdates = [
+                'nomor_surat' => $recordPayload['nomor_surat'] ?? $record->nomor_surat,
+                'tanggal_surat' => $recordPayload['tanggal_surat'] ?? $record->tanggal_surat,
+                'perihal_surat' => $recordPayload['perihal_surat'] ?? $record->perihal_surat,
+                'status' => $recordPayload['status'] ?? $record->status,
+                'updated_by' => $user->id,
+            ];
+
+            if (!empty($recordUpdates['tanggal_surat'])) {
+                $recordUpdates['jth_tempo'] = Carbon::parse($recordUpdates['tanggal_surat'])->addDays(30);
+            }
+
+            if (!empty($filePayload['dokumen_memo']['path'])) {
+                if ($record->dokumen_memo && Storage::disk('public')->exists($record->dokumen_memo)) {
+                    Storage::disk('public')->delete($record->dokumen_memo);
+                }
+
+                $recordUpdates['dokumen_memo'] = $filePayload['dokumen_memo']['path'];
+            }
+
+            $record->update($recordUpdates);
+
+            if (!empty($butirPayload['id'])) {
+                $butir = $record->butirRawas()->where('id', (int) $butirPayload['id'])->firstOrFail();
+
+                $butir->update([
+                    'cluster_id' => $butirPayload['cluster_id'],
+                    'sub_cluster_id' => $butirPayload['sub_cluster_id'],
+                    'tanggal_rawas' => $butirPayload['tanggal_rawas'],
+                    'agenda_rawas' => $butirPayload['agenda_rawas'],
+                    'keputusan_rawas' => $butirPayload['keputusan_rawas'],
+                    'status' => $butirPayload['status'],
+                    'updated_by' => $user->id,
+                ]);
+
+                $butir->butirPics()->delete();
+
+                foreach (($butirPayload['pic_ids'] ?? []) as $picValue) {
+                    if (!str_contains($picValue, ':')) {
+                        continue;
+                    }
+
+                    [$jenisPic, $picId] = explode(':', $picValue, 2);
+
+                    RawasButirPic::create([
+                        'id_butir_rawas' => $butir->id_butir_rawas,
+                        'unit_kerja_id' => $jenisPic === 'unit' ? (int) $picId : null,
+                        'komite_id' => $jenisPic === 'komite' ? (int) $picId : null,
+                        'jenis_pic' => $jenisPic === 'komite' ? 'komite' : 'unit',
+                        'created_by' => $user->id,
+                        'updated_by' => $user->id,
+                    ]);
+                }
+            }
+
+            $record->refresh()->syncStatusFromButir($user->id);
+
+            LogActivity::create([
+                'user_id' => $user->id,
+                'type_code' => 'rawas',
+                'database_name' => 'sidewas_rawas',
+                'table_name' => 'tb_record',
+                'record_key' => $record->id_rawas,
+                'action' => 'update',
+                'description' => 'User memperbarui perekaman RAWAS.',
+                'old_values' => $oldValues,
+                'new_values' => $record->fresh()->load(['butirRawas.butirPics'])->toArray(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        });
     }
 
     public function downloadDokumenMemo(RawasRecord $record)

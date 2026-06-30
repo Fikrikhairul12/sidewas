@@ -153,7 +153,17 @@
                                     ][$statusTl] ?? '#64748b';
                                 $statusTlTextColor = $statusTl === 'dalam_proses' ? 'text-black' : 'text-white';
 
-                                $canReview = $statusTl === 'diusulkan_tuntas' && $review->status !== 'selesai_tuntas';
+                                $authUser = auth()->user();
+                                $canSubmitReview =
+                                    $authUser?->isSuperAdmin() ||
+                                    (($authUser?->hasRoleType('admin_ragab') ||
+                                        $authUser?->hasRoleType('moderator_ragab')) &&
+                                        (int) $record?->created_by === (int) $authUser?->id);
+                                $canReview =
+                                    $canSubmitReview &&
+                                    $statusTl === 'diusulkan_tuntas' &&
+                                    $review->status !== 'selesai_tuntas';
+                                $disabledReviewLabel = $canSubmitReview ? 'Menunggu TL Lengkap' : 'Hanya Lihat';
 
                                 $allowedDirektoratIds = ($butir?->butirDirektorats ?? collect())
                                     ->pluck('direktorat_id')
@@ -419,7 +429,7 @@
                                         @elseif (!$canReview)
                                             <button type="button" disabled
                                                 class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400">
-                                                Menunggu TL Lengkap
+                                                {{ $disabledReviewLabel }}
                                             </button>
                                         @else
                                             <button type="button"

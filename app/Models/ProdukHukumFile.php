@@ -15,8 +15,10 @@ class ProdukHukumFile extends Model
 
     protected $fillable = [
         'produk_hukum_id',
+        'bentuk_file',
         'nama_file',
         'path_file',
+        'link_file',
         'mime_type',
         'ukuran_file',
         'jenis_file',

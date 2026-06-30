@@ -132,7 +132,8 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_snp')
             || $this->hasRoleType('moderator_snp')
-            || $this->hasRoleType('pic_snp');
+            || $this->hasRoleType('pic_snp')
+            || $this->hasRoleType('viewer_snp');
     }
 
     public function canCreateSnpPerekaman(): bool
@@ -267,6 +268,11 @@ class User extends Authenticatable
             || $this->hasRoleType('admin_produk_hukum');
     }
 
+    public function canDeleteProdukHukum(): bool
+    {
+        return $this->canCreateProdukHukum();
+    }
+
     public function canViewRahasiaProdukHukum(): bool
     {
         return $this->isSuperAdmin()
@@ -314,6 +320,7 @@ class User extends Authenticatable
         return $this->hasRoleType('pic_snp')
             || $this->hasRoleType('moderator_snp')
             || $this->hasRoleType('admin_snp')
+            || $this->hasRoleType('viewer_snp')
             || $this->isSuperAdmin();
     }
 
@@ -330,6 +337,7 @@ class User extends Authenticatable
         return $this->hasRoleType('pic_snp')
             || $this->hasRoleType('moderator_snp')
             || $this->hasRoleType('admin_snp')
+            || $this->hasRoleType('viewer_snp')
             || $this->isSuperAdmin();
     }
 
@@ -392,6 +400,7 @@ class User extends Authenticatable
         return $this->hasRoleType('pic_snp')
             || $this->hasRoleType('moderator_snp')
             || $this->hasRoleType('admin_snp')
+            || $this->hasRoleType('viewer_snp')
             || $this->isSuperAdmin();
     }
 
@@ -400,6 +409,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_ragab')
             || $this->hasRoleType('moderator_ragab')
+            || $this->hasRoleType('viewer_ragab')
             || $this->hasRoleType('pic_ragab');
     }
 
@@ -432,6 +442,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_ragab')
             || $this->hasRoleType('moderator_ragab')
+            || $this->hasRoleType('viewer_ragab')
             || $this->hasRoleType('pic_ragab');
     }
 
@@ -440,6 +451,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_eksternal')
             || $this->hasRoleType('moderator_eksternal')
+            || $this->hasRoleType('viewer_eksternal')
             || $this->hasRoleType('pic_eksternal');
     }
 
@@ -472,6 +484,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_eksternal')
             || $this->hasRoleType('moderator_eksternal')
+            || $this->hasRoleType('viewer_eksternal')
             || $this->hasRoleType('pic_eksternal');
     }
 
@@ -480,6 +493,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_rawas')
             || $this->hasRoleType('moderator_rawas')
+            || $this->hasRoleType('viewer_rawas')
             || $this->hasRoleType('pic_rawas');
     }
 
@@ -512,6 +526,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_rawas')
             || $this->hasRoleType('moderator_rawas')
+            || $this->hasRoleType('viewer_rawas')
             || $this->hasRoleType('pic_rawas');
     }
 
@@ -548,6 +563,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_rawas')
             || $this->hasRoleType('moderator_rawas')
+            || $this->hasRoleType('viewer_rawas')
             || $this->hasRoleType('pic_rawas');
     }
 
@@ -582,6 +598,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_djsn')
             || $this->hasRoleType('moderator_djsn')
+            || $this->hasRoleType('viewer_djsn')
             || $this->hasRoleType('pic_djsn');
     }
 
@@ -614,6 +631,7 @@ class User extends Authenticatable
         return $this->hasRoleType('pic_djsn')
             || $this->hasRoleType('moderator_djsn')
             || $this->hasRoleType('admin_djsn')
+            || $this->hasRoleType('viewer_djsn')
             || $this->isSuperAdmin();
     }
 
@@ -650,6 +668,7 @@ class User extends Authenticatable
         return $this->hasRoleType('pic_djsn')
             || $this->hasRoleType('moderator_djsn')
             || $this->hasRoleType('admin_djsn')
+            || $this->hasRoleType('viewer_djsn')
             || $this->isSuperAdmin();
     }
 
@@ -703,6 +722,7 @@ class User extends Authenticatable
         return $this->hasRoleType('pic_djsn')
             || $this->hasRoleType('moderator_djsn')
             || $this->hasRoleType('admin_djsn')
+            || $this->hasRoleType('viewer_djsn')
             || $this->isSuperAdmin();
     }
 
@@ -770,6 +790,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_ragab')
             || $this->hasRoleType('moderator_ragab')
+            || $this->hasRoleType('viewer_ragab')
             || $this->hasRoleType('pic_ragab');
     }
 
@@ -787,6 +808,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || $this->hasRoleType('admin_eksternal')
             || $this->hasRoleType('moderator_eksternal')
+            || $this->hasRoleType('viewer_eksternal')
             || $this->hasRoleType('pic_eksternal');
     }
 
@@ -822,12 +844,15 @@ class User extends Authenticatable
 
     public function canAccessSnpKompilasi(): bool
     {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
-        return ($this->hasRoleType('admin_snp') || $this->hasRoleType('moderator_snp'))
-            && $this->hasUnitKerjaSbd();
+        return $this->canAccessType('snp');
     }
 
+    public function canCreateSnpKompilasi(): bool
+    {
+        return $this->isSuperAdmin()
+            || (
+                ($this->hasRoleType('admin_snp') || $this->hasRoleType('moderator_snp'))
+                && $this->hasUnitKerjaSbd()
+            );
+    }
 }

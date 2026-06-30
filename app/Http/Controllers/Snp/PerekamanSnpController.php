@@ -10,6 +10,7 @@ use App\Models\SnpButir;
 use App\Models\SnpButirPic;
 use App\Models\SnpCluster;
 use App\Models\SnpRecord;
+use App\Models\SnpSubCluster;
 use App\Models\SnpTanggapan;
 use App\Models\SnpTindakLanjut;
 use App\Models\SnpReview;
@@ -335,6 +336,269 @@ class PerekamanSnpController extends Controller
         return redirect()
             ->route('snp.perekaman')
             ->with('success', 'Butir SNP berhasil ditambahkan.');
+    }
+
+    public function update(Request $request, SnpRecord $record)
+    {
+        $user = User::find(Auth::id());
+
+        if (!$user || !$user->canCreateSnpPerekaman()) {
+            abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman SNP.');
+        }
+
+        $validated = $request->validate([
+            'tanggal_surat' => ['required', 'date'],
+            'perihal_surat' => ['required', 'string'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_snp.tb_cluster,id'],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_snp.tb_sub_cluster,id'],
+            'status' => ['required', 'string', 'in:draft,dalam_proses,tuntas'],
+
+            'butir_id' => ['required', 'integer', 'exists:mysql_snp.tb_butir_snp,id'],
+            'butir_snp' => ['required', 'string'],
+            'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
+            'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'unit_kerja_pendukung_id' => ['nullable', 'array'],
+            'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'komite_id' => ['required', 'integer', 'exists:mysql.tb_komite,id'],
+
+            'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+            'dokumen_memo' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+        ]);
+
+        $subClusterBelongsToCluster = SnpSubCluster::where('id', $validated['sub_cluster_id'])
+            ->where('cluster_id', $validated['cluster_id'])
+            ->exists();
+
+        if (!$subClusterBelongsToCluster) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'sub_cluster_id' => 'Sub-cluster tidak sesuai dengan cluster yang dipilih.',
+                ]);
+        }
+
+        $butir = $record->butirSnp()
+            ->where('id', $validated['butir_id'])
+            ->firstOrFail();
+
+        if (! $user->isSuperAdmin()) {
+            $existingRequest = DeleteRequest::where('type_code', 'snp')
+                ->where('table_name', 'tb_record')
+                ->where('record_key', $record->id_snp)
+                ->where('reason', 'like', '%"action":"update_snp_perekaman"%')
+                ->whereIn('status', [
+                    'pending_admin_verification',
+                    'pending_super_admin_approval',
+                ])
+                ->first();
+
+            if ($existingRequest) {
+                return redirect()
+                    ->route('snp.perekaman')
+                    ->with('error', 'Pengajuan untuk data ini masih menunggu proses approval.');
+            }
+        }
+
+        $payload = $this->buildSnpPerekamanUpdatePayload($request, $validated, $butir);
+
+        if ($user->isSuperAdmin()) {
+            $this->applySnpPerekamanUpdate($record, $payload, $user, $request);
+
+            return redirect()
+                ->route('snp.perekaman')
+                ->with('success', 'Perekaman SNP berhasil diperbarui.');
+        }
+
+        $status = $user->isSnpModerator()
+            ? 'pending_admin_verification'
+            : 'pending_super_admin_approval';
+
+        DeleteRequest::create([
+            'type_code' => 'snp',
+            'database_name' => 'sidewas_snp',
+            'table_name' => 'tb_record',
+            'record_key' => $record->id_snp,
+            'record_label' => $record->id_snp . ' - ' . $record->nomor_surat,
+            'reason' => json_encode([
+                'action' => 'update_snp_perekaman',
+                'payload' => $payload,
+            ]),
+            'requested_by' => $user->id,
+            'status' => $status,
+            'requested_at' => now(),
+        ]);
+
+        LogActivity::create([
+            'user_id' => $user->id,
+            'type_code' => 'snp',
+            'database_name' => 'sidewas_snp',
+            'table_name' => 'tb_record',
+            'record_key' => $record->id_snp,
+            'action' => 'request_update',
+            'description' => 'User mengajukan edit perekaman SNP.',
+            'old_values' => $record->load(['butirSnp.butirPics'])->toArray(),
+            'new_values' => [
+                'status_request' => $status,
+                'payload' => $payload,
+            ],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()
+            ->route('snp.perekaman')
+            ->with('success', 'Pengajuan edit berhasil dikirim.');
+    }
+
+    private function buildSnpPerekamanUpdatePayload(Request $request, array $validated, SnpButir $butir): array
+    {
+        $payload = [
+            'record' => [
+                'tanggal_surat' => $validated['tanggal_surat'],
+                'perihal_surat' => $validated['perihal_surat'],
+                'cluster_id' => (int) $validated['cluster_id'],
+                'sub_cluster_id' => (int) $validated['sub_cluster_id'],
+                'status' => $validated['status'],
+            ],
+            'butir' => [
+                'id' => (int) $butir->id,
+                'id_butir_snp' => $butir->id_butir_snp,
+                'butir_snp' => $validated['butir_snp'],
+                'status' => $validated['butir_status'],
+                'unit_kerja_utama_id' => (int) $validated['unit_kerja_utama_id'],
+                'unit_kerja_pendukung_ids' => collect($validated['unit_kerja_pendukung_id'] ?? [])
+                    ->filter()
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all(),
+                'komite_id' => (int) $validated['komite_id'],
+            ],
+            'files' => [],
+        ];
+
+        if ($request->hasFile('dokumen')) {
+            $payload['files']['dokumen'] = [
+                'path' => $request->file('dokumen')->store('dokumen/pending-edit-snp', 'public'),
+                'original_name' => $request->file('dokumen')->getClientOriginalName(),
+            ];
+        }
+
+        if ($request->hasFile('dokumen_memo')) {
+            $payload['files']['dokumen_memo'] = [
+                'path' => $request->file('dokumen_memo')->store('dokumen/pending-edit-snp', 'public'),
+                'original_name' => $request->file('dokumen_memo')->getClientOriginalName(),
+            ];
+        }
+
+        return $payload;
+    }
+
+    public function applySnpPerekamanUpdate(SnpRecord $record, array $payload, User $user, Request $request): void
+    {
+        DB::connection('mysql_snp')->transaction(function () use ($record, $payload, $user, $request) {
+            $oldValues = $record->load([
+                'cluster',
+                'subCluster',
+                'butirSnp.butirPics.unitKerja',
+                'butirSnp.butirPics.komite',
+            ])->toArray();
+
+            $recordPayload = $payload['record'] ?? [];
+            $butirPayload = $payload['butir'] ?? [];
+            $filePayload = $payload['files'] ?? [];
+
+            $recordUpdates = [
+                'tanggal_surat' => $recordPayload['tanggal_surat'] ?? $record->tanggal_surat,
+                'perihal_surat' => $recordPayload['perihal_surat'] ?? $record->perihal_surat,
+                'cluster_id' => $recordPayload['cluster_id'] ?? $record->cluster_id,
+                'sub_cluster_id' => $recordPayload['sub_cluster_id'] ?? $record->sub_cluster_id,
+                'status' => $recordPayload['status'] ?? $record->status,
+                'updated_by' => $user->id,
+            ];
+
+            if (!empty($recordUpdates['tanggal_surat'])) {
+                $recordUpdates['jth_tempo'] = SnpRecord::hitungJatuhTempo($recordUpdates['tanggal_surat']);
+            }
+
+            foreach (['dokumen', 'dokumen_memo'] as $fileField) {
+                if (!empty($filePayload[$fileField]['path'])) {
+                    if ($record->{$fileField} && Storage::disk('public')->exists($record->{$fileField})) {
+                        Storage::disk('public')->delete($record->{$fileField});
+                    }
+
+                    $recordUpdates[$fileField] = $filePayload[$fileField]['path'];
+                }
+            }
+
+            $record->update($recordUpdates);
+
+            if (!empty($butirPayload['id'])) {
+                $butir = $record->butirSnp()
+                    ->where('id', (int) $butirPayload['id'])
+                    ->firstOrFail();
+
+                $butir->update([
+                    'butir_snp' => $butirPayload['butir_snp'],
+                    'status' => $butirPayload['status'],
+                    'updated_by' => $user->id,
+                ]);
+
+                $butir->butirPics()->delete();
+
+                SnpButirPic::create([
+                    'id_butir_snp' => $butir->id_butir_snp,
+                    'unit_kerja_id' => (int) $butirPayload['unit_kerja_utama_id'],
+                    'komite_id' => null,
+                    'jenis_pic' => 'utama',
+                    'created_by' => $user->id,
+                    'updated_by' => $user->id,
+                ]);
+
+                foreach (($butirPayload['unit_kerja_pendukung_ids'] ?? []) as $unitKerjaPendukungId) {
+                    if ((int) $unitKerjaPendukungId === (int) $butirPayload['unit_kerja_utama_id']) {
+                        continue;
+                    }
+
+                    SnpButirPic::create([
+                        'id_butir_snp' => $butir->id_butir_snp,
+                        'unit_kerja_id' => (int) $unitKerjaPendukungId,
+                        'komite_id' => null,
+                        'jenis_pic' => 'pendukung',
+                        'created_by' => $user->id,
+                        'updated_by' => $user->id,
+                    ]);
+                }
+
+                SnpButirPic::create([
+                    'id_butir_snp' => $butir->id_butir_snp,
+                    'unit_kerja_id' => null,
+                    'komite_id' => (int) $butirPayload['komite_id'],
+                    'jenis_pic' => 'komite',
+                    'created_by' => $user->id,
+                    'updated_by' => $user->id,
+                ]);
+            }
+
+            LogActivity::create([
+                'user_id' => $user->id,
+                'type_code' => 'snp',
+                'database_name' => 'sidewas_snp',
+                'table_name' => 'tb_record',
+                'record_key' => $record->id_snp,
+                'action' => 'update',
+                'description' => 'User memperbarui perekaman SNP.',
+                'old_values' => $oldValues,
+                'new_values' => $record->fresh([
+                    'cluster',
+                    'subCluster',
+                    'butirSnp.butirPics.unitKerja',
+                    'butirSnp.butirPics.komite',
+                ])->toArray(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        });
     }
 
     public function requestDelete(Request $request, SnpRecord $record)

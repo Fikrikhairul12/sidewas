@@ -39,12 +39,6 @@ class ReviuEksternalController extends Controller
             ->whereHas('record')
             ->whereHas('tindakLanjuts');
 
-        if (!$this->canReviewAllEksternal($user)) {
-            $butirsForReviewQuery->whereHas('record', function ($recordQuery) use ($user) {
-                $recordQuery->where('created_by', $user->id);
-            });
-        }
-
         $butirsForReview = $butirsForReviewQuery->get();
 
         DB::connection('mysql_eksternal')->transaction(function () use ($butirsForReview) {
@@ -80,12 +74,6 @@ class ReviuEksternalController extends Controller
         ])
             ->where('tahap_review', 'tindak_lanjut')
             ->whereHas('butir.tindakLanjuts');
-
-        if (!$this->canReviewAllEksternal($user)) {
-            $query->whereHas('butir.record', function ($recordQuery) use ($user) {
-                $recordQuery->where('created_by', $user->id);
-            });
-        }
 
         if ($request->filled('tanggal_mulai')) {
             $query->whereDate('updated_at', '>=', $request->tanggal_mulai);
@@ -192,7 +180,7 @@ class ReviuEksternalController extends Controller
             'butir.tindakLanjuts',
         ]);
 
-        if (!$user || !$this->canReviewEksternalReview($user, $review)) {
+        if (!$user || !$this->canSubmitEksternalReview($user, $review)) {
             abort(403, 'Anda tidak memiliki akses untuk mereviu data ini.');
         }
 
@@ -279,7 +267,7 @@ class ReviuEksternalController extends Controller
 
         $review->load('butir.record');
 
-        if (!$user || !$this->canReviewEksternalReview($user, $review)) {
+        if (!$user || !$user->canAccessEksternalReview()) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen ini.');
         }
 
@@ -298,17 +286,22 @@ class ReviuEksternalController extends Controller
 
     private function canReviewAllEksternal(User $user): bool
     {
-        return $user->isSuperAdmin()
-            || $user->hasRoleType('admin_eksternal')
-            || $user->hasRoleType('moderator_eksternal');
+        return $user->isSuperAdmin();
     }
 
-    private function canReviewEksternalReview(User $user, EksternalReview $review): bool
+    private function canSubmitEksternalReview(User $user, EksternalReview $review): bool
     {
         if ($this->canReviewAllEksternal($user)) {
             return true;
         }
 
-        return (int) $review->butir?->record?->created_by === (int) $user->id;
+        return $this->canReviewOwnEksternalRecord($user)
+            && (int) $review->butir?->record?->created_by === (int) $user->id;
+    }
+
+    private function canReviewOwnEksternalRecord(User $user): bool
+    {
+        return $user->hasRoleType('admin_eksternal')
+            || $user->hasRoleType('moderator_eksternal');
     }
 }

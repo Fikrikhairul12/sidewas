@@ -381,6 +381,11 @@
                                                 class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400">
                                                 Sudah Masuk Reviu
                                             </button>
+                                        @elseif (! $canCreateKompilasi)
+                                            <span
+                                                class="rounded-lg bg-slate-100 px-4 py-2 text-center text-xs font-bold text-slate-500">
+                                                Hanya dapat melihat
+                                            </span>
                                         @else
                                             <button type="button"
                                                 @click="selectedItem = {
@@ -433,11 +438,12 @@
             </div>
         </div>
 
-        <div x-show="openModal" x-transition.opacity
-            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
-            style="display: none;">
-            <div @click.outside="openModal = false" x-transition
-                class="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        @if ($canCreateKompilasi)
+            <div x-show="openModal" x-transition.opacity
+                class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+                style="display: none;">
+                <div @click.outside="openModal = false" x-transition
+                    class="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
 
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
@@ -531,7 +537,8 @@
                         </button>
                     </div>
                 </form>
+                </div>
             </div>
-        </div>
+        @endif
     </div>
 </x-app-layout>

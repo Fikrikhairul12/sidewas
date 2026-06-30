@@ -231,6 +231,45 @@
                                         ->values()
                                         ->all(),
                                 ];
+                                $editRecordPayload = [
+                                    'id' => $record->id,
+                                    'update_url' => route('rawas.perekaman.update', $record->id),
+                                    'id_rawas' => $record->id_rawas,
+                                    'nomor_surat' => $record->nomor_surat,
+                                    'tanggal_surat' => $record->tanggal_surat
+                                        ? \Carbon\Carbon::parse($record->tanggal_surat)->format('Y-m-d')
+                                        : '',
+                                    'perihal_surat' => $record->perihal_surat,
+                                    'status' => $record->status,
+                                    'butirs' => $record->butirRawas
+                                        ->map(function ($butir) {
+                                            return [
+                                                'id' => $butir->id,
+                                                'id_butir_rawas' => $butir->id_butir_rawas,
+                                                'tanggal_rawas' => $butir->tanggal_rawas
+                                                    ? \Carbon\Carbon::parse($butir->tanggal_rawas)->format('Y-m-d')
+                                                    : '',
+                                                'agenda_rawas' => $butir->agenda_rawas,
+                                                'keputusan_rawas' => $butir->keputusan_rawas,
+                                                'status' => $butir->statusTindakLanjut(),
+                                                'cluster_id' => $butir->cluster_id,
+                                                'sub_cluster_id' => $butir->sub_cluster_id,
+                                                'pic_ids' => $butir->butirPics
+                                                    ->map(function ($pic) {
+                                                        if ($pic->jenis_pic === 'komite' && $pic->komite_id) {
+                                                            return 'komite:' . $pic->komite_id;
+                                                        }
+
+                                                        return $pic->unit_kerja_id ? 'unit:' . $pic->unit_kerja_id : null;
+                                                    })
+                                                    ->filter()
+                                                    ->values()
+                                                    ->all(),
+                                            ];
+                                        })
+                                        ->values()
+                                        ->all(),
+                                ];
                             @endphp
 
                             <tr class="border-b border-slate-200 transition hover:bg-blue-50/40">
@@ -334,10 +373,6 @@
                                                     <div class="mt-5 space-y-4">
                                                         {{-- Direktorat terkait --}}
                                                         <div>
-                                                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                                Direktorat Terkait
-                                                            </p>
-
                                                             <span
                                                                 class="mt-2 inline-flex rounded-full bg-blue-50 px-4 py-1.5 text-xs font-bold text-blue-700">
                                                                 Dewan Pengawas
@@ -515,11 +550,12 @@
                                             Detail
                                         </button>
 
-                                        <a href="#"
+                                        <button type="button"
+                                            @click="openEditModalFor(@js($editRecordPayload))"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
                                             style="background-color: #2377b9;">
                                             Edit
-                                        </a>
+                                        </button>
 
                                         @if (auth()->user()->canRequestDeleteRawasPerekaman())
                                             <form method="POST"
@@ -708,6 +744,147 @@
                         Tutup
                     </button>
                 </div>
+            </div>
+        </div>
+
+        {{-- Modal Edit Perekaman --}}
+        <div x-show="openEditModal" x-transition.opacity
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openEditModal = false" x-transition
+                class="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">Edit Perekaman RAWAS</p>
+                        <h2 class="mt-1 text-2xl font-bold text-slate-800" x-text="editRecord?.id_rawas ?? '-'"></h2>
+                        <p class="mt-1 text-sm text-slate-500">Admin/moderator mengirim pengajuan, Super Admin langsung memperbarui data.</p>
+                    </div>
+                    <button type="button" @click="openEditModal = false"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">✕</button>
+                </div>
+
+                <form method="POST" :action="editRecord?.update_url" enctype="multipart/form-data" class="px-6 py-6">
+                    @csrf
+                    @method('PATCH')
+
+                    <div class="grid gap-5 lg:grid-cols-2">
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Nomor Surat</label>
+                            <input type="text" name="nomor_surat" x-model="editRecord.nomor_surat" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Tanggal Surat</label>
+                            <input type="date" name="tanggal_surat" x-model="editRecord.tanggal_surat" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div class="lg:col-span-2">
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Perihal Surat</label>
+                            <textarea name="perihal_surat" rows="3" x-model="editRecord.perihal_surat" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Status Surat</label>
+                            <select name="status" x-model="editRecord.status" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="draft">Draft</option>
+                                <option value="dalam_proses">Dalam Proses</option>
+                                <option value="tuntas">Tuntas</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Butir yang Diedit</label>
+                            <select name="butir_id" x-model="selectedEditButirId" @change="syncEditButir()" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <template x-for="butir in editRecord?.butirs ?? []" :key="butir.id">
+                                    <option :value="butir.id" x-text="butir.id_butir_rawas"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <template x-if="selectedEditButir">
+                            <div class="contents">
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Tanggal RAWAS</label>
+                                    <input type="date" name="tanggal_rawas" x-model="selectedEditButir.tanggal_rawas" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Status Butir</label>
+                                    <select name="butir_status" x-model="selectedEditButir.status" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="terbit">Terbit</option>
+                                        <option value="dalam_proses">Dalam Proses</option>
+                                        <option value="diusulkan_tuntas">Diusulkan Tuntas</option>
+                                        <option value="selesai_tuntas">Selesai Tuntas</option>
+                                    </select>
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Agenda RAWAS</label>
+                                    <input type="text" name="agenda_rawas" x-model="selectedEditButir.agenda_rawas" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Keputusan RAWAS</label>
+                                    <textarea name="keputusan_rawas" rows="4" x-model="selectedEditButir.keputusan_rawas" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Cluster</label>
+                                    <select name="cluster_id" x-model="selectedClusterId" @change="selectedSubClusterId = ''" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">Pilih Cluster</option>
+                                        @foreach ($clusters as $cluster)
+                                            <option value="{{ $cluster->id }}">{{ $cluster->nama_cluster }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Sub-Cluster</label>
+                                    <select name="sub_cluster_id" x-model="selectedSubClusterId" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">Pilih Sub-Cluster</option>
+                                        <template x-for="subCluster in filteredSubClusters" :key="subCluster.id">
+                                            <option :value="subCluster.id" x-text="subCluster.nama_sub_cluster"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="lg:col-span-2">
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">PIC Unit / Komite</label>
+                                    <input type="text" x-model="picSearch" placeholder="Cari PIC..."
+                                        class="mb-3 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <div class="max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white p-3">
+                                        <template x-for="pic in filteredPicOptions" :key="pic.value">
+                                            <label class="mb-2 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm hover:bg-blue-50">
+                                                <input type="checkbox" name="pic_ids[]" :value="pic.value" x-model="selectedPicIds"
+                                                    class="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                                <span>
+                                                    <span class="font-bold text-slate-700" x-text="pic.label"></span>
+                                                    <br>
+                                                    <span class="text-xs text-slate-500" x-text="`${pic.type} - ${pic.sub_label}`"></span>
+                                                </span>
+                                            </label>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div class="lg:col-span-2">
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Dokumen Memo</label>
+                            <input type="file" name="dokumen_memo"
+                                class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <p class="mt-1 text-xs text-slate-500">Kosongkan jika tidak ingin mengganti memo.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex justify-end gap-3 border-t border-slate-100 pt-5">
+                        <button type="button" @click="openEditModal = false"
+                            class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
+                        <button type="submit" class="rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+                            style="background-color: #2377b9;">Simpan Perubahan</button>
+                    </div>
+                </form>
             </div>
         </div>
 

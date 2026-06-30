@@ -246,6 +246,51 @@
                                         ->values()
                                         ->all(),
                                 ];
+                                $editRecordPayload = [
+                                    'id' => $record->id,
+                                    'update_url' => route('ragab.perekaman.update', $record->id),
+                                    'id_ragab' => $record->id_ragab,
+                                    'nomor_surat' => $record->nomor_surat,
+                                    'tanggal_surat' => $record->tanggal_surat
+                                        ? \Carbon\Carbon::parse($record->tanggal_surat)->format('Y-m-d')
+                                        : '',
+                                    'perihal_surat' => $record->perihal_surat,
+                                    'status' => $record->status,
+                                    'butirs' => $record->butirRagab
+                                        ->map(function ($butir) {
+                                            $picUnit = $butir->butirPics->where('jenis_pic', 'unit');
+                                            $komite = $butir->butirPics->where('jenis_pic', 'komite')->first();
+
+                                            return [
+                                                'id' => $butir->id,
+                                                'id_butir_ragab' => $butir->id_butir_ragab,
+                                                'tanggal_ragab' => $butir->tanggal_ragab
+                                                    ? \Carbon\Carbon::parse($butir->tanggal_ragab)->format('Y-m-d')
+                                                    : '',
+                                                'agenda_ragab' => $butir->agenda_ragab,
+                                                'keputusan_ragab' => $butir->keputusan_ragab,
+                                                'status' => $butir->statusTindakLanjut(),
+                                                'cluster_id' => $butir->cluster_id,
+                                                'sub_cluster_ids' => $butir->subClusters->isNotEmpty()
+                                                    ? $butir->subClusters->pluck('id')->map(fn($id) => (string) $id)->values()->all()
+                                                    : collect([$butir->sub_cluster_id])->filter()->map(fn($id) => (string) $id)->values()->all(),
+                                                'direktorat_ids' => ($butir->butirDirektorats ?? collect())
+                                                    ->pluck('direktorat_id')
+                                                    ->map(fn($id) => (string) $id)
+                                                    ->values()
+                                                    ->all(),
+                                                'unit_kerja_ids' => $picUnit
+                                                    ->pluck('unit_kerja_id')
+                                                    ->filter()
+                                                    ->map(fn($id) => (string) $id)
+                                                    ->values()
+                                                    ->all(),
+                                                'komite_id' => $komite?->komite_id ? (string) $komite->komite_id : '',
+                                            ];
+                                        })
+                                        ->values()
+                                        ->all(),
+                                ];
                             @endphp
                             <tr class="border-b border-slate-200 transition hover:bg-blue-50/40">
                                 {{-- Informasi Surat --}}
@@ -560,11 +605,12 @@
                                             Detail
                                         </button>
 
-                                        <a href="#"
+                                        <button type="button"
+                                            @click="openEditModalFor(@js($editRecordPayload))"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
                                             style="background-color: #2377b9;">
                                             Edit
-                                        </a>
+                                        </button>
 
                                         @if (auth()->user()->canRequestDeleteRagabPerekaman())
                                             <form method="POST"
@@ -796,6 +842,215 @@
             </div>
         </div>
 
+        {{-- Modal Edit Perekaman --}}
+        <div x-show="openEditModal" x-transition.opacity
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openEditModal = false" x-transition
+                class="w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
+                            Edit Perekaman RAGAB
+                        </p>
+                        <h2 class="mt-1 text-2xl font-bold text-slate-800" x-text="editRecord?.id_ragab ?? '-'"></h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            Admin/moderator akan mengirim pengajuan, Super Admin langsung memperbarui data.
+                        </p>
+                    </div>
+
+                    <button type="button" @click="openEditModal = false"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form method="POST" :action="editRecord?.update_url" enctype="multipart/form-data"
+                    @submit="if (!validateEditBeforeSubmit()) { $event.preventDefault(); }" class="px-6 py-6">
+                    @csrf
+                    @method('PATCH')
+
+                    <div class="grid gap-5 lg:grid-cols-2">
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Nomor Surat</label>
+                            <input type="text" name="nomor_surat" x-model="editRecord.nomor_surat" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Tanggal Surat</label>
+                            <input type="date" name="tanggal_surat" x-model="editRecord.tanggal_surat" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div class="lg:col-span-2">
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Perihal Surat</label>
+                            <textarea name="perihal_surat" rows="3" x-model="editRecord.perihal_surat" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Status Surat</label>
+                            <select name="status" x-model="editRecord.status" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="draft">Draft</option>
+                                <option value="dalam_proses">Dalam Proses</option>
+                                <option value="tuntas">Tuntas</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Butir yang Diedit</label>
+                            <select name="butir_id" x-model="selectedEditButirId" @change="syncEditButir()" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <template x-for="butir in editRecord?.butirs ?? []" :key="butir.id">
+                                    <option :value="butir.id" x-text="butir.id_butir_ragab"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <template x-if="selectedEditButir">
+                            <div class="contents">
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Tanggal RAGAB</label>
+                                    <input type="date" name="tanggal_ragab" x-model="selectedEditButir.tanggal_ragab" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Status Butir</label>
+                                    <select name="butir_status" x-model="selectedEditButir.status" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="terbit">Terbit</option>
+                                        <option value="dalam_proses">Dalam Proses</option>
+                                        <option value="diusulkan_tuntas">Diusulkan Tuntas</option>
+                                        <option value="selesai_tuntas">Selesai Tuntas</option>
+                                    </select>
+                                </div>
+
+                                <div class="lg:col-span-2">
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Agenda RAGAB</label>
+                                    <input type="text" name="agenda_ragab" x-model="selectedEditButir.agenda_ragab" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
+
+                                <div class="lg:col-span-2">
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Keputusan RAGAB</label>
+                                    <textarea name="keputusan_ragab" rows="4" x-model="selectedEditButir.keputusan_ragab" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                </div>
+
+                                <div class="lg:col-span-2">
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Direktorat Terkait</label>
+                                    <div class="grid max-h-48 gap-2 overflow-y-auto rounded-xl border border-slate-300 bg-white p-3 md:grid-cols-2">
+                                        @foreach ($direktorats as $direktorat)
+                                            <label class="flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2 hover:bg-blue-50">
+                                                <input type="checkbox" name="direktorat_ids[]" value="{{ $direktorat->id }}"
+                                                    x-model="selectedDirektoratIds" @change="unitKerjaValidationMessage = ''"
+                                                    class="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                                <span class="text-sm font-medium text-slate-700">{{ $direktorat->nama_direktorat }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <div class="lg:col-span-2">
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">PIC Unit</label>
+                                    <input type="text" x-model="editUnitKerjaSearch"
+                                        placeholder="Cari kode/nama unit kerja..."
+                                        class="mb-3 w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <div x-show="unitKerjaValidationMessage"
+                                        class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700"
+                                        x-text="unitKerjaValidationMessage"></div>
+                                    <div class="max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white p-3">
+                                        <template x-for="unit in editFilteredUnitKerjas" :key="unit.id">
+                                            <label class="mb-2 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm hover:bg-blue-50">
+                                                <input type="checkbox" name="unit_kerja_ids[]" :value="unit.id"
+                                                    x-model="selectedUnitKerjaIds" @change="unitKerjaValidationMessage = ''"
+                                                    class="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                                <span>
+                                                    <span class="font-bold text-slate-700" x-text="`${unit.kode_unit ?? '-'} - ${unit.nama_unit}`"></span>
+                                                    <br>
+                                                    <span class="text-xs text-slate-500" x-text="unit.direktorat?.nama_direktorat ?? unit.direktorat_nama ?? '-'"></span>
+                                                </span>
+                                            </label>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Cluster</label>
+                                    <select name="cluster_id" x-model="selectedClusterId" @change="selectedSubClusterIds = []" required
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">Pilih Cluster</option>
+                                        @foreach ($clusters as $cluster)
+                                            <option value="{{ $cluster->id }}">{{ $cluster->nama_cluster }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">Sub-Cluster</label>
+                                    <div class="max-h-48 overflow-y-auto rounded-xl border border-slate-300 bg-white p-3">
+                                        <template x-for="subCluster in filteredSubClusters" :key="subCluster.id">
+                                            <label class="mb-2 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm hover:bg-blue-50">
+                                                <input type="checkbox" name="sub_cluster_ids[]" :value="subCluster.id"
+                                                    x-model="selectedSubClusterIds"
+                                                    class="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                                <span class="font-medium text-slate-700" x-text="subCluster.nama_sub_cluster"></span>
+                                            </label>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div class="lg:col-span-2">
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                        Komite Dewas <span class="font-normal text-slate-400">(Opsional)</span>
+                                    </label>
+                                    <select name="komite_id" x-model="selectedEditButir.komite_id"
+                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">Tidak memilih komite</option>
+                                        @foreach ($komites as $komite)
+                                            <option value="{{ $komite->id }}">{{ $komite->kode_komite }} - {{ $komite->nama_komite }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Dokumen Surat</label>
+                            <input type="file" name="dokumen"
+                                class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <p class="mt-1 text-xs text-slate-500">Kosongkan jika tidak ingin mengganti dokumen.</p>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Dokumen Memo</label>
+                            <input type="file" name="dokumen_memo"
+                                class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <p class="mt-1 text-xs text-slate-500">Kosongkan jika tidak ingin mengganti memo.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex justify-end gap-3 border-t border-slate-100 pt-5">
+                        <button type="button" @click="openEditModal = false"
+                            class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            Batal
+                        </button>
+                        <button type="submit"
+                            class="rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+                            style="background-color: #2377b9;">
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         {{-- Modal Tambah Perekaman --}}
         <div x-show="openCreateModal" x-transition.opacity
             class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
@@ -950,7 +1205,8 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="`/ragab/perekaman/${selectedRecord?.id}/butir`" class="px-6 py-6">
+                <form method="POST" :action="`/ragab/perekaman/${selectedRecord?.id}/butir`"
+                    @submit="if (!validateButirBeforeSubmit()) { $event.preventDefault(); }" class="px-6 py-6">
                     @csrf
 
                     <div class="grid gap-5 lg:grid-cols-2">
@@ -992,7 +1248,7 @@
                                 @foreach ($direktorats as $direktorat)
                                     <label class="flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2 hover:bg-blue-50">
                                         <input type="checkbox" name="direktorat_ids[]" value="{{ $direktorat->id }}"
-                                            x-model="selectedDirektoratIds"
+                                            x-model="selectedDirektoratIds" @change="unitKerjaValidationMessage = ''"
                                             class="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
 
                                         <span class="text-sm font-medium text-slate-700">
@@ -1001,6 +1257,10 @@
                                     </label>
                                 @endforeach
                             </div>
+
+                            <p class="mt-2 text-xs text-slate-500">
+                                Setiap direktorat yang dipilih wajib punya minimal 1 PIC Unit dari direktorat tersebut.
+                            </p>
                         </div>
 
                         <div class="lg:col-span-2">
@@ -1036,12 +1296,38 @@
                                     </div>
                                 </div>
 
+                                <div x-show="selectedDirektoratIds.length > 0"
+                                    class="border-b border-slate-200 bg-blue-50/60 p-3">
+                                    <p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Kewajiban PIC per Direktorat
+                                    </p>
+
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="direktorat in selectedDirektoratDetail" :key="direktorat.id">
+                                            <span
+                                                class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold"
+                                                :class="missingDirektoratUnitDetail.some(item => String(item.id) === String(direktorat.id))
+                                                    ? 'bg-red-100 text-red-700'
+                                                    : 'bg-green-100 text-green-700'">
+                                                <span x-text="direktorat.nama_direktorat"></span>
+                                                <span
+                                                    x-text="missingDirektoratUnitDetail.some(item => String(item.id) === String(direktorat.id)) ? 'belum ada PIC' : 'sudah ada PIC'"></span>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div x-show="unitKerjaValidationMessage"
+                                    class="border-b border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700"
+                                    x-text="unitKerjaValidationMessage"></div>
+
                                 <div class="max-h-72 overflow-y-auto p-3">
                                     <template x-for="unit in filteredUnitKerjas" :key="unit.id">
                                         <label
-                                            class="mb-2 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm hover:bg-blue-50">
+                                            class="mb-2 flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 text-sm hover:bg-blue-50"
+                                            :class="unit.isSelectedDirektorat ? 'border-blue-200 bg-blue-50/60' : 'border-slate-100'">
                                             <input type="checkbox" name="unit_kerja_ids[]" :value="unit.id"
-                                                x-model="selectedUnitKerjaIds"
+                                                x-model="selectedUnitKerjaIds" @change="unitKerjaValidationMessage = ''"
                                                 class="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
 
                                             <span>

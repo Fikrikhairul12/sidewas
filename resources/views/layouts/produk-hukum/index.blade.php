@@ -2,10 +2,11 @@
     @php
         $authUser = \App\Models\User::find(auth()->id());
         $canCreateProdukHukum = $authUser?->canCreateProdukHukum() ?? false;
+        $canDeleteProdukHukum = $authUser?->canDeleteProdukHukum() ?? false;
         $canViewRahasiaProdukHukum = $authUser?->canViewRahasiaProdukHukum() ?? false;
 
         $produkPayloads = $produkHukums->getCollection()
-            ->map(function ($produk) use ($canViewRahasiaProdukHukum, $approvedAccessIds, $pendingAccessIds) {
+            ->map(function ($produk) use ($canViewRahasiaProdukHukum, $approvedAccessIds, $pendingAccessIds, $pendingDeleteIds) {
                 $canAccess = $produk->sifat_dokumen === 'publik'
                     || $canViewRahasiaProdukHukum
                     || in_array((int) $produk->id, $approvedAccessIds, true);
@@ -13,32 +14,31 @@
                 return [
                     'id' => $produk->id,
                     'kode_produk_hukum' => $produk->kode_produk_hukum,
-                    'tipe_dokumen' => $produk->tipe_dokumen ?: '-',
                     'judul' => $produk->judul,
-                    'nomor_peraturan' => $produk->nomor_peraturan ?: '-',
+                    'nomor_peraturan_keputusan' => $produk->nomor_peraturan_keputusan ?: '-',
                     'tahun_peraturan' => $produk->tahun_peraturan ?: '-',
                     'jenis_bentuk_peraturan' => $produk->jenis_bentuk_peraturan ?: '-',
                     'singkatan_peraturan' => $produk->singkatan_peraturan ?: '-',
-                    'tempat_penetapan' => $produk->tempat_penetapan ?: '-',
                     'tanggal_penetapan' => $produk->tanggal_penetapan ? \Carbon\Carbon::parse($produk->tanggal_penetapan)->format('d F Y') : '-',
                     'tanggal_diundangkan' => $produk->tanggal_diundangkan ? \Carbon\Carbon::parse($produk->tanggal_diundangkan)->format('d F Y') : '-',
-                    'sumber_ln' => $produk->sumber_ln ?: '-',
-                    'sumber_tln' => $produk->sumber_tln ?: '-',
+                    'sumber_ln_tbn' => $produk->sumber_ln_tbn ?: '-',
+                    'sumber_tln_tbn' => $produk->sumber_tln_tbn ?: '-',
                     'subjek' => $produk->subjek ?: '-',
-                    'bahasa' => $produk->bahasa ?: '-',
-                    'lokasi' => $produk->lokasi ?: '-',
-                    'bidang_hukum' => $produk->bidang_hukum ?: '-',
+                    'bidang_pengaturan' => $produk->bidang_pengaturan ?: '-',
                     'abstrak' => $produk->abstrak ?: '-',
+                    'keterangan' => $produk->keterangan ?: '-',
+                    'muatan_substansial' => $produk->muatan_substansial ?: '-',
                     'status_peraturan' => $produk->status_peraturan ?: '-',
                     'sifat_dokumen' => $produk->sifat_dokumen,
-                    'status_publish' => $produk->status_publish,
                     'can_access' => $canAccess,
                     'pending_access' => in_array((int) $produk->id, $pendingAccessIds, true),
+                    'pending_delete' => in_array((int) $produk->id, $pendingDeleteIds, true),
                     'files' => $canAccess
                         ? $produk->files
                             ->map(fn($file) => [
                                 'id' => $file->id,
                                 'nama_file' => $file->nama_file,
+                                'bentuk_file' => $file->bentuk_file ?: 'file',
                                 'jenis_file' => $file->jenis_file ?: '-',
                                 'ukuran_file' => $file->ukuran_file ? number_format($file->ukuran_file / 1024 / 1024, 2) . ' MB' : '-',
                                 'url' => route('produk-hukum.file.download', $file->id),
@@ -50,7 +50,7 @@
                         ? $produk->relasis
                             ->map(fn($relasi) => [
                                 'jenis_relasi' => ucwords(str_replace('_', ' ', $relasi->jenis_relasi)),
-                                'nomor' => $relasi->produkHukumTerkait?->nomor_peraturan ?? $relasi->nomor_peraturan_terkait ?? '-',
+                                'nomor' => $relasi->produkHukumTerkait?->nomor_peraturan_keputusan ?? $relasi->nomor_produk_hukum_terkait ?? '-',
                                 'judul' => $relasi->produkHukumTerkait?->judul ?? $relasi->judul_terkait ?? '-',
                                 'keterangan' => $relasi->keterangan ?: '-',
                             ])
@@ -62,7 +62,7 @@
             ->values();
     @endphp
 
-    <div x-data="{ openCreateModal: @js($canCreateProdukHukum && $errors->any()), openDetailModal: false, selectedProduk: null, openDetail(produk) { this.selectedProduk = produk; this.openDetailModal = true; } }"
+    <div x-data="{ openCreateModal: @js($canCreateProdukHukum && $errors->any()), openDetailModal: false, selectedProduk: null, fileMode: @js(old('bentuk_file', 'file')), openDetail(produk) { this.selectedProduk = produk; this.openDetailModal = true; } }"
         class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -105,31 +105,48 @@
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <form method="GET" action="{{ route('produk-hukum.index') }}">
                 <div class="grid gap-4 lg:grid-cols-4">
-                    <div class="lg:col-span-2">
+                    <div>
                         <label class="mb-2 block text-sm font-semibold text-slate-700">Keyword</label>
                         <input type="text" name="keyword" value="{{ request('keyword') }}"
-                            placeholder="Cari judul, nomor, tahun, subjek, bidang hukum..."
+                            placeholder="Cari judul, nomor, subjek..."
                             class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-sm font-semibold text-slate-700">Sifat Dokumen</label>
-                        <select name="sifat_dokumen"
+                        <label class="mb-2 block text-sm font-semibold text-slate-700">Bidang</label>
+                        <select name="bidang_pengaturan"
                             class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Semua Sifat</option>
-                            <option value="publik" @selected(request('sifat_dokumen') === 'publik')>Publik</option>
-                            <option value="rahasia" @selected(request('sifat_dokumen') === 'rahasia')>Rahasia</option>
+                            <option value="">Semua Bidang</option>
+                            @foreach ($bidangOptions as $bidang)
+                                <option value="{{ $bidang }}" @selected(request('bidang_pengaturan') === $bidang)>{{ $bidang }}</option>
+                            @endforeach
                         </select>
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-sm font-semibold text-slate-700">Status Publish</label>
-                        <select name="status_publish"
+                        <label class="mb-2 block text-sm font-semibold text-slate-700">Jenis</label>
+                        <select name="jenis_bentuk_peraturan"
                             class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Semua Status</option>
-                            <option value="draft" @selected(request('status_publish') === 'draft')>Draft</option>
-                            <option value="berlaku" @selected(request('status_publish') === 'berlaku')>Berlaku</option>
-                            <option value="tidak_berlaku" @selected(request('status_publish') === 'tidak_berlaku')>Tidak Berlaku</option>
+                            <option value="">Semua Jenis</option>
+                            @foreach ($jenisOptions as $jenis)
+                                @php
+                                    $jenisLabel = $jenis->singkatan
+                                        ? $jenis->nama . ' (' . $jenis->singkatan . ')'
+                                        : $jenis->nama;
+                                @endphp
+                                <option value="{{ $jenis->nama }}" @selected(request('jenis_bentuk_peraturan') === $jenis->nama)>{{ $jenisLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-sm font-semibold text-slate-700">Tahun</label>
+                        <select name="tahun_peraturan"
+                            class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Semua Tahun</option>
+                            @foreach ($tahunOptions as $tahun)
+                                <option value="{{ $tahun }}" @selected((string) request('tahun_peraturan') === (string) $tahun)>{{ $tahun }}</option>
+                            @endforeach
                         </select>
                     </div>
                 </div>
@@ -163,6 +180,7 @@
                         $payload = $produkPayloads->firstWhere('id', $produk->id);
                         $canAccessProduk = $payload['can_access'] ?? false;
                         $pendingAccess = $payload['pending_access'] ?? false;
+                        $pendingDelete = $payload['pending_delete'] ?? false;
                     @endphp
 
                     <div class="grid gap-5 px-6 py-5 hover:bg-blue-50/40 lg:grid-cols-[minmax(0,1fr)_220px_180px] lg:items-start">
@@ -177,7 +195,7 @@
                                 </span>
 
                                 <span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                                    {{ ucfirst($produk->status_publish) }}
+                                    {{ ucwords(str_replace('_', ' ', $produk->status_peraturan ?? '-')) }}
                                 </span>
                             </div>
 
@@ -186,10 +204,10 @@
                             </h3>
 
                             <div class="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
-                                <p><span class="font-semibold">Tipe:</span> {{ $produk->tipe_dokumen ?? '-' }}</p>
-                                <p><span class="font-semibold">Nomor:</span> {{ $produk->nomor_peraturan ?? '-' }}</p>
+                                <p><span class="font-semibold">Nomor:</span> {{ $produk->nomor_peraturan_keputusan ?? '-' }}</p>
                                 <p><span class="font-semibold">Tahun:</span> {{ $produk->tahun_peraturan ?? '-' }}</p>
-                                <p><span class="font-semibold">Bidang:</span> {{ $produk->bidang_hukum ?? '-' }}</p>
+                                <p><span class="font-semibold">Jenis:</span> {{ $produk->jenis_bentuk_peraturan ?? '-' }}</p>
+                                <p><span class="font-semibold">Bidang:</span> {{ $produk->bidang_pengaturan ?? '-' }}</p>
                             </div>
 
                             @if ($produk->sifat_dokumen === 'rahasia' && ! $canAccessProduk)
@@ -198,7 +216,7 @@
                                 </p>
                             @else
                                 <p class="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
-                                    {{ \Illuminate\Support\Str::limit($produk->abstrak ?: $produk->subjek ?: '-', 180) }}
+                                    {{ \Illuminate\Support\Str::limit($produk->abstrak ?: $produk->muatan_substansial ?: $produk->subjek ?: '-', 180) }}
                                 </p>
                             @endif
                         </div>
@@ -237,6 +255,26 @@
                                         Ajukan Akses
                                     </button>
                                 </form>
+                            @endif
+
+                            @if ($canDeleteProdukHukum)
+                                @if ($pendingDelete)
+                                    <button type="button" disabled
+                                        class="rounded-xl bg-slate-300 px-4 py-3 text-sm font-bold text-white">
+                                        Menunggu Hapus
+                                    </button>
+                                @else
+                                    <form method="POST" action="{{ route('produk-hukum.request-delete', $produk->id) }}"
+                                        onsubmit="return confirm('Ajukan penghapusan Produk Hukum ini?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="reason" value="Mengajukan hapus Produk Hukum.">
+                                        <button type="submit"
+                                            class="w-full rounded-xl bg-red-500 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-red-600">
+                                            Hapus
+                                        </button>
+                                    </form>
+                                @endif
                             @endif
                         </div>
                     </div>
@@ -281,12 +319,11 @@
                         </div>
 
                         <dl class="grid gap-x-4 gap-y-3 text-sm text-slate-700 md:grid-cols-[210px_minmax(0,1fr)]">
-                            <dt class="font-bold">Tipe Dokumen</dt><dd x-text="selectedProduk?.tipe_dokumen ?? '-'"></dd>
+                            <dt class="font-bold">Abstrak</dt><dd class="whitespace-pre-line" x-text="selectedProduk?.abstrak ?? '-'"></dd>
                             <dt class="font-bold">Judul</dt><dd x-text="selectedProduk?.judul ?? '-'"></dd>
-                            <dt class="font-bold">Nomor Peraturan</dt><dd x-text="selectedProduk?.nomor_peraturan ?? '-'"></dd>
+                            <dt class="font-bold">Nomor Peraturan/Keputusan</dt><dd x-text="selectedProduk?.nomor_peraturan_keputusan ?? '-'"></dd>
                             <dt class="font-bold">Jenis/Bentuk Peraturan</dt><dd x-text="selectedProduk?.jenis_bentuk_peraturan ?? '-'"></dd>
                             <dt class="font-bold">Singkatan Peraturan</dt><dd x-text="selectedProduk?.singkatan_peraturan ?? '-'"></dd>
-                            <dt class="font-bold">Tempat Penetapan</dt><dd x-text="selectedProduk?.tempat_penetapan ?? '-'"></dd>
                             <dt class="font-bold">Tanggal-Bulan-Tahun</dt>
                             <dd>
                                 <p>Disahkan <span x-text="selectedProduk?.tanggal_penetapan ?? '-'"></span></p>
@@ -294,15 +331,14 @@
                             </dd>
                             <dt class="font-bold">Sumber</dt>
                             <dd>
-                                <p x-text="selectedProduk?.sumber_ln ?? '-'"></p>
-                                <p x-text="selectedProduk?.sumber_tln ?? '-'"></p>
+                                <p>Sumber LN/TBN: <span x-text="selectedProduk?.sumber_ln_tbn ?? '-'"></span></p>
+                                <p>Sumber TLN/TBN: <span x-text="selectedProduk?.sumber_tln_tbn ?? '-'"></span></p>
                             </dd>
                             <dt class="font-bold">Subjek</dt><dd x-text="selectedProduk?.subjek ?? '-'"></dd>
-                            <dt class="font-bold">Bahasa</dt><dd x-text="selectedProduk?.bahasa ?? '-'"></dd>
-                            <dt class="font-bold">Lokasi</dt><dd x-text="selectedProduk?.lokasi ?? '-'"></dd>
-                            <dt class="font-bold">Bidang Hukum</dt><dd x-text="selectedProduk?.bidang_hukum ?? '-'"></dd>
+                            <dt class="font-bold">Bidang Pengaturan</dt><dd x-text="selectedProduk?.bidang_pengaturan ?? '-'"></dd>
                             <dt class="font-bold">Status Peraturan</dt><dd x-text="selectedProduk?.status_peraturan ?? '-'"></dd>
-                            <dt class="font-bold">Abstrak</dt><dd class="whitespace-pre-line" x-text="selectedProduk?.abstrak ?? '-'"></dd>
+                            <dt class="font-bold">Keterangan</dt><dd class="whitespace-pre-line" x-text="selectedProduk?.keterangan ?? '-'"></dd>
+                            <dt class="font-bold">Muatan Substansial</dt><dd class="whitespace-pre-line" x-text="selectedProduk?.muatan_substansial ?? '-'"></dd>
                         </dl>
                     </div>
 
@@ -321,7 +357,7 @@
                                     <a :href="file.url"
                                         class="block rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">
                                         <span x-text="file.nama_file"></span>
-                                        <span class="text-slate-500" x-text="`(${file.ukuran_file})`"></span>
+                                        <span class="text-slate-500" x-text="file.bentuk_file === 'link' ? '(Link)' : `(${file.ukuran_file})`"></span>
                                     </a>
                                 </template>
 
@@ -403,15 +439,24 @@
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Tipe Dokumen</label>
-                                <input type="text" name="tipe_dokumen" value="{{ old('tipe_dokumen') }}"
-                                    placeholder="Contoh: Undang-Undang"
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Jenis/Bentuk Peraturan</label>
+                                <select name="jenis_bentuk_peraturan"
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="">Pilih Jenis/Bentuk Peraturan</option>
+                                    @foreach ($jenisOptions as $jenis)
+                                        @php
+                                            $jenisLabel = $jenis->singkatan
+                                                ? $jenis->nama . ' (' . $jenis->singkatan . ')'
+                                                : $jenis->nama;
+                                        @endphp
+                                        <option value="{{ $jenis->nama }}" @selected(old('jenis_bentuk_peraturan') === $jenis->nama)>{{ $jenisLabel }}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Nomor Peraturan</label>
-                                <input type="text" name="nomor_peraturan" value="{{ old('nomor_peraturan') }}"
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Nomor Peraturan/Keputusan</label>
+                                <input type="text" name="nomor_peraturan_keputusan" value="{{ old('nomor_peraturan_keputusan') }}"
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
 
@@ -428,20 +473,8 @@
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Jenis/Bentuk Peraturan</label>
-                                <input type="text" name="jenis_bentuk_peraturan" value="{{ old('jenis_bentuk_peraturan') }}"
-                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            </div>
-
-                            <div>
                                 <label class="mb-2 block text-sm font-semibold text-slate-700">Singkatan Peraturan</label>
                                 <input type="text" name="singkatan_peraturan" value="{{ old('singkatan_peraturan') }}"
-                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            </div>
-
-                            <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Tempat Penetapan</label>
-                                <input type="text" name="tempat_penetapan" value="{{ old('tempat_penetapan') }}"
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
 
@@ -458,40 +491,31 @@
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Sumber LN</label>
-                                <input type="text" name="sumber_ln" value="{{ old('sumber_ln') }}"
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Sumber LN/TBN</label>
+                                <input type="text" name="sumber_ln_tbn" value="{{ old('sumber_ln_tbn') }}"
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Sumber TLN</label>
-                                <input type="text" name="sumber_tln" value="{{ old('sumber_tln') }}"
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Sumber TLN/TBN</label>
+                                <input type="text" name="sumber_tln_tbn" value="{{ old('sumber_tln_tbn') }}"
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Bahasa</label>
-                                <input type="text" name="bahasa" value="{{ old('bahasa', 'Indonesia') }}"
-                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            </div>
-
-                            <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Lokasi</label>
-                                <input type="text" name="lokasi" value="{{ old('lokasi') }}"
-                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            </div>
-
-                            <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Bidang Hukum</label>
-                                <input type="text" name="bidang_hukum" value="{{ old('bidang_hukum') }}"
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Bidang Pengaturan</label>
+                                <input type="text" name="bidang_pengaturan" value="{{ old('bidang_pengaturan') }}"
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
 
                             <div>
                                 <label class="mb-2 block text-sm font-semibold text-slate-700">Status Peraturan</label>
-                                <input type="text" name="status_peraturan" value="{{ old('status_peraturan') }}"
-                                    placeholder="Contoh: Berlaku, Mencabut"
+                                <select name="status_peraturan" required
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="draft" @selected(old('status_peraturan') === 'draft')>Draft</option>
+                                    <option value="berlaku" @selected(old('status_peraturan', 'berlaku') === 'berlaku')>Berlaku</option>
+                                    <option value="tidak_berlaku" @selected(old('status_peraturan') === 'tidak_berlaku')>Tidak Berlaku</option>
+                                </select>
                             </div>
 
                             <div>
@@ -500,16 +524,6 @@
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                     <option value="publik" @selected(old('sifat_dokumen', 'publik') === 'publik')>Publik</option>
                                     <option value="rahasia" @selected(old('sifat_dokumen') === 'rahasia')>Rahasia</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Status Publish</label>
-                                <select name="status_publish" required
-                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    <option value="draft" @selected(old('status_publish') === 'draft')>Draft</option>
-                                    <option value="berlaku" @selected(old('status_publish', 'berlaku') === 'verlaku')>Berlaku</option>
-                                    <option value="tidak_berlaku" @selected(old('status_publish') === 'tidak_berlaku')>Tidak Berlaku</option>
                                 </select>
                             </div>
 
@@ -526,16 +540,51 @@
                             </div>
 
                             <div class="lg:col-span-3">
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Keterangan</label>
+                                <textarea name="keterangan" rows="2"
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ old('keterangan') }}</textarea>
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Bentuk File</label>
+                                <select name="bentuk_file" x-model="fileMode" required
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="file">Upload File</option>
+                                    <option value="link">Link</option>
+                                </select>
+                            </div>
+
+                            <div class="lg:col-span-2" x-show="fileMode === 'file'">
                                 <label class="mb-2 block text-sm font-semibold text-slate-700">File Produk Hukum</label>
                                 <input type="file" name="files[]" multiple
                                     class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <p class="mt-1 text-xs text-slate-500">Opsional. PDF, Word, Excel, JPG, PNG. Maksimal 10 MB per file.</p>
                             </div>
 
+                            <div x-show="fileMode === 'link'">
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Nama Link</label>
+                                <input type="text" name="nama_link_file" value="{{ old('nama_link_file') }}"
+                                    placeholder="Contoh: Dokumen JDIH"
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+
+                            <div x-show="fileMode === 'link'">
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Link Produk Hukum</label>
+                                <input type="url" name="link_file" value="{{ old('link_file') }}"
+                                    placeholder="https://..."
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+
                             <div>
                                 <label class="mb-2 block text-sm font-semibold text-slate-700">Jenis File</label>
                                 <input type="text" name="jenis_file" value="{{ old('jenis_file', 'lampiran') }}"
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+
+                            <div class="lg:col-span-3">
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Muatan Substansial</label>
+                                <textarea name="muatan_substansial" rows="3"
+                                    class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ old('muatan_substansial') }}</textarea>
                             </div>
 
                             <div>
@@ -558,8 +607,8 @@
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">Nomor Peraturan Terkait</label>
-                                <input type="text" name="nomor_peraturan_terkait" value="{{ old('nomor_peraturan_terkait') }}"
+                                <label class="mb-2 block text-sm font-semibold text-slate-700">Nomor Produk Hukum Terkait</label>
+                                <input type="text" name="nomor_produk_hukum_terkait" value="{{ old('nomor_produk_hukum_terkait') }}"
                                     class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             </div>
 

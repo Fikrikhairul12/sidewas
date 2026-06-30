@@ -142,7 +142,17 @@
                                 $statusTl = $butir?->statusTindakLanjut() ?? 'dalam_proses_tindak_lanjut';
                                 $statusTlLabel = $butir?->statusTindakLanjutLabel() ?? 'Dalam Proses Tindak Lanjut';
                                 $progressTlLabel = $butir?->progressTindakLanjutLabel() ?? '-';
-                                $canReview = $statusTl === 'diusulkan_tuntas' && $review->status !== 'selesai_tuntas';
+                                $authUser = auth()->user();
+                                $canSubmitReview =
+                                    $authUser?->isSuperAdmin() ||
+                                    (($authUser?->hasRoleType('admin_rawas') ||
+                                        $authUser?->hasRoleType('moderator_rawas')) &&
+                                        (int) $record?->created_by === (int) $authUser?->id);
+                                $canReview =
+                                    $canSubmitReview &&
+                                    $statusTl === 'diusulkan_tuntas' &&
+                                    $review->status !== 'selesai_tuntas';
+                                $disabledReviewLabel = $canSubmitReview ? 'Menunggu TL Lengkap' : 'Hanya Lihat';
 
                                 $tindakLanjutItems = ($butir?->tindakLanjuts ?? collect())
                                     ->sortBy([
@@ -396,7 +406,7 @@
                                         @elseif (!$canReview)
                                             <button type="button" disabled
                                                 class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400">
-                                                Menunggu TL Lengkap
+                                                {{ $disabledReviewLabel }}
                                             </button>
                                         @else
                                             <button type="button"

@@ -361,11 +361,10 @@
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex justify-center">
                                         @if ($item)
-                                            <a href="#"
-                                                class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
-                                                style="background-color: #6bb17e;">
-                                                Detail
-                                            </a>
+                                            <span
+                                                class="rounded-lg bg-slate-100 px-4 py-2 text-center text-xs font-bold text-slate-600">
+                                                Rincian ada di tabel
+                                            </span>
                                         @else
                                             <button type="button" @click="openCreate()"
                                                 class="rounded-lg bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 text-center hover:text-blue-50 hover:bg-blue-700 hover:transition-colors">

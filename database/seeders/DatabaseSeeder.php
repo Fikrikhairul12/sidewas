@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             RawasMasterSeeder::class,
             DjsnMasterSeeder::class,
             EksternalMasterSeeder::class,
+            ProdukHukumJenisPeraturanSeeder::class,
         ]);
     }
 }

@@ -95,6 +95,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/produk-hukum/{produkHukum}/request-access', [ProdukHukumController::class, 'requestAccess'])
         ->name('produk-hukum.request-access');
 
+    Route::delete('/produk-hukum/{produkHukum}/request-delete', [ProdukHukumController::class, 'requestDelete'])
+        ->name('produk-hukum.request-delete');
+
     Route::get('/produk-hukum/file/{file}/download', [ProdukHukumController::class, 'downloadFile'])
         ->name('produk-hukum.file.download');
 });
@@ -109,6 +112,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/snp/perekaman/{record}/butir', [PerekamanSnpController::class, 'storeButir'])
         ->name('snp.perekaman.butir.store');
+
+    Route::patch('/snp/perekaman/{record}', [PerekamanSnpController::class, 'update'])
+        ->name('snp.perekaman.update');
 
     Route::get('/snp/perekaman/{record}/dokumen', [PerekamanSnpController::class, 'downloadDokumen'])
         ->name('snp.perekaman.dokumen');
@@ -189,6 +195,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/ragab/perekaman/{record}/butir', [PerekamanRagabController::class, 'storeButir'])
         ->name('ragab.perekaman.butir.store');
 
+    Route::patch('/ragab/perekaman/{record}', [PerekamanRagabController::class, 'update'])
+        ->name('ragab.perekaman.update');
+
     Route::get('/ragab/perekaman/{record}/dokumen', [PerekamanRagabController::class, 'downloadDokumen'])
         ->name('ragab.perekaman.dokumen');
 
@@ -245,6 +254,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/eksternal/perekaman/{record}/butir', [PerekamanEksternalController::class, 'storeButir'])
         ->name('eksternal.perekaman.butir.store');
+
+    Route::patch('/eksternal/perekaman/{record}', [PerekamanEksternalController::class, 'update'])
+        ->name('eksternal.perekaman.update');
 
     Route::get('/eksternal/perekaman/{record}/dokumen', [PerekamanEksternalController::class, 'downloadDokumen'])
         ->name('eksternal.perekaman.dokumen');
@@ -303,6 +315,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/rawas/perekaman/{record}/butir', [PerekamanRawasController::class, 'storeButir'])
         ->name('rawas.perekaman.butir.store');
 
+    Route::patch('/rawas/perekaman/{record}', [PerekamanRawasController::class, 'update'])
+        ->name('rawas.perekaman.update');
+
     Route::get('/rawas/perekaman/{record}/dokumen', [PerekamanRawasController::class, 'downloadDokumen'])
         ->name('rawas.perekaman.dokumen');
 
@@ -359,6 +374,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/djsn/perekaman/{record}/butir', [PerekamanDjsnController::class, 'storeButir'])
         ->name('djsn.perekaman.butir.store');
+
+    Route::patch('/djsn/perekaman/{record}', [PerekamanDjsnController::class, 'update'])
+        ->name('djsn.perekaman.update');
 
     Route::get('/djsn/perekaman/{record}/dokumen', [PerekamanDjsnController::class, 'downloadDokumen'])
         ->name('djsn.perekaman.dokumen');

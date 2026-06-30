@@ -39,12 +39,6 @@ class ReviuRagabController extends Controller
             ->whereHas('record')
             ->whereHas('tindakLanjuts');
 
-        if (!$this->canReviewAllRagab($user)) {
-            $butirsForReviewQuery->whereHas('record', function ($recordQuery) use ($user) {
-                $recordQuery->where('created_by', $user->id);
-            });
-        }
-
         $butirsForReview = $butirsForReviewQuery->get();
 
         DB::connection('mysql_ragab')->transaction(function () use ($butirsForReview) {
@@ -80,12 +74,6 @@ class ReviuRagabController extends Controller
         ])
             ->where('tahap_review', 'tindak_lanjut')
             ->whereHas('butir.tindakLanjuts');
-
-        if (!$this->canReviewAllRagab($user)) {
-            $query->whereHas('butir.record', function ($recordQuery) use ($user) {
-                $recordQuery->where('created_by', $user->id);
-            });
-        }
 
         if ($request->filled('tanggal_mulai')) {
             $query->whereDate('updated_at', '>=', $request->tanggal_mulai);
@@ -194,7 +182,7 @@ class ReviuRagabController extends Controller
             'butir.tindakLanjuts',
         ]);
 
-        if (!$user || !$this->canReviewRagabReview($user, $review)) {
+        if (!$user || !$this->canSubmitRagabReview($user, $review)) {
             abort(403, 'Anda tidak memiliki akses untuk mereviu data ini.');
         }
 
@@ -281,7 +269,7 @@ class ReviuRagabController extends Controller
 
         $review->load('butir.record');
 
-        if (!$user || !$this->canReviewRagabReview($user, $review)) {
+        if (!$user || !$user->canAccessRagabReview()) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen ini.');
         }
 
@@ -300,17 +288,22 @@ class ReviuRagabController extends Controller
 
     private function canReviewAllRagab(User $user): bool
     {
-        return $user->isSuperAdmin()
-            || $user->hasRoleType('admin_ragab')
-            || $user->hasRoleType('moderator_ragab');
+        return $user->isSuperAdmin();
     }
 
-    private function canReviewRagabReview(User $user, RagabReview $review): bool
+    private function canSubmitRagabReview(User $user, RagabReview $review): bool
     {
         if ($this->canReviewAllRagab($user)) {
             return true;
         }
 
-        return (int) $review->butir?->record?->created_by === (int) $user->id;
+        return $this->canReviewOwnRagabRecord($user)
+            && (int) $review->butir?->record?->created_by === (int) $user->id;
+    }
+
+    private function canReviewOwnRagabRecord(User $user): bool
+    {
+        return $user->hasRoleType('admin_ragab')
+            || $user->hasRoleType('moderator_ragab');
     }
 }
