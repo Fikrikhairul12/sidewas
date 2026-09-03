@@ -1,10 +1,9 @@
 <?php
 
-test('report pdf controllers use browsershot for regular and custom pdfs', function () {
+test('non SNP report pdf controllers still use browsershot', function () {
     $rootPath = dirname(__DIR__, 2);
 
     $controllers = [
-        'snp' => file_get_contents($rootPath.'/app/Http/Controllers/Snp/ReportSnpController.php'),
         'ragab' => file_get_contents($rootPath.'/app/Http/Controllers/Ragab/ReportRagabController.php'),
         'rawas' => file_get_contents($rootPath.'/app/Http/Controllers/Rawas/ReportRawasController.php'),
         'djsn' => file_get_contents($rootPath.'/app/Http/Controllers/Djsn/ReportDjsnController.php'),
@@ -22,10 +21,6 @@ test('report pdf controllers use browsershot for regular and custom pdfs', funct
             ->not->toContain('Pdf::loadView')
             ->not->toContain('Barryvdh\\DomPDF\\Facade\\Pdf');
     }
-
-    expect($controllers['snp'])
-        ->toContain("streamBrowsershotPdf('layouts.snp.report.pdf'")
-        ->toContain("streamBrowsershotPdf('layouts.snp.report.pdf-custom'");
 
     expect($controllers['ragab'])
         ->toContain("streamBrowsershotPdf('layouts.ragab.report.pdf'")

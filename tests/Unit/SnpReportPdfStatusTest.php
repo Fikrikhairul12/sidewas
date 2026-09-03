@@ -24,11 +24,12 @@ test('snp report pdf merges status per butir and uses latest butir status', func
         ->toContain('$reviewTerbaruButir?->status');
 
     expect($controller)
-        ->toContain('use Spatie\\Browsershot\\Browsershot;')
-        ->toContain('Browsershot::html($html)')
-        ->toContain("->format('Legal')")
-        ->toContain('->landscape()')
-        ->toContain('Content-Disposition');
+        ->toContain('use Barryvdh\\DomPDF\\Facade\\Pdf;')
+        ->toContain('Pdf::loadView($view, $data)')
+        ->toContain("->setPaper('legal', 'landscape')")
+        ->toContain('->download($filename)')
+        ->toContain("view('layouts.snp.report.preview'")
+        ->not->toContain('Browsershot');
 });
 
 test('snp custom report filters unit kerja with checkbox options from selected butir', function () {

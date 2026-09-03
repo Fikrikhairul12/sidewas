@@ -10,7 +10,7 @@
             </h1>
 
             <p class="mt-2 text-sm text-slate-500">
-                Pilih satu atau lebih surat SNP untuk dicetak ke PDF.
+                Pilih satu atau lebih surat SNP, tinjau isi report, lalu download PDF.
             </p>
         </div>
 
@@ -444,7 +444,7 @@
                             formtarget="_blank"
                             class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
                             style="background-color: #2377b9;">
-                            Cetak PDF Custom
+                            Pratinjau PDF Custom
                         </button>
 
                         <button type="submit" formaction="{{ route('snp.report.cetak-excel-custom') }}"
@@ -483,7 +483,7 @@
                         formmethod="POST" formtarget="_blank"
                         class="rounded-xl px-5 py-4 text-sm font-bold text-white shadow-sm hover:opacity-90"
                         style="background-color: #2377b9;">
-                        Cetak PDF
+                        Pratinjau PDF
                     </button>
 
                     <button type="submit" form="reportForm" formaction="{{ route('snp.report.cetak-excel') }}"

@@ -174,8 +174,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/snp/report/cetak', [ReportSnpController::class, 'cetak'])
         ->name('snp.report.cetak');
 
+    Route::post('/snp/report/download', [ReportSnpController::class, 'download'])
+        ->name('snp.report.download');
+
     Route::post('/snp/report/cetak-custom', [ReportSnpController::class, 'cetakCustom'])
         ->name('snp.report.cetak-custom');
+
+    Route::post('/snp/report/download-custom', [ReportSnpController::class, 'downloadCustom'])
+        ->name('snp.report.download-custom');
 
     Route::post('/snp/report/cetak-excel', [ReportSnpController::class, 'cetakExcel'])
         ->name('snp.report.cetak-excel');
