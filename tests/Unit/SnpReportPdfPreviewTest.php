@@ -55,5 +55,8 @@ test('preview keeps the selected report values for the download request', functi
         ->toContain('name="{{ $parameterName }}[]"')
         ->toContain('value="{{ $parameterValue }}"')
         ->toContain('srcdoc="{{ $reportHtml }}"')
+        ->toContain('style="height: 75vh; min-height: 680px;"')
+        ->toContain('zoom: 125')
+        ->toContain('requestFullscreen()')
         ->toContain('Download {{ $filename }}');
 });
