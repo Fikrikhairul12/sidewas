@@ -106,8 +106,13 @@
                                 $canRespond = $user?->canAccessSnpTanggapan() ?? false;
 
                                 $picTanggapanPayload = $picUnits
-                                    ->map(function ($pic) use ($tanggapanList, $butir) {
+                                    ->map(function ($pic) use ($tanggapanList, $butir, $user) {
                                         $tanggapan = $tanggapanList->firstWhere('butir_pic_id', $pic->id);
+                                        $sudahDireviu = $butir->reviews
+                                            ->where('tahap_review', 'tanggapan')
+                                            ->contains(fn ($review) => filled($review->hasil_review));
+                                        $canEdit = $tanggapan && ($user?->isSuperAdmin() || $user?->hasRoleType('admin_snp') ||
+                                            (! $sudahDireviu && in_array((int) $pic->unit_kerja_id, array_map('intval', $user?->unitKerjaIds() ?? []), true)));
                                         $unitLabel = ($pic->unitKerja?->kode_unit ?? '-') .
                                             ' - ' .
                                             ($pic->unitKerja?->nama_unit ?? '-');
@@ -118,6 +123,8 @@
 
                                         return [
                                             'id' => $pic->id,
+                                            'tanggapan_id' => $tanggapan?->id,
+                                            'can_edit' => (bool) $canEdit,
                                             'unit_label' => $unitLabel,
                                             'initial' => $pic->unitKerja?->kode_unit ?? '-',
                                             'jenis_pic' => $jenisPic,
@@ -252,13 +259,13 @@
                                             <span
                                                 class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
                                                 style="background-color: #2377b9;">
-                                                Tanggapan Akan Dilakukan Kompilasi
+                                                Tanggapan PIC Lengkap
                                             </span>
                                         @else
                                             <span
                                                 class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-slate-700"
                                                 style="background-color: #c8e079;">
-                                                Sebagian Sudah Menanggapi
+                                                Tanggapan PIC Opsional
                                             </span>
                                         @endif
 
@@ -478,6 +485,12 @@
 
                                     <p class="font-bold text-slate-600">Tanggal Input</p>
                                     <p class="text-slate-700" x-text="selectedDetailPic.created_at"></p>
+
+                                    <button type="button" x-show="selectedDetailPic.can_edit"
+                                        @click="openEditModalFor(selectedDetailPic)"
+                                        class="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-xs font-bold text-white">
+                                        Edit Tanggapan
+                                    </button>
                                 </div>
                             </div>
                         </template>
@@ -505,6 +518,25 @@
                         </svg>
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <div x-show="openEditModal" x-transition.opacity
+            class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
+            style="display: none;">
+            <div @click.outside="openEditModal = false" class="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+                <h2 class="text-xl font-bold text-slate-800">Edit Tanggapan SNP</h2>
+                <form method="POST" enctype="multipart/form-data" :action="`/snp/tanggapan/${editTanggapan?.tanggapan_id}`" class="mt-5 space-y-4">
+                    @csrf
+                    @method('PATCH')
+                    <textarea name="tanggapan" rows="5" required x-model="editTanggapan.tanggapan" class="w-full rounded-xl border-slate-300"></textarea>
+                    <textarea name="deliverables" rows="3" required x-model="editTanggapan.deliverables" class="w-full rounded-xl border-slate-300"></textarea>
+                    <input type="file" name="dokumen" class="w-full rounded-xl border border-slate-300 p-3 text-sm">
+                    <div class="flex justify-end gap-3">
+                        <button type="button" @click="openEditModal = false" class="rounded-xl border px-4 py-2">Batal</button>
+                        <button type="submit" class="rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white">Simpan Perubahan</button>
+                    </div>
+                </form>
             </div>
         </div>
 

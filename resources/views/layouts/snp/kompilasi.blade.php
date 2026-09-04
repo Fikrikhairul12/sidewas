@@ -10,7 +10,7 @@
             </h1>
 
             <p class="mt-2 text-sm text-slate-500">
-                Mengumpulkan dan merangkum tanggapan / tindak lanjut seluruh PIC Unit sebelum masuk ke reviu Dewas.
+                Merangkum tanggapan atau tindak lanjut PIC Unit sebelum masuk ke reviu Dewas. Input PIC bersifat opsional.
             </p>
         </div>
 
@@ -413,7 +413,7 @@
                                         Belum ada data yang siap dikompilasi.
                                     </p>
                                     <p class="mt-1 text-xs text-slate-400">
-                                        Data akan muncul setelah seluruh PIC Unit mengisi tanggapan / tindak lanjut.
+                                        Kompilasi tanggapan muncul setelah butir dibuat. Kompilasi tindak lanjut muncul setelah reviu tanggapan membuka tahap tindak lanjut.
                                     </p>
                                 </td>
                             </tr>

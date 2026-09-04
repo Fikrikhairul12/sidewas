@@ -223,8 +223,10 @@ window.tanggapanSnpPage = function () {
     return {
         openModal: false,
         openDetailModal: false,
+        openEditModal: false,
         selectedButir: null,
         detailButir: null,
+        editTanggapan: null,
         selectedDetailPicId: null,
         detailSearch: '',
 
@@ -291,6 +293,11 @@ window.tanggapanSnpPage = function () {
             if (this.nextDetailPic) {
                 this.selectDetailPic(this.nextDetailPic);
             }
+        },
+
+        openEditModalFor(tanggapan) {
+            this.editTanggapan = JSON.parse(JSON.stringify(tanggapan));
+            this.openEditModal = true;
         },
     };
 };

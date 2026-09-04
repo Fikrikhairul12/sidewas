@@ -35,6 +35,7 @@ class TanggapanSnpController extends Controller
             'butirPics.komite',
             'tanggapan.creator',
             'tanggapan.butirPic.unitKerja',
+            'reviews',
         ])
             ->whereHas('record');
 
@@ -257,5 +258,73 @@ class TanggapanSnpController extends Controller
         return redirect()
             ->route('snp.tanggapan.index')
             ->with('success', 'Tanggapan SNP berhasil disimpan.');
+    }
+
+    public function update(Request $request, SnpTanggapan $tanggapan)
+    {
+        $user = User::find(Auth::id());
+        $tanggapan->load(['butir.reviews', 'butirPic']);
+
+        if (! $user || ! $this->canEdit($user, $tanggapan)) {
+            abort(403, 'Anda tidak memiliki akses untuk mengubah tanggapan SNP ini.');
+        }
+
+        $validated = $request->validate([
+            'tanggapan' => ['required', 'string'],
+            'deliverables' => ['required', 'string'],
+            'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+        ]);
+
+        DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $tanggapan, $user): void {
+            $oldValues = $tanggapan->toArray();
+            $dokumenPath = $tanggapan->dokumen;
+
+            if ($request->hasFile('dokumen')) {
+                if ($dokumenPath && Storage::disk('public')->exists($dokumenPath)) {
+                    Storage::disk('public')->delete($dokumenPath);
+                }
+
+                $dokumenPath = $request->file('dokumen')->store('dokumen/tanggapan-snp', 'public');
+            }
+
+            $tanggapan->update([
+                'tanggapan' => $validated['tanggapan'],
+                'deliverables' => $validated['deliverables'],
+                'dokumen' => $dokumenPath,
+                'updated_by' => $user->id,
+            ]);
+
+            LogActivity::create([
+                'user_id' => $user->id,
+                'type_code' => 'snp',
+                'database_name' => 'sidewas_snp',
+                'table_name' => 'tb_tanggapan',
+                'record_key' => $tanggapan->id_butir_snp,
+                'action' => 'update',
+                'description' => 'User mengubah tanggapan SNP.',
+                'old_values' => $oldValues,
+                'new_values' => $tanggapan->fresh()->toArray(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        });
+
+        return redirect()->route('snp.tanggapan.index')->with('success', 'Tanggapan SNP berhasil diperbarui.');
+    }
+
+    private function canEdit(User $user, SnpTanggapan $tanggapan): bool
+    {
+        if ($user->isSuperAdmin() || $user->hasRoleType('admin_snp')) {
+            return true;
+        }
+
+        $sudahDireviu = $tanggapan->butir?->reviews
+            ->where('tahap_review', 'tanggapan')
+            ->contains(fn (SnpReview $review): bool => filled($review->hasil_review));
+
+        return ! $sudahDireviu
+            && $tanggapan->butir !== null
+            && $user->canCreateSnpTanggapanForButir($tanggapan->butir)
+            && in_array((int) $tanggapan->butirPic?->unit_kerja_id, array_map('intval', $user->unitKerjaIds()), true);
     }
 }

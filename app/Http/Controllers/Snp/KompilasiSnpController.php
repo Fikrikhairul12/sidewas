@@ -112,20 +112,18 @@ class KompilasiSnpController extends Controller
         $items = collect();
 
         foreach ($butirs as $butir) {
-            if ($this->allPicSudahTanggapan($butir)) {
-                $kompilasi = $butir->kompilasis->firstWhere('tahap_kompilasi', 'tanggapan');
+            $kompilasiTanggapan = $butir->kompilasis->firstWhere('tahap_kompilasi', 'tanggapan');
 
-                $items->push((object) [
-                    'butir' => $butir,
-                    'tahap' => 'tanggapan',
-                    'tahap_label' => 'Kompilasi Tanggapan',
-                    'kompilasi' => $kompilasi,
-                    'status' => $kompilasi?->status ?? 'belum_dikompilasi',
-                    'data_unit' => $butir->tanggapan
-                        ->sortBy(fn($t) => $t->butirPic?->unitKerja?->kode_unit ?? 'ZZZ')
-                        ->groupBy('butir_pic_id'),
-                ]);
-            }
+            $items->push((object) [
+                'butir' => $butir,
+                'tahap' => 'tanggapan',
+                'tahap_label' => 'Kompilasi Tanggapan',
+                'kompilasi' => $kompilasiTanggapan,
+                'status' => $kompilasiTanggapan?->status ?? 'belum_dikompilasi',
+                'data_unit' => $butir->tanggapan
+                    ->sortBy(fn ($t) => $t->butirPic?->unitKerja?->kode_unit ?? 'ZZZ')
+                    ->groupBy('butir_pic_id'),
+            ]);
 
             $putaranTlList = $butir->tindakLanjuts
                 ->pluck('putaran_tl')
@@ -135,8 +133,18 @@ class KompilasiSnpController extends Controller
                 ->sort()
                 ->values();
 
+            $reviuTanggapanSudahMembukaTindakLanjut = $butir->reviews
+                ->where('tahap_review', 'tanggapan')
+                ->where('status', 'dalam_proses_tindak_lanjut_direksi')
+                ->isNotEmpty();
+
+            if (! $reviuTanggapanSudahMembukaTindakLanjut) {
+                continue;
+            }
+
+            $putaranTlList = $putaranTlList->push(1)->unique()->sort()->values();
+
             foreach ($putaranTlList as $putaranTl) {
-                if ($this->allPicSudahTindakLanjut($butir, $putaranTl)) {
                     $kompilasi = $butir->kompilasis
                         ->where('tahap_kompilasi', 'tindak_lanjut')
                         ->where('putaran_tl', $putaranTl)
@@ -154,7 +162,6 @@ class KompilasiSnpController extends Controller
                             ->sortBy(fn($tl) => $tl->butirPic?->unitKerja?->kode_unit ?? 'ZZZ')
                             ->groupBy('butir_pic_id'),
                     ]);
-                }
             }
         }
 
@@ -245,14 +252,6 @@ class KompilasiSnpController extends Controller
         ]);
 
         $putaranTl = (int) ($validated['putaran_tl'] ?? 1);
-
-        if ($validated['tahap_kompilasi'] === 'tanggapan' && !$this->allPicSudahTanggapan($butir)) {
-            return back()->with('error', 'Kompilasi tanggapan belum bisa dilakukan karena tanggapan PIC Unit belum lengkap.');
-        }
-
-        if ($validated['tahap_kompilasi'] === 'tindak_lanjut' && !$this->allPicSudahTindakLanjut($butir, $putaranTl)) {
-            return back()->with('error', 'Kompilasi tindak lanjut belum bisa dilakukan karena tindak lanjut PIC Unit putaran ini belum lengkap.');
-        }
 
         DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $butir, $user, $putaranTl) {
             $kompilasi = SnpKompilasi::firstOrNew([
@@ -364,53 +363,4 @@ class KompilasiSnpController extends Controller
         return response()->download($filePath);
     }
 
-    private function picUnitIds(SnpButir $butir): array
-    {
-        return $butir->butirPics
-            ->whereIn('jenis_pic', ['utama', 'pendukung'])
-            ->whereNotNull('unit_kerja_id')
-            ->pluck('id')
-            ->map(fn($id) => (int) $id)
-            ->values()
-            ->toArray();
-    }
-
-    private function allPicSudahTanggapan(SnpButir $butir): bool
-    {
-        $picIds = $this->picUnitIds($butir);
-
-        if (count($picIds) === 0) {
-            return false;
-        }
-
-        $tanggapanPicIds = $butir->tanggapan
-            ->whereNotNull('butir_pic_id')
-            ->pluck('butir_pic_id')
-            ->map(fn($id) => (int) $id)
-            ->unique()
-            ->values()
-            ->toArray();
-
-        return empty(array_diff($picIds, $tanggapanPicIds));
-    }
-
-    private function allPicSudahTindakLanjut(SnpButir $butir, int $putaranTl): bool
-    {
-        $picIds = $this->picUnitIds($butir);
-
-        if (count($picIds) === 0) {
-            return false;
-        }
-
-        $tindakLanjutPicIds = $butir->tindakLanjuts
-            ->where('putaran_tl', $putaranTl)
-            ->whereNotNull('butir_pic_id')
-            ->pluck('butir_pic_id')
-            ->map(fn($id) => (int) $id)
-            ->unique()
-            ->values()
-            ->toArray();
-
-        return empty(array_diff($picIds, $tindakLanjutPicIds));
-    }
 }

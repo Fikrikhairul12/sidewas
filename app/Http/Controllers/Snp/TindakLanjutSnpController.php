@@ -18,6 +18,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class TindakLanjutSnpController extends Controller
 {
@@ -30,12 +31,16 @@ class TindakLanjutSnpController extends Controller
             ->first();
     }
 
-    private function canInputTindakLanjut($butir): bool
+    private function canInputTindakLanjut($butir, User $user): bool
     {
+        if ($user->isSuperAdmin() || $user->hasRoleType('admin_snp')) {
+            return true;
+        }
+
         $reviewTlTerakhir = $this->getReviewTlTerakhir($butir);
 
         if ($reviewTlTerakhir) {
-            return $reviewTlTerakhir->status === 'dalam_proses_tindak_lanjut_direksi';
+            return blank($reviewTlTerakhir->hasil_review);
         }
 
         return $butir->reviews
@@ -181,9 +186,9 @@ class TindakLanjutSnpController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $rows = $butirs->map(function ($butir) {
+        $rows = $butirs->map(function ($butir) use ($user) {
             $putaranAktif = $this->getPutaranTlAktif($butir);
-            $canInputTl = $this->canInputTindakLanjut($butir);
+            $canInputTl = $this->canInputTindakLanjut($butir, $user);
 
             $butir->putaran_tl_aktif = $putaranAktif;
 
@@ -282,7 +287,7 @@ class TindakLanjutSnpController extends Controller
 
                 return $butir;
             })
-            ->filter(fn($butir) => $this->canInputTindakLanjut($butir))
+            ->filter(fn ($butir) => $this->canInputTindakLanjut($butir, $user))
             ->values();
 
         $clusters = SnpCluster::with('subClusters')
@@ -346,6 +351,15 @@ class TindakLanjutSnpController extends Controller
         }
 
         $putaranAktif = $this->getPutaranTlAktif($butir);
+
+        $putaranSudahDireviu = $butir->reviews
+            ->where('tahap_review', 'tindak_lanjut')
+            ->where('putaran_tl', $putaranAktif)
+            ->contains(fn (SnpReview $review): bool => filled($review->hasil_review));
+
+        if ($putaranSudahDireviu && ! $user->isSuperAdmin() && ! $user->hasRoleType('admin_snp')) {
+            abort(403, 'Kompilasi tindak lanjut putaran ini sudah direviu.');
+        }
 
         $butirPic = $butir->butirPics()
             ->whereIn('jenis_pic', ['utama', 'pendukung'])
@@ -453,6 +467,75 @@ class TindakLanjutSnpController extends Controller
         return redirect()
             ->route('snp.tindak-lanjut.index')
             ->with('success', 'Tindak lanjut SNP berhasil disimpan.');
+    }
+
+    public function update(Request $request, SnpTindakLanjut $tindakLanjut)
+    {
+        $user = User::find(Auth::id());
+        $tindakLanjut->load(['butir.reviews', 'butirPic']);
+
+        if (! $user || ! $this->canEdit($user, $tindakLanjut)) {
+            abort(403, 'Anda tidak memiliki akses untuk mengubah tindak lanjut SNP ini.');
+        }
+
+        $validated = $request->validate([
+            'tindak_lanjut' => ['required', 'string'],
+            'deliverables' => ['required', 'string'],
+            'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+        ]);
+
+        DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $tindakLanjut, $user): void {
+            $oldValues = $tindakLanjut->toArray();
+            $dokumenPath = $tindakLanjut->dokumen;
+
+            if ($request->hasFile('dokumen')) {
+                if ($dokumenPath && Storage::disk('public')->exists($dokumenPath)) {
+                    Storage::disk('public')->delete($dokumenPath);
+                }
+
+                $dokumenPath = $request->file('dokumen')->store('dokumen/tindak-lanjut-snp', 'public');
+            }
+
+            $tindakLanjut->update([
+                'tindak_lanjut' => $validated['tindak_lanjut'],
+                'deliverables' => $validated['deliverables'],
+                'dokumen' => $dokumenPath,
+                'updated_by' => $user->id,
+            ]);
+
+            LogActivity::create([
+                'user_id' => $user->id,
+                'type_code' => 'snp',
+                'database_name' => 'sidewas_snp',
+                'table_name' => 'tb_tindak_lanjut',
+                'record_key' => $tindakLanjut->id_butir_snp,
+                'action' => 'update',
+                'description' => 'User mengubah tindak lanjut SNP.',
+                'old_values' => $oldValues,
+                'new_values' => $tindakLanjut->fresh()->toArray(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        });
+
+        return redirect()->route('snp.tindak-lanjut.index')->with('success', 'Tindak lanjut SNP berhasil diperbarui.');
+    }
+
+    private function canEdit(User $user, SnpTindakLanjut $tindakLanjut): bool
+    {
+        if ($user->isSuperAdmin() || $user->hasRoleType('admin_snp')) {
+            return true;
+        }
+
+        $kompilasiTindakLanjutSudahDireviu = $tindakLanjut->butir?->reviews
+            ->where('tahap_review', 'tindak_lanjut')
+            ->where('putaran_tl', $tindakLanjut->putaran_tl)
+            ->contains(fn (SnpReview $review): bool => filled($review->hasil_review));
+
+        return ! $kompilasiTindakLanjutSudahDireviu
+            && $tindakLanjut->butir !== null
+            && $user->canCreateSnpTindakLanjutForButir($tindakLanjut->butir)
+            && in_array((int) $tindakLanjut->butirPic?->unit_kerja_id, array_map('intval', $user->unitKerjaIds()), true);
     }
 
 }

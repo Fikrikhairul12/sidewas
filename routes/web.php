@@ -132,6 +132,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/snp/tanggapan/{butir}', [TanggapanSnpController::class, 'store'])
         ->name('snp.tanggapan.store');
+
+    Route::patch('/snp/tanggapan/{tanggapan}', [TanggapanSnpController::class, 'update'])
+        ->name('snp.tanggapan.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -165,6 +168,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/snp/tindak-lanjut', [TindakLanjutSnpController::class, 'store'])
         ->name('snp.tindak-lanjut.store');
+
+    Route::patch('/snp/tindak-lanjut/{tindakLanjut}', [TindakLanjutSnpController::class, 'update'])
+        ->name('snp.tindak-lanjut.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
