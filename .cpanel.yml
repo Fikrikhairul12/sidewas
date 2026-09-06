@@ -1,0 +1,24 @@
+---
+deployment:
+  tasks:
+    - export APPPATH=/home/sidewasi/sidewas-laravel
+    - export PUBLICPATH=/home/sidewasi/public_html
+
+    - /bin/cp -R app $APPPATH
+    - /bin/cp -R bootstrap $APPPATH
+    - /bin/cp -R config $APPPATH
+    - /bin/cp -R database $APPPATH
+    - /bin/cp -R resources $APPPATH
+    - /bin/cp -R routes $APPPATH
+    - /bin/cp artisan $APPPATH
+    - /bin/cp composer.json $APPPATH
+    - /bin/cp composer.lock $APPPATH
+    - /bin/cp package.json $APPPATH
+    - /bin/cp package-lock.json $APPPATH
+    - /bin/cp vite.config.js $APPPATH
+    - /bin/cp tailwind.config.js $APPPATH
+    - /bin/cp postcss.config.js $APPPATH
+
+    - /bin/cp -R public/build $PUBLICPATH
+    - /bin/cp public/favicon.ico $PUBLICPATH
+    - /bin/cp public/robots.txt $PUBLICPATH
