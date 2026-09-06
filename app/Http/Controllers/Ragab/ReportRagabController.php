@@ -124,11 +124,17 @@ class ReportRagabController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        return $this->streamBrowsershotPdf('layouts.ragab.report.pdf', compact(
+        $data = compact(
             'records',
             'printedBy',
             'printedAt'
-        ), 'report-ragab.pdf');
+        );
+
+        if ($request->boolean('_download')) {
+            return $this->streamBrowsershotPdf('layouts.ragab.report.pdf', $data, 'report-ragab.pdf');
+        }
+
+        return $this->previewPdf('layouts.ragab.report.pdf', $data, $request->except('_token'), 'Pratinjau Report RAGAB', 'report-ragab.pdf');
     }
 
     public function cetakCustom(Request $request)
@@ -164,13 +170,31 @@ class ReportRagabController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        return $this->streamBrowsershotPdf('layouts.ragab.report.pdf-custom', compact(
+        $data = compact(
             'records',
             'selectedFields',
             'fieldLabels',
             'printedBy',
             'printedAt'
-        ), 'report-ragab-custom.pdf');
+        );
+
+        if ($request->boolean('_download')) {
+            return $this->streamBrowsershotPdf('layouts.ragab.report.pdf-custom', $data, 'report-ragab-custom.pdf');
+        }
+
+        return $this->previewPdf('layouts.ragab.report.pdf-custom', $data, $request->except('_token'), 'Pratinjau Report RAGAB Custom', 'report-ragab-custom.pdf');
+    }
+
+    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): \Illuminate\View\View
+    {
+        return view('layouts.snp.report.preview', [
+            'title' => $title,
+            'filename' => $filename,
+            'reportHtml' => view($reportView, $data)->render(),
+            'downloadRoute' => route(str_contains($filename, 'custom') ? 'ragab.report.cetak-custom' : 'ragab.report.cetak'),
+            'downloadParameters' => $parameters,
+            'backRoute' => route('ragab.report.index'),
+        ]);
     }
 
     private function streamBrowsershotPdf(string $view, array $data, string $filename): Response
@@ -187,7 +211,7 @@ class ReportRagabController extends Controller
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 

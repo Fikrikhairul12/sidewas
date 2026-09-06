@@ -125,11 +125,17 @@ class ReportEksternalController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        return $this->streamBrowsershotPdf('layouts.eksternal.report.pdf', compact(
+        $data = compact(
             'records',
             'printedBy',
             'printedAt'
-        ), 'report-eksternal.pdf');
+        );
+
+        if ($request->boolean('_download')) {
+            return $this->streamBrowsershotPdf('layouts.eksternal.report.pdf', $data, 'report-eksternal.pdf');
+        }
+
+        return $this->previewPdf('layouts.eksternal.report.pdf', $data, $request->except('_token'), 'Pratinjau Report Rapat Eksternal', 'report-eksternal.pdf');
     }
 
     public function cetakCustom(Request $request)
@@ -165,13 +171,31 @@ class ReportEksternalController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        return $this->streamBrowsershotPdf('layouts.eksternal.report.pdf-custom', compact(
+        $data = compact(
             'records',
             'selectedFields',
             'fieldLabels',
             'printedBy',
             'printedAt'
-        ), 'report-eksternal-custom.pdf');
+        );
+
+        if ($request->boolean('_download')) {
+            return $this->streamBrowsershotPdf('layouts.eksternal.report.pdf-custom', $data, 'report-eksternal-custom.pdf');
+        }
+
+        return $this->previewPdf('layouts.eksternal.report.pdf-custom', $data, $request->except('_token'), 'Pratinjau Report Rapat Eksternal Custom', 'report-eksternal-custom.pdf');
+    }
+
+    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): \Illuminate\View\View
+    {
+        return view('layouts.snp.report.preview', [
+            'title' => $title,
+            'filename' => $filename,
+            'reportHtml' => view($reportView, $data)->render(),
+            'downloadRoute' => route(str_contains($filename, 'custom') ? 'eksternal.report.cetak-custom' : 'eksternal.report.cetak'),
+            'downloadParameters' => $parameters,
+            'backRoute' => route('eksternal.report.index'),
+        ]);
     }
 
     private function streamBrowsershotPdf(string $view, array $data, string $filename): Response
@@ -188,7 +212,7 @@ class ReportEksternalController extends Controller
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 

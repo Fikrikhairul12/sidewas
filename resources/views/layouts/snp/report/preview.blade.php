@@ -25,13 +25,14 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
-                <a href="{{ route('snp.report.index') }}"
+                <a href="{{ $backRoute ?? route('snp.report.index') }}"
                     class="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
                     Kembali
                 </a>
 
                 <form method="POST" action="{{ $downloadRoute }}">
                     @csrf
+                    <input type="hidden" name="_download" value="1">
 
                     @foreach ($downloadParameters as $parameterName => $parameterValues)
                         @foreach ((array) $parameterValues as $parameterValue)

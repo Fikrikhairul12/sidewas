@@ -120,11 +120,17 @@ class ReportRawasController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        return $this->streamBrowsershotPdf('layouts.rawas.report.pdf', compact(
+        $data = compact(
             'records',
             'printedBy',
             'printedAt'
-        ), 'report-rawas.pdf');
+        );
+
+        if ($request->boolean('_download')) {
+            return $this->streamBrowsershotPdf('layouts.rawas.report.pdf', $data, 'report-rawas.pdf');
+        }
+
+        return $this->previewPdf('layouts.rawas.report.pdf', $data, $request->except('_token'), 'Pratinjau Report RAWAS', 'report-rawas.pdf');
     }
 
     public function cetakCustom(Request $request)
@@ -160,13 +166,31 @@ class ReportRawasController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        return $this->streamBrowsershotPdf('layouts.rawas.report.pdf-custom', compact(
+        $data = compact(
             'records',
             'selectedFields',
             'fieldLabels',
             'printedBy',
             'printedAt'
-        ), 'report-rawas-custom.pdf');
+        );
+
+        if ($request->boolean('_download')) {
+            return $this->streamBrowsershotPdf('layouts.rawas.report.pdf-custom', $data, 'report-rawas-custom.pdf');
+        }
+
+        return $this->previewPdf('layouts.rawas.report.pdf-custom', $data, $request->except('_token'), 'Pratinjau Report RAWAS Custom', 'report-rawas-custom.pdf');
+    }
+
+    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): \Illuminate\View\View
+    {
+        return view('layouts.snp.report.preview', [
+            'title' => $title,
+            'filename' => $filename,
+            'reportHtml' => view($reportView, $data)->render(),
+            'downloadRoute' => route(str_contains($filename, 'custom') ? 'rawas.report.cetak-custom' : 'rawas.report.cetak'),
+            'downloadParameters' => $parameters,
+            'backRoute' => route('rawas.report.index'),
+        ]);
     }
 
     private function streamBrowsershotPdf(string $view, array $data, string $filename): Response
@@ -183,7 +207,7 @@ class ReportRawasController extends Controller
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 

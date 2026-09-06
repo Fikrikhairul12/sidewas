@@ -140,11 +140,17 @@ class ReportDjsnController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        return $this->streamBrowsershotPdf('layouts.djsn.report.pdf', compact(
+        $data = compact(
             'records',
             'printedBy',
             'printedAt'
-        ), 'report-djsn-dewas.pdf');
+        );
+
+        if ($request->boolean('_download')) {
+            return $this->streamBrowsershotPdf('layouts.djsn.report.pdf', $data, 'report-djsn-dewas.pdf');
+        }
+
+        return $this->previewPdf('layouts.djsn.report.pdf', $data, $request->except('_token'), 'Pratinjau Report DJSN', 'report-djsn-dewas.pdf');
     }
 
     public function cetakCustom(Request $request)
@@ -231,13 +237,31 @@ class ReportDjsnController extends Controller
         $printedBy = $user->name ?? $user->email ?? 'User';
         $printedAt = now()->format('d/m/Y H:i');
 
-        return $this->streamBrowsershotPdf('layouts.djsn.report.pdf-custom', compact(
+        $data = compact(
             'records',
             'selectedFields',
             'fieldLabels',
             'printedBy',
             'printedAt'
-        ), 'report-djsn-dewas-custom.pdf');
+        );
+
+        if ($request->boolean('_download')) {
+            return $this->streamBrowsershotPdf('layouts.djsn.report.pdf-custom', $data, 'report-djsn-dewas-custom.pdf');
+        }
+
+        return $this->previewPdf('layouts.djsn.report.pdf-custom', $data, $request->except('_token'), 'Pratinjau Report DJSN Custom', 'report-djsn-dewas-custom.pdf');
+    }
+
+    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): \Illuminate\View\View
+    {
+        return view('layouts.snp.report.preview', [
+            'title' => $title,
+            'filename' => $filename,
+            'reportHtml' => view($reportView, $data)->render(),
+            'downloadRoute' => route(str_contains($filename, 'custom') ? 'djsn.report.cetak-custom' : 'djsn.report.cetak'),
+            'downloadParameters' => $parameters,
+            'backRoute' => route('djsn.report.index'),
+        ]);
     }
 
     private function streamBrowsershotPdf(string $view, array $data, string $filename): Response
@@ -254,7 +278,7 @@ class ReportDjsnController extends Controller
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
