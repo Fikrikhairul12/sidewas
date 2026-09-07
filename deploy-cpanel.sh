@@ -5,7 +5,11 @@ set -Eeuo pipefail
 readonly REPOSITORY_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly APP_PATH="$REPOSITORY_PATH"
 readonly PUBLIC_PATH="/home/sidewasi/public_html"
+readonly HOME_ENV_PATH="/home/sidewasi/.env"
+readonly LEGACY_APP_PATH="/home/sidewasi/sidewas-laravel"
 readonly PUBLIC_INDEX_TEMPLATE="$REPOSITORY_PATH/resources/deployment/public-index.php"
+readonly PUBLIC_STORAGE_BACKUP="/home/sidewasi/storage-backup-before-repository"
+readonly STORAGE_MIGRATION_MARKER="$APP_PATH/storage/app/.repository-migration-complete"
 
 log() {
     printf '[sidewas-deploy] %s\n' "$1"
@@ -69,14 +73,55 @@ if [[ ! -f "$PUBLIC_INDEX_TEMPLATE" ]]; then
 fi
 
 if [[ ! -f "$APP_PATH/.env" ]]; then
-    log ".env production tidak ditemukan di $APP_PATH/.env"
-    exit 1
+    if [[ -f "$HOME_ENV_PATH" ]]; then
+        log 'Menyalin .env production dari home account.'
+        /bin/cp -p "$HOME_ENV_PATH" "$APP_PATH/.env"
+        /bin/chmod 600 "$APP_PATH/.env"
+    elif [[ -f "$LEGACY_APP_PATH/.env" ]]; then
+        log 'Menyalin .env production dari application root lama.'
+        /bin/cp -p "$LEGACY_APP_PATH/.env" "$APP_PATH/.env"
+        /bin/chmod 600 "$APP_PATH/.env"
+    else
+        log ".env tidak ditemukan di $APP_PATH, $HOME_ENV_PATH, maupun $LEGACY_APP_PATH."
+        exit 1
+    fi
 fi
 
-if [[ -e "$PUBLIC_PATH/storage" && ! -L "$PUBLIC_PATH/storage" ]]; then
-    log 'public_html/storage masih berupa folder biasa. Migrasikan isinya lalu ubah menjadi symlink sebelum deploy.'
-    exit 1
+/bin/mkdir -p \
+    "$PUBLIC_PATH" \
+    "$APP_PATH/bootstrap/cache" \
+    "$APP_PATH/storage/app/private" \
+    "$APP_PATH/storage/app/public" \
+    "$APP_PATH/storage/framework/cache/data" \
+    "$APP_PATH/storage/framework/sessions" \
+    "$APP_PATH/storage/framework/views" \
+    "$APP_PATH/storage/logs"
+
+if [[ ! -f "$STORAGE_MIGRATION_MARKER" ]]; then
+    if [[ -d "$LEGACY_APP_PATH/storage/app" ]]; then
+        log 'Menyalin data storage dari application root lama.'
+        "$RSYNC_BIN" -a --ignore-existing \
+            "$LEGACY_APP_PATH/storage/app/" "$APP_PATH/storage/app/"
+    fi
+
+    /usr/bin/touch "$STORAGE_MIGRATION_MARKER"
 fi
+
+if [[ -d "$PUBLIC_PATH/storage" && ! -L "$PUBLIC_PATH/storage" ]]; then
+    log 'Memindahkan public_html/storage lama ke penyimpanan Laravel.'
+    "$RSYNC_BIN" -a --ignore-existing \
+        "$PUBLIC_PATH/storage/" "$APP_PATH/storage/app/public/"
+
+    if [[ -e "$PUBLIC_STORAGE_BACKUP" || -L "$PUBLIC_STORAGE_BACKUP" ]]; then
+        log "$PUBLIC_STORAGE_BACKUP sudah ada; storage lama tidak dapat diamankan."
+        exit 1
+    fi
+
+    /bin/mv "$PUBLIC_PATH/storage" "$PUBLIC_STORAGE_BACKUP"
+    /bin/ln -s "$APP_PATH/storage/app/public" "$PUBLIC_PATH/storage"
+fi
+
+/bin/chmod -R ug+rwX "$APP_PATH/storage" "$APP_PATH/bootstrap/cache"
 
 log 'Memasang dependency PHP langsung di application root.'
 (
@@ -89,8 +134,6 @@ log 'Memasang dependency PHP langsung di application root.'
         --optimize-autoloader \
         --prefer-dist
 )
-
-/bin/mkdir -p "$PUBLIC_PATH"
 
 maintenance_enabled=false
 
@@ -120,13 +163,17 @@ if [[ -f "$APP_PATH/artisan" && -f "$APP_PATH/vendor/autoload.php" ]]; then
     fi
 fi
 
-log 'Menyiapkan direktori runtime Laravel.'
-/bin/mkdir -p \
-    "$APP_PATH/storage/app/public" \
-    "$APP_PATH/storage/framework/cache/data" \
-    "$APP_PATH/storage/framework/sessions" \
-    "$APP_PATH/storage/framework/views" \
-    "$APP_PATH/storage/logs"
+log 'Menjalankan migrasi dan membangun cache production.'
+(
+    cd "$APP_PATH"
+    "${COMPOSER_COMMAND[@]}" dump-autoload \
+        --no-dev \
+        --no-interaction \
+        --optimize
+    "$PHP_BIN" artisan optimize:clear
+    "$PHP_BIN" artisan migrate --force
+    "$PHP_BIN" artisan optimize
+)
 
 log 'Menyinkronkan public Laravel ke document root.'
 "$RSYNC_BIN" -a --delete \
@@ -149,20 +196,11 @@ fi
 
 if [[ -L "$PUBLIC_PATH/storage" ]]; then
     /bin/ln -sfn "$APP_PATH/storage/app/public" "$PUBLIC_PATH/storage"
-else
+elif [[ ! -e "$PUBLIC_PATH/storage" ]]; then
     /bin/ln -s "$APP_PATH/storage/app/public" "$PUBLIC_PATH/storage"
+else
+    log 'public_html/storage tidak dapat diarahkan ke application root baru.'
+    exit 1
 fi
-
-log 'Menjalankan migrasi dan membangun cache production.'
-(
-    cd "$APP_PATH"
-    "${COMPOSER_COMMAND[@]}" dump-autoload \
-        --no-dev \
-        --no-interaction \
-        --optimize
-    "$PHP_BIN" artisan optimize:clear
-    "$PHP_BIN" artisan migrate --force
-    "$PHP_BIN" artisan optimize
-)
 
 exit 0
