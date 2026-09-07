@@ -57,12 +57,13 @@ test('manajemen user page is wired for super admin monitoring', function () {
     expect($routes)
         ->toContain('ManajemenUserController')
         ->toContain('/administrasi/manajemen-user')
-        ->toContain("administrasi.manajemen-user.index")
-        ->toContain("administrasi.manajemen-user.store")
-        ->toContain("administrasi.manajemen-user.update")
-        ->toContain("administrasi.manajemen-user.destroy");
+        ->toContain('administrasi.manajemen-user.index')
+        ->toContain('administrasi.manajemen-user.store')
+        ->toContain('administrasi.manajemen-user.update')
+        ->toContain('administrasi.manajemen-user.destroy');
 
     expect($sidebar)
+        ->toContain('Statistik (tes)')
         ->toContain('canAccessManajemenUser')
         ->toContain("route('administrasi.manajemen-user.index')")
         ->toContain('Manajemen User');

@@ -66,7 +66,7 @@
                 </svg>
             </span>
 
-            <span>Statistik</span>
+            <span>Statistik (tes)</span>
 
             @if (request()->routeIs('dashboard'))
                 <span class="ml-auto h-8 w-1 rounded-full bg-sidewas-yellow"></span>

@@ -2,9 +2,10 @@
 
 set -Eeuo pipefail
 
-readonly APP_PATH="/home/sidewasi/sidewas-laravel"
-readonly PUBLIC_PATH="/home/sidewasi/public_html"
 readonly REPOSITORY_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly APP_PATH="$REPOSITORY_PATH"
+readonly PUBLIC_PATH="/home/sidewasi/public_html"
+readonly PUBLIC_INDEX_TEMPLATE="$REPOSITORY_PATH/resources/deployment/public-index.php"
 
 log() {
     printf '[sidewas-deploy] %s\n' "$1"
@@ -62,12 +63,22 @@ if [[ ! -f "$REPOSITORY_PATH/public/build/manifest.json" ]]; then
     exit 1
 fi
 
+if [[ ! -f "$PUBLIC_INDEX_TEMPLATE" ]]; then
+    log 'Template public_html/index.php tidak ditemukan.'
+    exit 1
+fi
+
 if [[ ! -f "$APP_PATH/.env" ]]; then
     log ".env production tidak ditemukan di $APP_PATH/.env"
     exit 1
 fi
 
-log 'Memasang dependency PHP di repository sementara.'
+if [[ -e "$PUBLIC_PATH/storage" && ! -L "$PUBLIC_PATH/storage" ]]; then
+    log 'public_html/storage masih berupa folder biasa. Migrasikan isinya lalu ubah menjadi symlink sebelum deploy.'
+    exit 1
+fi
+
+log 'Memasang dependency PHP langsung di application root.'
 (
     cd "$REPOSITORY_PATH"
     "${COMPOSER_COMMAND[@]}" install \
@@ -79,7 +90,7 @@ log 'Memasang dependency PHP di repository sementara.'
         --prefer-dist
 )
 
-/bin/mkdir -p "$APP_PATH" "$PUBLIC_PATH"
+/bin/mkdir -p "$PUBLIC_PATH"
 
 maintenance_enabled=false
 
@@ -109,37 +120,15 @@ if [[ -f "$APP_PATH/artisan" && -f "$APP_PATH/vendor/autoload.php" ]]; then
     fi
 fi
 
-log 'Menyinkronkan source Laravel.'
-"$RSYNC_BIN" -a --delete "$REPOSITORY_PATH/app/" "$APP_PATH/app/"
-"$RSYNC_BIN" -a --delete --exclude='/cache/' "$REPOSITORY_PATH/bootstrap/" "$APP_PATH/bootstrap/"
-"$RSYNC_BIN" -a --delete "$REPOSITORY_PATH/config/" "$APP_PATH/config/"
-"$RSYNC_BIN" -a --delete "$REPOSITORY_PATH/database/" "$APP_PATH/database/"
-"$RSYNC_BIN" -a --delete "$REPOSITORY_PATH/resources/" "$APP_PATH/resources/"
-"$RSYNC_BIN" -a --delete "$REPOSITORY_PATH/routes/" "$APP_PATH/routes/"
-"$RSYNC_BIN" -a --delete "$REPOSITORY_PATH/vendor/" "$APP_PATH/vendor/"
-
-/bin/cp "$REPOSITORY_PATH/artisan" "$APP_PATH/artisan"
-/bin/cp "$REPOSITORY_PATH/composer.json" "$APP_PATH/composer.json"
-/bin/cp "$REPOSITORY_PATH/composer.lock" "$APP_PATH/composer.lock"
-/bin/cp "$REPOSITORY_PATH/package.json" "$APP_PATH/package.json"
-/bin/cp "$REPOSITORY_PATH/package-lock.json" "$APP_PATH/package-lock.json"
-/bin/cp "$REPOSITORY_PATH/vite.config.js" "$APP_PATH/vite.config.js"
-/bin/cp "$REPOSITORY_PATH/tailwind.config.js" "$APP_PATH/tailwind.config.js"
-/bin/cp "$REPOSITORY_PATH/postcss.config.js" "$APP_PATH/postcss.config.js"
-
-log 'Menyinkronkan public Laravel dan document root.'
+log 'Menyiapkan direktori runtime Laravel.'
 /bin/mkdir -p \
-    "$APP_PATH/public" \
     "$APP_PATH/storage/app/public" \
     "$APP_PATH/storage/framework/cache/data" \
     "$APP_PATH/storage/framework/sessions" \
     "$APP_PATH/storage/framework/views" \
     "$APP_PATH/storage/logs"
 
-"$RSYNC_BIN" -a --delete \
-    --exclude='/storage/' \
-    "$REPOSITORY_PATH/public/" "$APP_PATH/public/"
-
+log 'Menyinkronkan public Laravel ke document root.'
 "$RSYNC_BIN" -a --delete \
     --exclude='/.htaccess' \
     --exclude='/index.php' \
@@ -148,11 +137,19 @@ log 'Menyinkronkan public Laravel dan document root.'
     --exclude='/cgi-bin/' \
     "$REPOSITORY_PATH/public/" "$PUBLIC_PATH/"
 
+/bin/cp "$PUBLIC_INDEX_TEMPLATE" "$PUBLIC_PATH/index.php"
+
+if [[ ! -f "$PUBLIC_PATH/.htaccess" ]]; then
+    /bin/cp "$REPOSITORY_PATH/public/.htaccess" "$PUBLIC_PATH/.htaccess"
+fi
+
 if [[ ! -e "$APP_PATH/public/storage" ]]; then
     /bin/ln -s "$APP_PATH/storage/app/public" "$APP_PATH/public/storage"
 fi
 
-if [[ ! -e "$PUBLIC_PATH/storage" ]]; then
+if [[ -L "$PUBLIC_PATH/storage" ]]; then
+    /bin/ln -sfn "$APP_PATH/storage/app/public" "$PUBLIC_PATH/storage"
+else
     /bin/ln -s "$APP_PATH/storage/app/public" "$PUBLIC_PATH/storage"
 fi
 
