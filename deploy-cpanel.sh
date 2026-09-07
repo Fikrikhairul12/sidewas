@@ -33,6 +33,35 @@ find_executable() {
     return 1
 }
 
+copy_missing_tree() {
+    local source_path="$1"
+    local destination_path="$2"
+
+    /bin/mkdir -p "$destination_path"
+    /bin/cp -a -n -- "$source_path"/. "$destination_path"/
+}
+
+copy_public_tree() {
+    local source_entry
+    local entry_name
+
+    shopt -s dotglob nullglob
+
+    for source_entry in "$REPOSITORY_PATH/public"/*; do
+        entry_name="${source_entry##*/}"
+
+        case "$entry_name" in
+            .htaccess|index.php|storage|.well-known|cgi-bin)
+                continue
+                ;;
+        esac
+
+        /bin/cp -a -- "$source_entry" "$PUBLIC_PATH"/
+    done
+
+    shopt -u dotglob nullglob
+}
+
 PHP_BIN="$(find_executable \
     /usr/local/bin/ea-php82 \
     /opt/cpanel/ea-php82/root/usr/bin/php \
@@ -47,11 +76,6 @@ if [[ "$PHP_VERSION_ID" -lt 80200 ]]; then
     log "PHP 8.2 atau lebih baru dibutuhkan; versi aktif adalah $("$PHP_BIN" -r 'echo PHP_VERSION;')."
     exit 1
 fi
-
-RSYNC_BIN="$(find_executable /usr/bin/rsync rsync)" || {
-    log 'rsync tidak ditemukan.'
-    exit 1
-}
 
 if [[ -f /opt/cpanel/composer/bin/composer ]]; then
     COMPOSER_COMMAND=("$PHP_BIN" /opt/cpanel/composer/bin/composer)
@@ -100,8 +124,8 @@ fi
 if [[ ! -f "$STORAGE_MIGRATION_MARKER" ]]; then
     if [[ -d "$LEGACY_APP_PATH/storage/app" ]]; then
         log 'Menyalin data storage dari application root lama.'
-        "$RSYNC_BIN" -a --ignore-existing \
-            "$LEGACY_APP_PATH/storage/app/" "$APP_PATH/storage/app/"
+        copy_missing_tree \
+            "$LEGACY_APP_PATH/storage/app" "$APP_PATH/storage/app"
     fi
 
     /usr/bin/touch "$STORAGE_MIGRATION_MARKER"
@@ -109,8 +133,8 @@ fi
 
 if [[ -d "$PUBLIC_PATH/storage" && ! -L "$PUBLIC_PATH/storage" ]]; then
     log 'Memindahkan public_html/storage lama ke penyimpanan Laravel.'
-    "$RSYNC_BIN" -a --ignore-existing \
-        "$PUBLIC_PATH/storage/" "$APP_PATH/storage/app/public/"
+    copy_missing_tree \
+        "$PUBLIC_PATH/storage" "$APP_PATH/storage/app/public"
 
     if [[ -e "$PUBLIC_STORAGE_BACKUP" || -L "$PUBLIC_STORAGE_BACKUP" ]]; then
         log "$PUBLIC_STORAGE_BACKUP sudah ada; storage lama tidak dapat diamankan."
@@ -176,13 +200,7 @@ log 'Menjalankan migrasi dan membangun cache production.'
 )
 
 log 'Menyinkronkan public Laravel ke document root.'
-"$RSYNC_BIN" -a --delete \
-    --exclude='/.htaccess' \
-    --exclude='/index.php' \
-    --exclude='/storage/' \
-    --exclude='/.well-known/' \
-    --exclude='/cgi-bin/' \
-    "$REPOSITORY_PATH/public/" "$PUBLIC_PATH/"
+copy_public_tree
 
 /bin/cp "$PUBLIC_INDEX_TEMPLATE" "$PUBLIC_PATH/index.php"
 
