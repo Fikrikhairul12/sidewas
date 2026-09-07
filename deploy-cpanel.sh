@@ -77,13 +77,17 @@ if [[ "$PHP_VERSION_ID" -lt 80200 ]]; then
     exit 1
 fi
 
+COMPOSER_AVAILABLE=false
+
 if [[ -f /opt/cpanel/composer/bin/composer ]]; then
     COMPOSER_COMMAND=("$PHP_BIN" /opt/cpanel/composer/bin/composer)
+    COMPOSER_AVAILABLE=true
 elif command -v composer >/dev/null 2>&1; then
     COMPOSER_COMMAND=("$(command -v composer)")
+    COMPOSER_AVAILABLE=true
 else
-    log 'Composer tidak ditemukan.'
-    exit 1
+    COMPOSER_COMMAND=()
+    log 'Composer tidak tersedia; dependency akan disalin dari application root lama.'
 fi
 
 if [[ ! -f "$REPOSITORY_PATH/public/build/manifest.json" ]]; then
@@ -147,17 +151,38 @@ fi
 
 /bin/chmod -R ug+rwX "$APP_PATH/storage" "$APP_PATH/bootstrap/cache"
 
-log 'Memasang dependency PHP langsung di application root.'
-(
-    cd "$REPOSITORY_PATH"
-    "${COMPOSER_COMMAND[@]}" install \
-        --no-dev \
-        --no-interaction \
-        --no-progress \
-        --no-scripts \
-        --optimize-autoloader \
-        --prefer-dist
-)
+if [[ "$COMPOSER_AVAILABLE" == true ]]; then
+    log 'Memasang dependency PHP langsung di application root.'
+    (
+        cd "$REPOSITORY_PATH"
+        "${COMPOSER_COMMAND[@]}" install \
+            --no-dev \
+            --no-interaction \
+            --no-progress \
+            --no-scripts \
+            --optimize-autoloader \
+            --prefer-dist
+    )
+else
+    if [[ ! -f "$LEGACY_APP_PATH/vendor/autoload.php" ]]; then
+        log 'Composer dan vendor dari application root lama tidak tersedia.'
+        exit 1
+    fi
+
+    if [[ ! -f "$LEGACY_APP_PATH/composer.lock" ]] || \
+        ! "$PHP_BIN" -r 'exit(hash_file("sha256", $argv[1]) === hash_file("sha256", $argv[2]) ? 0 : 1);' \
+            "$LEGACY_APP_PATH/composer.lock" "$APP_PATH/composer.lock"; then
+        log 'composer.lock baru berbeda dari application root lama; vendor lama tidak aman digunakan.'
+        exit 1
+    fi
+
+    if [[ ! -f "$APP_PATH/vendor/autoload.php" ]]; then
+        log 'Menyalin dependency PHP yang kompatibel dari application root lama.'
+        copy_missing_tree "$LEGACY_APP_PATH/vendor" "$APP_PATH/vendor"
+    else
+        log 'Menggunakan dependency PHP yang sudah tersedia di application root baru.'
+    fi
+fi
 
 maintenance_enabled=false
 
@@ -190,10 +215,16 @@ fi
 log 'Menjalankan migrasi dan membangun cache production.'
 (
     cd "$APP_PATH"
-    "${COMPOSER_COMMAND[@]}" dump-autoload \
-        --no-dev \
-        --no-interaction \
-        --optimize
+
+    if [[ "$COMPOSER_AVAILABLE" == true ]]; then
+        "${COMPOSER_COMMAND[@]}" dump-autoload \
+            --no-dev \
+            --no-interaction \
+            --optimize
+    else
+        "$PHP_BIN" artisan package:discover --ansi
+    fi
+
     "$PHP_BIN" artisan optimize:clear
     "$PHP_BIN" artisan migrate --force
     "$PHP_BIN" artisan optimize
