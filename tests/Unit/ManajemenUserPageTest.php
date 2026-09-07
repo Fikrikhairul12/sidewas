@@ -63,7 +63,7 @@ test('manajemen user page is wired for super admin monitoring', function () {
         ->toContain('administrasi.manajemen-user.destroy');
 
     expect($sidebar)
-        ->toContain('Statistik (tes)')
+        ->toContain('Statistik')
         ->toContain('canAccessManajemenUser')
         ->toContain("route('administrasi.manajemen-user.index')")
         ->toContain('Manajemen User');
