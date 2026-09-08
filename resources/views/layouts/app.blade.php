@@ -15,6 +15,9 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if (request()->routeIs('kunjungan.*'))
+        @vite(['resources/css/kunjungan.css', 'resources/js/kunjungan.js'])
+    @endif
 </head>
 
 <body class="font-sans antialiased">
@@ -125,6 +128,15 @@
                 {{ $slot }}
             </main>
 
+            @if (request()->routeIs('kunjungan.*'))
+                @if (session('success'))
+                    <div class="toast" role="status">{{ session('success') }}</div>
+                @endif
+                @if ($errors->any())
+                    <div class="toast error" role="alert">{{ $errors->first() }}</div>
+                @endif
+            @endif
+
             {{-- Footer --}}
             <footer class="border-t border-gray-200 bg-white px-8 py-4">
                 <div class="flex flex-col gap-2 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
@@ -141,6 +153,7 @@
             </footer>
         </div>
     </div>
+    @stack('modals')
 </body>
 
 </html>

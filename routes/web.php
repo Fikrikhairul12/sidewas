@@ -13,6 +13,13 @@ use App\Http\Controllers\Eksternal\PerekamanEksternalController;
 use App\Http\Controllers\Eksternal\ReportEksternalController;
 use App\Http\Controllers\Eksternal\ReviuEksternalController;
 use App\Http\Controllers\Eksternal\TindakLanjutEksternalController;
+use App\Http\Controllers\Kunjungan\ApprovalController as KunjunganApprovalController;
+use App\Http\Controllers\Kunjungan\CalendarController as KunjunganCalendarController;
+use App\Http\Controllers\Kunjungan\DashboardController as KunjunganDashboardController;
+use App\Http\Controllers\Kunjungan\EmployeeController as KunjunganEmployeeController;
+use App\Http\Controllers\Kunjungan\MapController as KunjunganMapController;
+use App\Http\Controllers\Kunjungan\ReportController as KunjunganReportController;
+use App\Http\Controllers\Kunjungan\VisitController as KunjunganVisitController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProdukHukum\ProdukHukumController;
 use App\Http\Controllers\Ragab\PerekamanRagabController;
@@ -47,6 +54,29 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+Route::prefix('kunjungan')->name('kunjungan.')->middleware(['auth', 'verified', 'can:access-kunjungan'])->group(function () {
+    Route::get('/dashboard', KunjunganDashboardController::class)->name('dashboard');
+    Route::get('/', [KunjunganVisitController::class, 'index'])->name('visits.index');
+    Route::get('/create', [KunjunganVisitController::class, 'create'])->name('visits.create');
+    Route::post('/', [KunjunganVisitController::class, 'store'])->name('visits.store');
+    Route::get('/history', [KunjunganVisitController::class, 'history'])->name('history');
+    Route::get('/calendar', KunjunganCalendarController::class)->name('calendar');
+    Route::get('/map', KunjunganMapController::class)->name('map');
+    Route::get('/approvals', [KunjunganApprovalController::class, 'index'])->name('approvals.index');
+    Route::post('/{visit}/approve', [KunjunganApprovalController::class, 'approve'])->name('approvals.approve');
+    Route::post('/{visit}/reject', [KunjunganApprovalController::class, 'reject'])->name('approvals.reject');
+    Route::get('/employees', [KunjunganEmployeeController::class, 'index'])->name('employees.index');
+    Route::get('/{visit}', [KunjunganVisitController::class, 'show'])->name('visits.show');
+    Route::get('/{visit}/edit', [KunjunganVisitController::class, 'edit'])->name('visits.edit');
+    Route::put('/{visit}', [KunjunganVisitController::class, 'update'])->name('visits.update');
+    Route::post('/{visit}/resubmit', [KunjunganVisitController::class, 'resubmit'])->name('visits.resubmit');
+    Route::post('/{visit}/finish', [KunjunganVisitController::class, 'finish'])->name('visits.finish');
+    Route::post('/{visit}/cancel', [KunjunganVisitController::class, 'cancel'])->name('visits.cancel');
+    Route::post('/{visit}/report', [KunjunganReportController::class, 'store'])->name('reports.store');
+    Route::get('/{visit}/report/{report}', [KunjunganReportController::class, 'show'])->name('reports.show');
+    Route::get('/{visit}/report/{report}/download', [KunjunganReportController::class, 'download'])->name('reports.download');
 });
 
 require __DIR__ . '/auth.php';

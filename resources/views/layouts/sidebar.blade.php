@@ -612,6 +612,83 @@
             </div>
         </div>
 
+        {{-- Kunjungan Kerja --}}
+        @if ($authUser?->canAccessKunjungan())
+            @php
+                $canCreateKunjungan = $authUser->canCreateKunjungan();
+                $canApproveKunjungan = $authUser->canModerateKunjungan();
+                $canManageKunjungan = $authUser->canManageKunjungan();
+            @endphp
+            <div x-data="{ open: @js(request()->routeIs('kunjungan.*')) }">
+                <button type="button" @click="open = !open"
+                    class="flex w-full items-center justify-between px-6 py-4 text-sm font-medium transition hover:bg-white hover:text-sidewas-blue border-b border-slate-300/70
+                        {{ request()->routeIs('kunjungan.*') ? 'bg-white text-sidewas-blue font-semibold is-active' : 'text-slate-600' }}">
+                    <span class="flex items-center gap-3">
+                        <span
+                            class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-200">
+                            <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="1.8">
+                                <path d="M3 11l9-7 9 7v9H3z" stroke-linejoin="round" />
+                                <path d="M8 20v-6h8v6M8 11h8" stroke-linecap="round" />
+                            </svg>
+                        </span>
+                        <span>Kunjungan Kerja</span>
+                    </span>
+
+                    <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': open }" fill="none"
+                        stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7" />
+                    </svg>
+                </button>
+
+                <div x-show="open" x-transition
+                    class="mx-4 overflow-hidden rounded-xl bg-white border border-slate-200 shadow-sm"
+                    style="display: none;">
+                    <a href="{{ route('kunjungan.dashboard') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                            {{ request()->routeIs('kunjungan.dashboard') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                        Dashboard Kunjungan
+                    </a>
+                    <a href="{{ route('kunjungan.visits.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                            {{ request()->routeIs('kunjungan.visits.index', 'kunjungan.visits.show', 'kunjungan.visits.edit') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                        Daftar Kunjungan
+                    </a>
+                    @if ($canCreateKunjungan)
+                        <a href="{{ route('kunjungan.visits.create') }}"
+                            class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                                {{ request()->routeIs('kunjungan.visits.create') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                            Ajukan Kunjungan
+                        </a>
+                    @endif
+                    <a href="{{ route('kunjungan.calendar') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                            {{ request()->routeIs('kunjungan.calendar') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                        Kalender Kunjungan
+                    </a>
+                    <a href="{{ route('kunjungan.map') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                            {{ request()->routeIs('kunjungan.map') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                        Peta Kunjungan
+                    </a>
+                    @if ($canApproveKunjungan)
+                        <a href="{{ route('kunjungan.approvals.index') }}"
+                            class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                                {{ request()->routeIs('kunjungan.approvals.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                            Persetujuan
+                        </a>
+                    @endif
+                    @if ($canManageKunjungan)
+                        <a href="{{ route('kunjungan.employees.index') }}"
+                            class="block px-10 py-3 text-sm transition
+                                {{ request()->routeIs('kunjungan.employees.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                            Direktori Pegawai
+                        </a>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         {{-- Produk Hukum --}}
         @php
             $canAccessProdukHukum = $authUser?->canAccessProdukHukum() ?? false;

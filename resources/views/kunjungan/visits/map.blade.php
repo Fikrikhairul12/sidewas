@@ -1,0 +1,9 @@
+<x-layouts.app title="Peta Kunjungan">
+    <x-page-header title="Peta Aktivitas Kunjungan" description="Sebaran unit kerja dan intensitas kunjungan di seluruh Indonesia berdasarkan data koordinat master resmi."><x-slot:actions><a class="btn btn-light" href="{{ route('kunjungan.visits.index') }}">Buka Daftar</a></x-slot:actions></x-page-header>
+    <section class="card map-card"><div id="visit-map" class="map-canvas" data-markers='@json($markers)' data-tile-url="{{ config('services.map_tile_url') }}"></div><div class="map-legend"><strong>Legenda</strong><span class="legend-item"><i class="legend-dot"></i> Belum pernah dikunjungi</span><span class="legend-item"><i class="legend-dot visited"></i> Pernah dikunjungi</span><span class="legend-item"><i class="legend-dot upcoming"></i> Ada kunjungan mendatang</span><span>Ukuran titik menunjukkan frekuensi kunjungan.</span></div></section>
+    <div class="map-sections">
+        @php($sectionMeta=['upcoming'=>['Kunjungan Mendatang','Rencana yang telah disetujui dan segera dilaksanakan.','APPROVED'],'ongoing'=>['Sedang Berlangsung','Kunjungan yang sedang berada dalam jadwal pelaksanaan.','ONGOING'],'waiting'=>['Belum Ada Laporan','Pelaksanaan selesai dan menunggu laporan PDF.','WAITING_REPORT'],'completed'=>['Kunjungan Selesai','Kunjungan dengan laporan PDF yang tersedia.','COMPLETED']])
+        @foreach($sectionMeta as $key=>$meta)<section class="card map-section"><div class="section-heading"><div><h2>{{ $meta[0] }}</h2><p>{{ $meta[1] }}</p></div><a class="btn btn-light btn-sm" href="{{ route('kunjungan.visits.index',['status'=>$meta[2]]) }}">Lihat Semua</a></div>@if($sections[$key]->isNotEmpty())<div class="visit-mini-list">@foreach($sections[$key] as $visit)<x-visit-card :visit="$visit"/>@endforeach</div>@else<x-empty-state :title="'Belum ada '.$meta[0].'.'" description="Data akan tampil otomatis sesuai status kunjungan."/>@endif</section>@endforeach
+    </div>
+</x-layouts.app>
+

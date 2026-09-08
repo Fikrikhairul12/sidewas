@@ -33,6 +33,7 @@ class AccessControlSeeder extends Seeder
             ['id' => 4, 'code' => 'djsn', 'name' => 'DJSN', 'database_connection' => 'mysql_djsn', 'database_name' => 'sidewas_djsn', 'keterangan' => 'Tipe akses untuk DJSN.'],
             ['id' => 5, 'code' => 'produk_hukum', 'name' => 'Produk Hukum', 'database_connection' => 'mysql_produk_hukum', 'database_name' => 'sidewas_produk_hukum', 'keterangan' => 'Tipe akses untuk Produk Hukum.'],
             ['id' => 6, 'code' => 'eksternal', 'name' => 'Eksternal', 'database_connection' => 'mysql_eksternal', 'database_name' => 'sidewas_eksternal', 'keterangan' => 'Tipe akses untuk Rapat Eksternal.'],
+            ['id' => 7, 'code' => 'kunjungan', 'name' => 'Kunjungan Kerja', 'database_connection' => 'mysql_kunjungan', 'database_name' => 'sidewas_kunjungan', 'keterangan' => 'Tipe akses untuk modul monitoring kunjungan kerja.'],
         ];
 
         foreach ($types as $type) {
@@ -53,23 +54,37 @@ class AccessControlSeeder extends Seeder
         );
 
         $roleNames = [2 => 'admin', 3 => 'moderator', 4 => 'pic', 5 => 'viewer'];
-        $typeCodes = [1 => 'snp', 2 => 'ragab', 3 => 'rawas', 4 => 'djsn', 5 => 'produk_hukum', 6 => 'eksternal'];
+        $typeCodes = [1 => 'snp', 2 => 'ragab', 3 => 'rawas', 4 => 'djsn', 5 => 'produk_hukum', 6 => 'eksternal', 7 => 'kunjungan'];
 
         foreach ($roleNames as $roleId => $roleName) {
             foreach ($typeCodes as $typeId => $typeCode) {
                 if ($typeCode === 'produk_hukum' && !in_array($roleName, ['admin', 'viewer'])) {
                     continue;
                 }
+                if ($typeCode === 'kunjungan' && $roleName === 'admin') {
+                    continue;
+                }
                 DB::table('tb_role_type')->updateOrInsert(
                     ['role_id' => $roleId, 'type_id' => $typeId],
                     [
                         'name' => $roleName . '_' . $typeCode,
-                        'keterangan' => ucfirst($roleName) . ' ' . strtoupper(str_replace('_', ' ', $typeCode)),
+                        'keterangan' => $typeCode === 'kunjungan' && $roleName === 'pic'
+                            ? 'PIC Kunjungan Kerja'
+                            : ucfirst($roleName) . ' ' . strtoupper(str_replace('_', ' ', $typeCode)),
                         'created_at' => $now,
                         'updated_at' => $now,
                     ]
                 );
             }
+        }
+
+        $deprecatedKunjunganAdminId = DB::table('tb_role_type')
+            ->where('name', 'admin_kunjungan')
+            ->value('id');
+
+        if ($deprecatedKunjunganAdminId) {
+            DB::table('tb_user_role_type')->where('role_type_id', $deprecatedKunjunganAdminId)->delete();
+            DB::table('tb_role_type')->where('id', $deprecatedKunjunganAdminId)->delete();
         }
 
         // foreach ([2 => 'admin', 5 => 'viewer'] as $roleId => $roleName) {

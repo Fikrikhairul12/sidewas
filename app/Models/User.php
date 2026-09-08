@@ -114,6 +114,61 @@ class User extends Authenticatable
             ->exists();
     }
 
+    public function canAccessKunjungan(): bool
+    {
+        return $this->isActiveForKunjungan()
+            && (
+                $this->isSuperAdmin()
+                || $this->hasAnyRoleType([
+                    'moderator_kunjungan',
+                    'pic_kunjungan',
+                    'viewer_kunjungan',
+                ])
+            );
+    }
+
+    public function isActiveForKunjungan(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    public function isKunjunganModerator(): bool
+    {
+        return $this->hasRoleType('moderator_kunjungan');
+    }
+
+    public function isKunjunganViewer(): bool
+    {
+        return $this->hasRoleType('viewer_kunjungan');
+    }
+
+    public function isKunjunganPic(): bool
+    {
+        return $this->hasRoleType('pic_kunjungan');
+    }
+
+    public function canModerateKunjungan(): bool
+    {
+        return $this->canAccessKunjungan()
+            && ($this->isSuperAdmin() || $this->isKunjunganModerator());
+    }
+
+    public function canManageKunjungan(): bool
+    {
+        return $this->canAccessKunjungan() && $this->isSuperAdmin();
+    }
+
+    public function canCreateKunjungan(): bool
+    {
+        return $this->canAccessKunjungan();
+    }
+
+    public function canViewAllVisits(): bool
+    {
+        return $this->canAccessKunjungan()
+            && ($this->isSuperAdmin() || $this->isKunjunganModerator() || $this->isKunjunganViewer());
+    }
+
     public static function isAllowedEmailDomain(string $email): bool
     {
         return str_ends_with(strtolower($email), '@bpjsketenagakerjaan.go.id');
