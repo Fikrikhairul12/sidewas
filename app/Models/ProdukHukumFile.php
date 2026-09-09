@@ -30,4 +30,15 @@ class ProdukHukumFile extends Model
     {
         return $this->belongsTo(ProdukHukum::class, 'produk_hukum_id', 'id');
     }
+
+    public function isPreviewable(): bool
+    {
+        if ($this->bentuk_file !== 'file') {
+            return false;
+        }
+
+        $extension = strtolower(pathinfo((string) $this->nama_file, PATHINFO_EXTENSION));
+
+        return in_array($extension, ['pdf', 'jpg', 'jpeg', 'png'], true);
+    }
 }

@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProdukHukumController extends Controller
 {
@@ -26,7 +28,7 @@ class ProdukHukumController extends Controller
             abort(403, 'Anda tidak memiliki akses ke halaman Produk Hukum.');
         }
 
-        $query = ProdukHukum::with(['files', 'relasis.produkHukumTerkait', 'creator'])
+        $query = ProdukHukum::query()
             ->withCount('files')
             ->latest();
 
@@ -97,6 +99,22 @@ class ProdukHukumController extends Controller
             ->distinct()
             ->orderByDesc('tahun_peraturan')
             ->pluck('tahun_peraturan');
+        $relatedProdukOptions = $user->canCreateProdukHukum()
+            ? ProdukHukum::query()
+                ->orderByDesc('tahun_peraturan')
+                ->orderBy('judul')
+                ->get(['id', 'kode_produk_hukum', 'judul', 'nomor_peraturan_keputusan', 'tahun_peraturan'])
+                ->map(fn (ProdukHukum $produkHukum): array => [
+                    'id' => $produkHukum->id,
+                    'label' => collect([
+                        $produkHukum->kode_produk_hukum,
+                        $produkHukum->nomor_peraturan_keputusan,
+                        $produkHukum->tahun_peraturan,
+                        $produkHukum->judul,
+                    ])->filter()->join(' - '),
+                ])
+                ->values()
+            : collect();
 
         return view('layouts.produk-hukum.index', compact(
             'produkHukums',
@@ -105,8 +123,26 @@ class ProdukHukumController extends Controller
             'approvedAccessIds',
             'bidangOptions',
             'jenisOptions',
-            'tahunOptions'
+            'tahunOptions',
+            'relatedProdukOptions'
         ));
+    }
+
+    public function show(ProdukHukum $produkHukum): View
+    {
+        $user = User::find(Auth::id());
+
+        if (! $user || ! $user->canAccessProdukHukum()) {
+            abort(403, 'Anda tidak memiliki akses ke halaman Produk Hukum.');
+        }
+
+        if (! $this->canUserAccessProdukHukum($user, $produkHukum)) {
+            abort(403, 'Anda belum memiliki akses ke detail Produk Hukum ini.');
+        }
+
+        $produkHukum->load(['files', 'relasis.produkHukumTerkait', 'creator', 'updater']);
+
+        return view('layouts.produk-hukum.show', compact('produkHukum'));
     }
 
     public function store(Request $request)
@@ -121,7 +157,7 @@ class ProdukHukumController extends Controller
             'kode_produk_hukum' => ['nullable', 'string', 'max:80', 'unique:mysql_produk_hukum.tb_produk_hukum,kode_produk_hukum'],
             'judul' => ['required', 'string'],
             'nomor_peraturan_keputusan' => ['nullable', 'string', 'max:255'],
-            'tahun_peraturan' => ['nullable', 'integer', 'min:1900', 'max:' . (now()->year + 1)],
+            'tahun_peraturan' => ['nullable', 'integer', 'min:1900', 'max:'.(now()->year + 1)],
             'jenis_bentuk_peraturan' => [
                 'nullable',
                 'string',
@@ -176,21 +212,23 @@ class ProdukHukumController extends Controller
                 'updated_by' => $user->id,
             ]);
 
-            foreach ($request->file('files', []) as $file) {
-                $path = $file->store('produk-hukum', 'public');
+            if ($validated['bentuk_file'] === 'file') {
+                foreach ($request->file('files', []) as $file) {
+                    $path = $file->store('produk-hukum', 'public');
 
-                ProdukHukumFile::create([
-                    'produk_hukum_id' => $produkHukum->id,
-                    'bentuk_file' => 'file',
-                    'nama_file' => $file->getClientOriginalName(),
-                    'path_file' => $path,
-                    'link_file' => null,
-                    'mime_type' => $file->getMimeType(),
-                    'ukuran_file' => $file->getSize(),
-                    'jenis_file' => $validated['jenis_file'] ?? 'lampiran',
-                    'created_by' => $user->id,
-                    'updated_by' => $user->id,
-                ]);
+                    ProdukHukumFile::create([
+                        'produk_hukum_id' => $produkHukum->id,
+                        'bentuk_file' => 'file',
+                        'nama_file' => $file->getClientOriginalName(),
+                        'path_file' => $path,
+                        'link_file' => null,
+                        'mime_type' => $file->getMimeType(),
+                        'ukuran_file' => $file->getSize(),
+                        'jenis_file' => $validated['jenis_file'] ?? 'lampiran',
+                        'created_by' => $user->id,
+                        'updated_by' => $user->id,
+                    ]);
+                }
             }
 
             if (($validated['bentuk_file'] ?? null) === 'link' && ! empty($validated['link_file'])) {
@@ -273,7 +311,7 @@ class ProdukHukumController extends Controller
             'database_name' => 'sidewas_produk_hukum',
             'table_name' => 'tb_produk_hukum',
             'record_key' => (string) $produkHukum->id,
-            'record_label' => $produkHukum->kode_produk_hukum . ' - ' . $produkHukum->judul,
+            'record_label' => $produkHukum->kode_produk_hukum.' - '.$produkHukum->judul,
             'reason' => json_encode([
                 'action' => 'view_produk_hukum',
                 'produk_hukum_id' => $produkHukum->id,
@@ -319,7 +357,7 @@ class ProdukHukumController extends Controller
             'database_name' => 'sidewas_produk_hukum',
             'table_name' => 'tb_produk_hukum',
             'record_key' => (string) $produkHukum->id,
-            'record_label' => $produkHukum->kode_produk_hukum . ' - ' . $produkHukum->judul,
+            'record_label' => $produkHukum->kode_produk_hukum.' - '.$produkHukum->judul,
             'reason' => json_encode([
                 'action' => 'delete_produk_hukum',
                 'produk_hukum_id' => $produkHukum->id,
@@ -360,9 +398,39 @@ class ProdukHukumController extends Controller
             abort(404, 'File tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $file->path_file);
+        $filePath = storage_path('app/public/'.$file->path_file);
 
         return response()->download($filePath, $file->nama_file);
+    }
+
+    public function previewFile(ProdukHukumFile $file): BinaryFileResponse
+    {
+        $user = User::find(Auth::id());
+        $produkHukum = $file->produkHukum;
+
+        if (! $user || ! $produkHukum || ! $this->canUserAccessProdukHukum($user, $produkHukum)) {
+            abort(403, 'Anda tidak memiliki akses untuk melihat file ini.');
+        }
+
+        if (! $file->isPreviewable()) {
+            abort(404, 'Pratinjau tidak tersedia untuk jenis file ini.');
+        }
+
+        if (! $file->path_file || ! Storage::disk('public')->exists($file->path_file)) {
+            abort(404, 'File tidak ditemukan.');
+        }
+
+        $filePath = storage_path('app/public/'.$file->path_file);
+        $filename = str_replace(['"', "\r", "\n"], '', $file->nama_file ?: 'produk-hukum');
+        $mimeType = $file->mime_type ?: Storage::disk('public')->mimeType($file->path_file);
+
+        $response = response()->file($filePath, [
+            'Content-Type' => $mimeType,
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+        $response->setContentDisposition('inline', $filename);
+
+        return $response;
     }
 
     private function canUserAccessProdukHukum(User $user, ProdukHukum $produkHukum): bool

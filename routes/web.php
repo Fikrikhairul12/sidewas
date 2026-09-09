@@ -122,6 +122,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/produk-hukum', [ProdukHukumController::class, 'store'])
         ->name('produk-hukum.store');
 
+    Route::get('/produk-hukum/{produkHukum}', [ProdukHukumController::class, 'show'])
+        ->name('produk-hukum.show');
+
     Route::post('/produk-hukum/{produkHukum}/request-access', [ProdukHukumController::class, 'requestAccess'])
         ->name('produk-hukum.request-access');
 
@@ -130,6 +133,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/produk-hukum/file/{file}/download', [ProdukHukumController::class, 'downloadFile'])
         ->name('produk-hukum.file.download');
+
+    Route::get('/produk-hukum/file/{file}/preview', [ProdukHukumController::class, 'previewFile'])
+        ->name('produk-hukum.file.preview');
 });
 
 // TODO: SNP
