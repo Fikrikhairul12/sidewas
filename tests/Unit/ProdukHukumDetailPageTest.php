@@ -40,7 +40,8 @@ test('produk hukum detail uses a dedicated page with format aware file actions',
         ->toContain('Hubungan Peraturan')
         ->toContain('Buka Tautan')
         ->toContain("route('produk-hukum.file.preview', \$file)")
-        ->toContain("route('produk-hukum.file.download', \$file)");
+        ->toContain("route('produk-hukum.file.download', \$file)")
+        ->not->toContain('lg:sticky');
 });
 
 test('only browser friendly uploaded files are previewable', function () {

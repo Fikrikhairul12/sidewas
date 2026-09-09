@@ -155,7 +155,7 @@
                 </section>
             </main>
 
-            <aside class="min-w-0 space-y-6 lg:sticky lg:top-24">
+            <aside class="min-w-0 space-y-6">
                 <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                     <div class="flex items-center gap-3 border-b border-slate-200 px-5 py-4">
                         <span class="flex h-9 w-9 items-center justify-center rounded-md bg-rose-50 text-rose-700">
