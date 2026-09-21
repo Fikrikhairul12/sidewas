@@ -617,7 +617,6 @@
             @php
                 $canCreateKunjungan = $authUser->canCreateKunjungan();
                 $canApproveKunjungan = $authUser->canModerateKunjungan();
-                $canManageKunjungan = $authUser->canManageKunjungan();
             @endphp
             <div x-data="{ open: @js(request()->routeIs('kunjungan.*')) }">
                 <button type="button" @click="open = !open"
@@ -676,13 +675,6 @@
                             class="block border-b border-slate-200 px-10 py-3 text-sm transition
                                 {{ request()->routeIs('kunjungan.approvals.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
                             Persetujuan
-                        </a>
-                    @endif
-                    @if ($canManageKunjungan)
-                        <a href="{{ route('kunjungan.employees.index') }}"
-                            class="block px-10 py-3 text-sm transition
-                                {{ request()->routeIs('kunjungan.employees.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                            Direktori Pegawai
                         </a>
                     @endif
                 </div>

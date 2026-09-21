@@ -68,5 +68,7 @@ test('kunjungan integration contains the agreed roles and report invariants', fu
         ->toContain('Ajukan Kunjungan')
         ->toContain('Kalender Kunjungan')
         ->toContain('Peta Kunjungan')
-        ->toContain('Persetujuan');
+        ->toContain('Persetujuan')
+        ->not->toContain('Direktori Pegawai')
+        ->not->toContain("route('kunjungan.employees.index')");
 });
