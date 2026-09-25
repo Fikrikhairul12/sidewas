@@ -19,7 +19,7 @@ class ReportController extends Controller
     {
         $workflow->uploadReport($visit, $request->file('report'), $request->user());
 
-        return back()->with('success', 'Laporan berhasil diunggah.');
+        return back()->with('success', 'Laporan berhasil diunggah dan menunggu persetujuan moderator.');
     }
 
     public function show(Visit $visit, VisitReport $report): BinaryFileResponse

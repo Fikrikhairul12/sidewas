@@ -52,7 +52,9 @@ class VisitController extends Controller
         Gate::authorize('view', $visit);
         $visit->load(['destinationUnit', 'destinations', 'picUnitKerja.direktorat', 'participants', 'approvals', 'statusLogs', 'reports']);
         $actorIds = $visit->approvals->pluck('acted_by_user_id')
-            ->merge($visit->statusLogs->pluck('actor_user_id'))->merge($visit->reports->pluck('uploaded_by_user_id'))
+            ->merge($visit->statusLogs->pluck('actor_user_id'))
+            ->merge($visit->reports->pluck('uploaded_by_user_id'))
+            ->merge($visit->reports->pluck('reviewed_by_user_id'))
             ->filter()->unique();
         $actorNames = User::query()->whereIn('id', $actorIds)->pluck('name', 'id');
 
@@ -118,7 +120,9 @@ class VisitController extends Controller
                 ->pluck('id');
 
             $query->where(function (Builder $query) use ($search, $matchingPicUnitIds) {
-                $query->where('visit_number', 'like', $search)->orWhere('title', 'like', $search)
+                $query->where('visit_number', 'like', $search)
+                    ->orWhere('title', 'like', $search)
+                    ->orWhere('purpose', 'like', $search)
                     ->orWhereHas('destinationUnit', fn (Builder $unit) => $unit->where('nama_unit_kerja', 'like', $search))
                     ->orWhereHas('destinations', fn (Builder $unit) => $unit->where('nama_unit_kerja', 'like', $search))
                     ->orWhereIn('pic_unit_kerja_id', $matchingPicUnitIds)

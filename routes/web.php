@@ -67,6 +67,8 @@ Route::prefix('kunjungan')->name('kunjungan.')->middleware(['auth', 'verified', 
     Route::get('/approvals', [KunjunganApprovalController::class, 'index'])->name('approvals.index');
     Route::post('/{visit}/approve', [KunjunganApprovalController::class, 'approve'])->name('approvals.approve');
     Route::post('/{visit}/reject', [KunjunganApprovalController::class, 'reject'])->name('approvals.reject');
+    Route::post('/{visit}/report/{report}/approve', [KunjunganApprovalController::class, 'approveReport'])->name('reports.approve');
+    Route::post('/{visit}/report/{report}/reject', [KunjunganApprovalController::class, 'rejectReport'])->name('reports.reject');
     Route::get('/employees', [KunjunganEmployeeController::class, 'index'])->name('employees.index');
     Route::get('/{visit}', [KunjunganVisitController::class, 'show'])->name('visits.show');
     Route::get('/{visit}/edit', [KunjunganVisitController::class, 'edit'])->name('visits.edit');

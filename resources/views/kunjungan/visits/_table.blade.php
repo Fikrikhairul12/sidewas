@@ -16,10 +16,9 @@
             <td><div class="cell-title">{{ $visit->start_at->translatedFormat('d M Y') }}</div>@unless($visit->start_at->isSameDay($visit->end_at))<div class="cell-sub">s.d. {{ $visit->end_at->translatedFormat('d M Y') }}</div>@endunless</td>
             <td><div class="cell-title">{{ $visit->picUnitKerja?->kode_unit }} - {{ $visit->picUnitKerja?->nama_unit }}</div><div class="cell-sub">{{ $visit->participants_count }} peserta</div></td>
             <td><x-status-badge :status="$visit->status" :overdue="$visit->is_overdue"/></td>
-            <td>@if($visit->currentReport)<span class="badge badge-success">PDF v{{ $visit->currentReport->version }}</span>@else<span class="cell-sub">Belum tersedia</span>@endif</td>
+            <td>@if($visit->currentReport)<span class="badge badge-{{ $visit->currentReport->status->color() }}">PDF v{{ $visit->currentReport->version }} · {{ $visit->currentReport->status->label() }}</span>@else<span class="cell-sub">Belum tersedia</span>@endif</td>
             <td><div class="actions"><a class="btn btn-light btn-sm" href="{{ route('kunjungan.visits.show',$visit) }}">Detail</a>@can('update',$visit)<a class="btn btn-primary btn-sm" href="{{ route('kunjungan.visits.edit',$visit) }}">Edit</a>@endcan</div></td>
         </tr>@endforeach
         </tbody></table></div><div class="pagination-wrap">{{ $visits->links() }}</div>
     @else<x-empty-state />@endif
 </section>
-

@@ -12,11 +12,16 @@ class VisitStatusLog extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['visit_id', 'from_status', 'to_status', 'actor_user_id', 'notes', 'created_at'];
+    protected $fillable = ['visit_id', 'from_status', 'to_status', 'actor_user_id', 'notes', 'changes', 'created_at'];
 
     protected function casts(): array
     {
-        return ['from_status' => VisitStatus::class, 'to_status' => VisitStatus::class, 'created_at' => 'datetime'];
+        return [
+            'from_status' => VisitStatus::class,
+            'to_status' => VisitStatus::class,
+            'changes' => 'array',
+            'created_at' => 'datetime',
+        ];
     }
 
     public function visit(): BelongsTo

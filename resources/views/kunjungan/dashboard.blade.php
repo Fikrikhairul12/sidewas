@@ -6,9 +6,14 @@
     </x-page-header>
 
     @if(auth()->user()->canCreateKunjungan())
-        <section class="report-health {{ $reportHealth['missing'] > 0 ? 'needs-attention' : 'complete' }}">
+        @php
+            $reportHealthTone = $reportHealth['actionable'] > 0
+                ? 'needs-attention'
+                : ($reportHealth['pending'] > 0 ? 'in-review' : 'complete');
+        @endphp
+        <section class="report-health {{ $reportHealthTone }}">
             <div class="report-health-icon">
-                @if($reportHealth['missing'] > 0)
+                @if($reportHealth['actionable'] > 0)
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h4"/><circle cx="18" cy="18" r="4" fill="currentColor" stroke="white"/><path d="M18 16v2.5M18 20h.01" stroke="white"/></svg>
                 @else
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13l2 2 4-4"/></svg>
@@ -16,23 +21,29 @@
             </div>
             <div class="report-health-copy">
                 <span class="report-health-eyebrow">STATUS LAPORAN ANDA</span>
-                @if($reportHealth['missing'] > 0)
+                @if($reportHealth['rejected'] > 0)
+                    <h2>{{ $reportHealth['rejected'] }} laporan perlu diperbaiki</h2>
+                    <p>Moderator menolak laporan tersebut. Buka detail kunjungan untuk melihat alasan dan mengunggah versi perbaikan.</p>
+                @elseif($reportHealth['missing'] > 0)
                     <h2>{{ $reportHealth['missing'] }} laporan masih perlu diunggah</h2>
                     <p>Kunjungan sudah selesai. Segera lengkapi laporan PDF agar seluruh administrasi Anda tuntas.</p>
+                @elseif($reportHealth['pending'] > 0)
+                    <h2>{{ $reportHealth['pending'] }} laporan menunggu persetujuan</h2>
+                    <p>Laporan sudah diterima sistem dan sedang menunggu pemeriksaan Moderator.</p>
                 @elseif($reportHealth['required'] > 0)
-                    <h2>Semua laporan sudah lengkap</h2>
-                    <p>Bagus, seluruh kunjungan yang telah selesai sudah memiliki laporan PDF.</p>
+                    <h2>Semua laporan sudah disetujui</h2>
+                    <p>Seluruh laporan kunjungan yang telah selesai sudah mendapat persetujuan Moderator.</p>
                 @else
                     <h2>Belum ada kewajiban laporan</h2>
                     <p>Laporan yang perlu dilengkapi akan muncul di sini setelah kunjungan selesai.</p>
                 @endif
                 <div class="report-progress" aria-label="Kelengkapan laporan {{ $reportHealth['percentage'] }} persen"><span style="width: {{ $reportHealth['percentage'] }}%"></span></div>
-                <small>{{ $reportHealth['uploaded'] }} dari {{ $reportHealth['required'] }} laporan selesai · {{ $reportHealth['percentage'] }}% lengkap</small>
+                <small>{{ $reportHealth['approved'] }} dari {{ $reportHealth['required'] }} laporan disetujui · {{ $reportHealth['percentage'] }}% lengkap</small>
             </div>
-            @if($reportHealth['missing'] > 0)
+            @if($reportHealth['actionable'] > 0)
                 <div class="report-health-actions">
                     @foreach($outstandingReports as $reportVisit)
-                        <a href="{{ route('kunjungan.visits.show', $reportVisit) }}"><span>{{ $reportVisit->end_at->translatedFormat('d M') }}</span><strong>{{ Str::limit($reportVisit->title, 42) }}</strong><i>Upload →</i></a>
+                        <a href="{{ route('kunjungan.visits.show', $reportVisit) }}"><span>{{ $reportVisit->end_at->translatedFormat('d M') }}</span><strong>{{ Str::limit($reportVisit->title, 42) }}</strong><i>{{ $reportVisit->currentReport ? 'Perbaiki' : 'Upload' }} &rarr;</i></a>
                     @endforeach
                     <a class="report-all-link" href="{{ route('kunjungan.visits.index', ['status' => 'WAITING_REPORT']) }}">Lihat semua laporan tertunda</a>
                 </div>
@@ -50,7 +61,8 @@
         @else
             <x-stat-card label="Kunjungan Mendatang" :value="$stats['upcoming']" tone="warning" :href="route('kunjungan.visits.index', ['status'=>'APPROVED'])" />
         @endif
-        <x-stat-card label="Belum Upload Laporan" :value="$stats['waiting_report']" tone="danger" :href="route('kunjungan.visits.index', ['status'=>'WAITING_REPORT'])" />
+        <x-stat-card label="Menunggu Penyelesaian Laporan" :value="$stats['waiting_report']" tone="danger" :href="route('kunjungan.visits.index', ['status'=>'WAITING_REPORT'])" />
+        <x-stat-card label="Kunjungan Selesai" :value="$stats['completed']" tone="success" :href="route('kunjungan.visits.index', ['status'=>'COMPLETED'])" />
         @if(auth()->user()->canModerateKunjungan())
             <x-stat-card label="Menunggu Persetujuan" :value="$stats['pending']" tone="success" :href="route('kunjungan.approvals.index')" />
         @endif

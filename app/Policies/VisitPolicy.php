@@ -2,8 +2,10 @@
 
 namespace App\Policies;
 
+use App\Enums\VisitReportStatus;
 use App\Enums\VisitStatus;
 use App\Models\Kunjungan\Visit;
+use App\Models\Kunjungan\VisitReport;
 use App\Models\User;
 use App\Services\Identity\CurrentEmployeeResolver;
 
@@ -54,10 +56,24 @@ class VisitPolicy
 
     public function uploadReport(User $user, Visit $visit): bool
     {
-        return $user->canCreateKunjungan()
+        if (! $user->canCreateKunjungan()
+            || $visit->status !== VisitStatus::WAITING_REPORT
+            || ! $this->isParticipant($user, $visit)) {
+            return false;
+        }
+
+        $currentReport = $visit->currentReport()->first();
+
+        return $currentReport === null || $currentReport->status === VisitReportStatus::Rejected;
+    }
+
+    public function reviewReport(User $user, Visit $visit, VisitReport $report): bool
+    {
+        return $user->canModerateKunjungan()
             && $visit->status === VisitStatus::WAITING_REPORT
-            && ! $visit->reports()->exists()
-            && $this->isParticipant($user, $visit);
+            && $report->visit_id === $visit->id
+            && $report->is_current
+            && $report->status === VisitReportStatus::Pending;
     }
 
     public function cancel(User $user, Visit $visit): bool

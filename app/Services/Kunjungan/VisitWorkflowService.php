@@ -2,6 +2,7 @@
 
 namespace App\Services\Kunjungan;
 
+use App\Enums\VisitReportStatus;
 use App\Enums\VisitStatus;
 use App\Models\Kunjungan\Employee;
 use App\Models\Kunjungan\Visit;
@@ -48,6 +49,7 @@ class VisitWorkflowService
     public function update(Visit $visit, array $data, User $user): Visit
     {
         return DB::connection('mysql_kunjungan')->transaction(function () use ($visit, $data, $user) {
+            $before = $this->visitSnapshot($visit);
             $destinationIds = collect($data['destination_unit_ids'])->map(fn ($id) => (int) $id)->unique()->values();
             $participantIds = collect($data['participant_ids'] ?? [])->map(fn ($id) => (int) $id);
             $participantIds->push($this->employees->resolve($user)->id);
@@ -58,8 +60,21 @@ class VisitWorkflowService
             ]);
             $visit->destinations()->sync($destinationIds);
             $visit->participants()->sync($participantIds->unique()->values());
+            $visit->refresh();
+            $changes = $this->changedVisitData($before, $this->visitSnapshot($visit));
 
-            return $visit->refresh();
+            if ($changes !== []) {
+                $this->log(
+                    $visit,
+                    $visit->status,
+                    $visit->status,
+                    $user->id,
+                    'Data kunjungan diperbarui.',
+                    $changes,
+                );
+            }
+
+            return $visit;
         });
     }
 
@@ -137,17 +152,23 @@ class VisitWorkflowService
 
         return DB::connection('mysql_kunjungan')->transaction(function () use ($visit, $file, $actor) {
             $lockedVisit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
+            $currentReport = $lockedVisit->reports()->where('is_current', true)->lockForUpdate()->first();
 
-            if ($lockedVisit->reports()->exists()) {
+            if ($currentReport && $currentReport->status !== VisitReportStatus::Rejected) {
                 throw ValidationException::withMessages([
-                    'report' => 'Laporan untuk kunjungan ini sudah pernah diunggah.',
+                    'report' => $currentReport->status === VisitReportStatus::Pending
+                        ? 'Laporan sedang menunggu persetujuan moderator.'
+                        : 'Laporan kunjungan ini sudah disetujui.',
                 ]);
             }
 
+            $currentReport?->update(['is_current' => false]);
+            $version = ((int) $lockedVisit->reports()->max('version')) + 1;
             $storedName = $lockedVisit->visit_number.'-'.Str::uuid().'.pdf';
             $path = $file->storeAs('dokumen/laporan-kunjungan', $storedName, 'public');
-            $report = $visit->reports()->create([
-                'version' => 1,
+            $report = $lockedVisit->reports()->create([
+                'version' => $version,
+                'status' => VisitReportStatus::Pending,
                 'original_filename' => Str::limit(basename($file->getClientOriginalName()), 240, ''),
                 'stored_filename' => $storedName,
                 'file_path' => $path,
@@ -158,11 +179,66 @@ class VisitWorkflowService
                 'uploaded_at' => now(),
             ]);
 
-            $from = $lockedVisit->status;
-            $lockedVisit->update(['status' => VisitStatus::COMPLETED]);
-            $this->log($lockedVisit, $from, VisitStatus::COMPLETED, $actor->id, 'Laporan PDF kunjungan diunggah.');
+            $this->log(
+                $lockedVisit,
+                VisitStatus::WAITING_REPORT,
+                VisitStatus::WAITING_REPORT,
+                $actor->id,
+                "Laporan PDF versi {$version} diunggah dan menunggu persetujuan moderator.",
+            );
 
             return $report;
+        });
+    }
+
+    public function approveReport(Visit $visit, VisitReport $report, User $actor, ?string $notes = null): Visit
+    {
+        return DB::connection('mysql_kunjungan')->transaction(function () use ($visit, $report, $actor, $notes) {
+            $lockedVisit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
+            $lockedReport = VisitReport::query()->lockForUpdate()->findOrFail($report->id);
+            $this->ensureReportCanBeReviewed($lockedVisit, $lockedReport);
+
+            $lockedReport->update([
+                'status' => VisitReportStatus::Approved,
+                'reviewed_by_user_id' => $actor->id,
+                'review_notes' => $notes,
+                'reviewed_at' => now(),
+            ]);
+            $lockedVisit->update(['status' => VisitStatus::COMPLETED]);
+            $this->log(
+                $lockedVisit,
+                VisitStatus::WAITING_REPORT,
+                VisitStatus::COMPLETED,
+                $actor->id,
+                "Moderator menyetujui laporan PDF versi {$lockedReport->version}.",
+            );
+
+            return $lockedVisit->refresh();
+        });
+    }
+
+    public function rejectReport(Visit $visit, VisitReport $report, User $actor, string $notes): VisitReport
+    {
+        return DB::connection('mysql_kunjungan')->transaction(function () use ($visit, $report, $actor, $notes) {
+            $lockedVisit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
+            $lockedReport = VisitReport::query()->lockForUpdate()->findOrFail($report->id);
+            $this->ensureReportCanBeReviewed($lockedVisit, $lockedReport);
+
+            $lockedReport->update([
+                'status' => VisitReportStatus::Rejected,
+                'reviewed_by_user_id' => $actor->id,
+                'review_notes' => $notes,
+                'reviewed_at' => now(),
+            ]);
+            $this->log(
+                $lockedVisit,
+                VisitStatus::WAITING_REPORT,
+                VisitStatus::WAITING_REPORT,
+                $actor->id,
+                "Moderator menolak laporan PDF versi {$lockedReport->version}. Alasan: {$notes}",
+            );
+
+            return $lockedReport->refresh();
         });
     }
 
@@ -244,14 +320,80 @@ class VisitWorkflowService
         }
     }
 
-    private function log(Visit $visit, ?VisitStatus $from, VisitStatus $to, ?int $actorId, string $notes): void
+    private function ensureReportCanBeReviewed(Visit $visit, VisitReport $report): void
     {
+        if ($report->visit_id !== $visit->id
+            || ! $report->is_current
+            || $report->status !== VisitReportStatus::Pending
+            || $visit->status !== VisitStatus::WAITING_REPORT) {
+            throw ValidationException::withMessages([
+                'report' => 'Laporan ini tidak dapat diproses atau sudah pernah diputuskan.',
+            ]);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function visitSnapshot(Visit $visit): array
+    {
+        $destinationNames = $visit->destinations()->orderBy('units.nama_unit_kerja')->pluck('units.nama_unit_kerja')->all();
+
+        if ($destinationNames === []) {
+            $destinationNames = [$visit->destinationUnit()->value('nama_unit_kerja')];
+        }
+
+        return [
+            'Nama agenda' => $visit->title,
+            'Nomor surat' => $visit->letter_number,
+            'Lokasi tujuan' => array_values(array_filter($destinationNames)),
+            'Tanggal mulai' => $visit->start_at?->format('Y-m-d H:i:s'),
+            'Tanggal selesai' => $visit->end_at?->format('Y-m-d H:i:s'),
+            'PIC unit kerja' => $visit->picUnitKerja()->value('nama_unit'),
+            'Peserta' => $visit->participants()->orderBy('employees.name')->pluck('employees.name')->all(),
+            'Keperluan' => $visit->purpose,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     * @return array<string, array{from: mixed, to: mixed}>
+     */
+    private function changedVisitData(array $before, array $after): array
+    {
+        $changes = [];
+
+        foreach ($after as $label => $value) {
+            if (($before[$label] ?? null) !== $value) {
+                $changes[$label] = [
+                    'from' => $before[$label] ?? null,
+                    'to' => $value,
+                ];
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * @param  array<string, array{from: mixed, to: mixed}>  $changes
+     */
+    private function log(
+        Visit $visit,
+        ?VisitStatus $from,
+        VisitStatus $to,
+        ?int $actorId,
+        string $notes,
+        array $changes = [],
+    ): void {
         VisitStatusLog::query()->create([
             'visit_id' => $visit->id,
             'from_status' => $from?->value,
             'to_status' => $to->value,
             'actor_user_id' => $actorId,
             'notes' => $notes,
+            'changes' => $changes === [] ? null : $changes,
             'created_at' => now(),
         ]);
     }

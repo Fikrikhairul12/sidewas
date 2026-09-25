@@ -91,8 +91,19 @@
                 <div class="timeline">
                     @foreach($visit->statusLogs as $log)
                         <div class="timeline-item">
-                            <h4>{{ $log->to_status->label() }}</h4>
+                            <h4>{{ $log->changes ? 'Data Kunjungan Diperbarui' : $log->to_status->label() }}</h4>
                             <p>{{ $log->notes }}@if($log->actor_user_id)<br>Oleh {{ $actorNames[$log->actor_user_id] ?? 'Pengguna' }}@endif</p>
+                            @if($log->changes)
+                                <div class="change-list">
+                                    @foreach($log->changes as $label => $change)
+                                        @php
+                                            $from = is_array($change['from'] ?? null) ? implode(', ', $change['from']) : ($change['from'] ?? null);
+                                            $to = is_array($change['to'] ?? null) ? implode(', ', $change['to']) : ($change['to'] ?? null);
+                                        @endphp
+                                        <div><strong>{{ $label }}</strong><span>{{ $from ?: 'Kosong' }} &rarr; {{ $to ?: 'Kosong' }}</span></div>
+                                    @endforeach
+                                </div>
+                            @endif
                             <time>{{ $log->created_at->translatedFormat('d M Y, H:i') }} WIB</time>
                         </div>
                     @endforeach
@@ -100,22 +111,34 @@
             </section>
 
             <section class="card detail-card">
-                <div class="section-heading"><div><h2>Laporan Kunjungan</h2><p>Satu laporan PDF untuk setiap kunjungan, diunggah oleh salah satu anggota.</p></div></div>
+                <div class="section-heading"><div><h2>Laporan Kunjungan</h2><p>Laporan PDF diperiksa Moderator. Laporan yang ditolak dapat diperbaiki dan diunggah sebagai versi baru.</p></div></div>
                 @can('uploadReport', $visit)
                     <form method="POST" action="{{ route('kunjungan.reports.store', $visit) }}" enctype="multipart/form-data" style="padding:14px;background:#f4f9fd;border-radius:12px;margin-bottom:17px">
                         @csrf
-                        <div class="field"><label for="report">Upload Laporan Kunjungan</label><input class="input" id="report" type="file" name="report" accept="application/pdf,.pdf" required><span class="help">PDF, maksimum 10 MB.</span></div>
-                        <button class="btn btn-primary btn-sm" style="margin-top:10px" type="submit">Upload Laporan</button>
+                        <div class="field"><label for="report">{{ $visit->currentReport?->status === \App\Enums\VisitReportStatus::Rejected ? 'Upload Perbaikan Laporan' : 'Upload Laporan Kunjungan' }}</label><input class="input" id="report" type="file" name="report" accept="application/pdf,.pdf" required><span class="help">PDF, maksimum 10 MB. Laporan akan dikirim kepada Moderator.</span></div>
+                        <button class="btn btn-primary btn-sm" style="margin-top:10px" type="submit">Kirim Laporan</button>
                     </form>
                 @endcan
                 @forelse($visit->reports as $report)
                     <div class="report-item">
                         <div class="report-meta">
-                            <div><h4>{{ $report->original_filename }}</h4><p>{{ number_format($report->file_size / 1024, 1) }} KB<br>{{ $report->uploaded_at->translatedFormat('d M Y, H:i') }} WIB</p></div>
-                            <span class="badge badge-success">Laporan</span>
+                            <div><h4>Versi {{ $report->version }} - {{ $report->original_filename }}</h4><p>{{ number_format($report->file_size / 1024, 1) }} KB<br>{{ $report->uploaded_at->translatedFormat('d M Y, H:i') }} WIB oleh {{ $actorNames[$report->uploaded_by_user_id] ?? 'Pengguna' }}</p></div>
+                            <span class="badge badge-{{ $report->status->color() }}">{{ $report->status->label() }}</span>
                         </div>
+                        @if($report->review_notes)
+                            <div class="report-review-note"><strong>Catatan Moderator</strong><p>{{ $report->review_notes }}</p></div>
+                        @endif
                         <div class="actions" style="margin-top:10px"><a target="_blank" class="btn btn-light btn-sm" href="{{ route('kunjungan.reports.show', [$visit, $report]) }}">Lihat PDF</a><a class="btn btn-light btn-sm" href="{{ route('kunjungan.reports.download', [$visit, $report]) }}">Download</a></div>
+                        @can('reviewReport', [$visit, $report])
+                            <div class="actions" style="margin-top:10px">
+                                <form method="POST" action="{{ route('kunjungan.reports.approve', [$visit, $report]) }}" data-confirm="Setujui laporan versi {{ $report->version }}?">@csrf<button class="btn btn-success btn-sm">Setujui Laporan</button></form>
+                                <button class="btn btn-danger btn-sm" type="button" data-modal-open="reject-report-{{ $report->id }}">Tolak Laporan</button>
+                            </div>
+                        @endcan
                     </div>
+                    @can('reviewReport', [$visit, $report])
+                        <div class="modal-backdrop" id="reject-report-{{ $report->id }}"><div class="modal"><h3>Tolak Laporan Versi {{ $report->version }}</h3><p>Jelaskan perbaikan yang harus dilakukan oleh peserta.</p><form method="POST" action="{{ route('kunjungan.reports.reject', [$visit, $report]) }}">@csrf<div class="field"><label>Alasan Penolakan *</label><textarea class="textarea" name="notes" minlength="5" maxlength="2000" required></textarea></div><div class="modal-actions"><button class="btn btn-light" type="button" data-modal-close>Batal</button><button class="btn btn-danger">Tolak Laporan</button></div></form></div></div>
+                    @endcan
                 @empty
                     <x-empty-state title="Belum ada laporan PDF." description="Laporan dapat diunggah setelah kunjungan ditandai selesai." />
                 @endforelse

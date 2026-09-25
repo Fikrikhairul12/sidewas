@@ -2,6 +2,7 @@
 
 namespace App\Services\Kunjungan;
 
+use App\Enums\VisitReportStatus;
 use App\Enums\VisitStatus;
 use App\Models\Kunjungan\Employee;
 use App\Models\Kunjungan\Visit;
@@ -33,6 +34,7 @@ class DashboardService
             'ongoing' => (clone $base)->where('status', VisitStatus::ONGOING->value)->count(),
             'waiting_report' => (clone $base)->where('status', VisitStatus::WAITING_REPORT->value)->count(),
             'upcoming' => (clone $base)->where('status', VisitStatus::APPROVED->value)->where('start_at', '>', now())->count(),
+            'completed' => (clone $base)->where('status', VisitStatus::COMPLETED->value)->count(),
         ];
         $upcoming = (clone $base)->with(['destinationUnit', 'destinations', 'picUnitKerja.direktorat'])->withCount('participants')
             ->where('status', VisitStatus::APPROVED->value)->where('start_at', '>', now())->orderBy('start_at')->first();
@@ -41,12 +43,22 @@ class DashboardService
             VisitStatus::WAITING_REPORT->value,
             VisitStatus::COMPLETED->value,
         ])->count();
-        $reportsUploaded = (clone $base)->whereIn('status', [
+        $reportsApproved = (clone $base)->whereIn('status', [
             VisitStatus::WAITING_REPORT->value,
             VisitStatus::COMPLETED->value,
-        ])->whereHas('currentReport')->count();
-        $outstandingReports = (clone $base)->with(['destinationUnit', 'destinations'])
+        ])->whereHas('currentReport', fn (Builder $query) => $query->where('status', VisitReportStatus::Approved->value))->count();
+        $reportsMissing = (clone $base)->where('status', VisitStatus::WAITING_REPORT->value)
+            ->whereDoesntHave('currentReport')->count();
+        $reportsPending = (clone $base)->where('status', VisitStatus::WAITING_REPORT->value)
+            ->whereHas('currentReport', fn (Builder $query) => $query->where('status', VisitReportStatus::Pending->value))->count();
+        $reportsRejected = (clone $base)->where('status', VisitStatus::WAITING_REPORT->value)
+            ->whereHas('currentReport', fn (Builder $query) => $query->where('status', VisitReportStatus::Rejected->value))->count();
+        $outstandingReports = (clone $base)->with(['destinationUnit', 'destinations', 'currentReport'])
             ->where('status', VisitStatus::WAITING_REPORT->value)
+            ->where(function (Builder $query): void {
+                $query->whereDoesntHave('currentReport')
+                    ->orWhereHas('currentReport', fn (Builder $report) => $report->where('status', VisitReportStatus::Rejected->value));
+            })
             ->oldest('end_at')->limit(3)->get();
 
         return [
@@ -57,9 +69,12 @@ class DashboardService
             'employee' => $employee,
             'reportHealth' => [
                 'required' => $reportRequired,
-                'uploaded' => $reportsUploaded,
-                'missing' => $stats['waiting_report'],
-                'percentage' => $reportRequired > 0 ? (int) round(($reportsUploaded / $reportRequired) * 100) : 100,
+                'approved' => $reportsApproved,
+                'missing' => $reportsMissing,
+                'pending' => $reportsPending,
+                'rejected' => $reportsRejected,
+                'actionable' => $reportsMissing + $reportsRejected,
+                'percentage' => $reportRequired > 0 ? (int) round(($reportsApproved / $reportRequired) * 100) : 100,
             ],
             'outstandingReports' => $outstandingReports,
         ];

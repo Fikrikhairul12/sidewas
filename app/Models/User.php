@@ -120,6 +120,7 @@ class User extends Authenticatable
             && (
                 $this->isSuperAdmin()
                 || $this->hasAnyRoleType([
+                    'admin_kunjungan',
                     'moderator_kunjungan',
                     'pic_kunjungan',
                     'viewer_kunjungan',
@@ -135,6 +136,11 @@ class User extends Authenticatable
     public function isKunjunganModerator(): bool
     {
         return $this->hasRoleType('moderator_kunjungan');
+    }
+
+    public function isKunjunganAdmin(): bool
+    {
+        return $this->hasRoleType('admin_kunjungan');
     }
 
     public function isKunjunganViewer(): bool
@@ -155,7 +161,8 @@ class User extends Authenticatable
 
     public function canManageKunjungan(): bool
     {
-        return $this->canAccessKunjungan() && $this->isSuperAdmin();
+        return $this->canAccessKunjungan()
+            && ($this->isSuperAdmin() || $this->isKunjunganAdmin());
     }
 
     public function canCreateKunjungan(): bool
@@ -166,7 +173,7 @@ class User extends Authenticatable
     public function canViewAllVisits(): bool
     {
         return $this->canAccessKunjungan()
-            && ($this->isSuperAdmin() || $this->isKunjunganModerator() || $this->isKunjunganViewer());
+            && ($this->isSuperAdmin() || $this->isKunjunganAdmin() || $this->isKunjunganModerator());
     }
 
     public static function isAllowedEmailDomain(string $email): bool
