@@ -88,15 +88,30 @@
 
     <section class="calendar-summary-grid">
         <div class="card calendar-summary">
-            <span class="calendar-summary-icon upcoming">→</span>
+            <span class="calendar-summary-icon upcoming" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v5l3 2" />
+                </svg>
+            </span>
             <div><strong>{{ $visits->filter(fn($visit) => $visit->start_at->isFuture())->count() }}</strong><span>Agenda mendatang di periode ini</span></div>
         </div>
         <div class="card calendar-summary">
-            <span class="calendar-summary-icon past">✓</span>
+            <span class="calendar-summary-icon past" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="m8 12 2.5 2.5L16 9" />
+                </svg>
+            </span>
             <div><strong>{{ $visits->filter(fn($visit) => $visit->end_at->isPast())->count() }}</strong><span>Agenda yang sudah berlalu</span></div>
         </div>
         <div class="card calendar-summary">
-            <span class="calendar-summary-icon total">#</span>
+            <span class="calendar-summary-icon total" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2M8 18h2M14 18h2" />
+                </svg>
+            </span>
             <div><strong>{{ $visits->count() }}</strong><span>Total agenda pada tampilan kalender</span></div>
         </div>
     </section>
