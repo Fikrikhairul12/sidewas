@@ -9,6 +9,7 @@ test('produk hukum detail uses a dedicated page with format aware file actions',
     $controller = file_get_contents($basePath.'/app/Http/Controllers/ProdukHukum/ProdukHukumController.php');
     $fileModel = file_get_contents($basePath.'/app/Models/ProdukHukumFile.php');
     $indexView = file_get_contents($basePath.'/resources/views/layouts/produk-hukum/index.blade.php');
+    $tableView = file_get_contents($basePath.'/resources/views/layouts/produk-hukum/table.blade.php');
     $showView = file_get_contents($basePath.'/resources/views/layouts/produk-hukum/show.blade.php');
 
     expect($routes)
@@ -26,12 +27,14 @@ test('produk hukum detail uses a dedicated page with format aware file actions',
         ->toContain("['pdf', 'jpg', 'jpeg', 'png']");
 
     expect($indexView)
-        ->toContain("route('produk-hukum.show', \$produk)")
+        ->toContain("@include('layouts.produk-hukum.table')")
         ->toContain('singkatanPeraturan = jenisSingkatan[selectedJenis]')
         ->toContain('filteredRelatedOptions()')
         ->toContain(':disabled="fileMode !== \'file\'"')
         ->toContain(':disabled="fileMode !== \'link\'"')
         ->not->toContain('openDetailModal');
+
+    expect($tableView)->toContain("route('produk-hukum.show', \$produk)");
 
     expect($showView)
         ->toContain('Ringkasan Peraturan')
