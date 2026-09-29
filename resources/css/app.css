@@ -1,3 +1,31 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.statistics-dashboard {
+    container: statistics-dashboard / inline-size;
+}
+
+.statistics-dashboard__middle {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.statistics-dashboard__status-counts {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+}
+
+@container statistics-dashboard (min-width: 36rem) {
+    .statistics-dashboard__filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@container statistics-dashboard (min-width: 64rem) {
+    .statistics-dashboard__filters {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) auto auto;
+    }
+
+    .statistics-dashboard__middle {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    }
+}

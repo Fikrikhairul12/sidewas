@@ -20,7 +20,7 @@
         ];
     @endphp
 
-    <div class="mx-auto max-w-[1500px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
+    <div class="statistics-dashboard mx-auto w-full min-w-0 max-w-[1500px] space-y-5">
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -38,8 +38,8 @@
         </section>
 
         <form method="GET" action="{{ route('dashboard') }}" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr_auto_auto] lg:items-end">
-                <label class="block">
+            <div class="statistics-dashboard__filters grid items-end gap-4">
+                <label class="block min-w-0">
                     <span class="text-xs font-semibold text-slate-700">Jenis Pengawasan</span>
                     <select name="jenis_rapat" class="mt-2 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Semua</option>
@@ -48,7 +48,7 @@
                         @endforeach
                     </select>
                 </label>
-                <label class="block">
+                <label class="block min-w-0">
                     <span class="text-xs font-semibold text-slate-700">Interval Bulan</span>
                     <select name="interval_bulan" class="mt-2 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="all" @selected($filters['interval_bulan'] === 'all')>Semua Bulan</option>
@@ -58,7 +58,7 @@
                         <option value="10-12" @selected($filters['interval_bulan'] === '10-12')>Bulan 10 - 12</option>
                     </select>
                 </label>
-                <label class="block">
+                <label class="block min-w-0">
                     <span class="text-xs font-semibold text-slate-700">Status Tindak Lanjut</span>
                     <select name="status" class="mt-2 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Semua</option>
@@ -67,7 +67,7 @@
                         @endforeach
                     </select>
                 </label>
-                <label class="block">
+                <label class="block min-w-0">
                     <span class="text-xs font-semibold text-slate-700">Unit Kerja</span>
                     <select name="unit_kerja_id" class="mt-2 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Semua</option>
@@ -83,17 +83,17 @@
             </div>
         </form>
 
-        <section class="grid gap-4 xl:grid-cols-[1fr_1.35fr]">
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 class="text-lg font-bold text-slate-900">Statistik Hasil Pengawasan</h2>
-                <p class="mt-1 text-sm text-slate-500">Jumlah surat per jenis hasil pengawasan berdasarkan status surat.</p>
-                <div class="mt-4 h-64">
-                    <canvas id="suratPerJenisChart"></canvas>
-                </div>
+        <section aria-labelledby="statistik-hasil-heading" class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 id="statistik-hasil-heading" class="text-lg font-bold text-slate-900">Statistik Hasil Pengawasan</h2>
+            <p class="mt-1 text-sm text-slate-500">Jumlah surat per jenis hasil pengawasan berdasarkan status surat.</p>
+            <div class="relative mt-4 h-72 min-w-0 sm:h-80">
+                <canvas id="suratPerJenisChart"></canvas>
             </div>
+        </section>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 class="text-lg font-bold text-slate-900">Statistik Tindak Lanjut Hasil Pengawasan</h2>
+        <div class="statistics-dashboard__middle grid items-start gap-5">
+            <section aria-labelledby="statistik-tindak-lanjut-heading" class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 id="statistik-tindak-lanjut-heading" class="text-lg font-bold text-slate-900">Statistik Tindak Lanjut Hasil Pengawasan</h2>
                 <p class="mt-1 text-sm text-slate-500">Progress per butir, dibedakan berdasarkan status tindak lanjut.</p>
                 <div class="mt-4 flex flex-wrap gap-3">
                     @foreach ($butirProgressStatuses as $config)
@@ -127,7 +127,7 @@
                                     @endif
                                 @endforeach
                             </div>
-                            <div class="mt-2 grid gap-2 text-xs text-slate-500 sm:grid-cols-2 xl:grid-cols-4">
+                            <div class="statistics-dashboard__status-counts mt-2 grid gap-2 text-xs text-slate-500">
                                 @foreach ($butirProgressStatuses as $statusKey => $config)
                                     @php
                                         $statusCount = (int) ($module['status_butir'][$statusKey] ?? 0);
@@ -140,85 +140,81 @@
                         <p class="py-12 text-center text-sm font-semibold text-slate-500">Belum ada modul yang bisa ditampilkan.</p>
                     @endforelse
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section class="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
-            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div class="border-b border-slate-200 p-5">
-                    <h2 class="text-base font-bold text-slate-900">Status Tindak Lanjut yang Perlu Perhatian</h2>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
-                        <thead class="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
-                            <tr>
-                                <th class="px-5 py-3">Hasil Pengawasan</th>
-                                <th class="px-5 py-3">No Surat</th>
-                                <th class="px-5 py-3">Butir</th>
-                                <th class="px-5 py-3">Status</th>
-                                <th class="px-5 py-3">Jatuh Tempo</th>
-                                <th class="px-5 py-3">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @forelse ($attentionRows as $row)
-                                <tr>
-                                    <td class="px-5 py-4 font-semibold text-slate-700">{{ $row['jenis'] }}</td>
-                                    <td class="px-5 py-4">
-                                        <p class="font-bold text-sidewas-blue">{{ $row['id'] }}</p>
-                                        <p class="mt-1 max-w-xs text-xs text-slate-500">{{ $row['perihal'] }}</p>
-                                    </td>
-                                    <td class="px-5 py-4 font-semibold text-slate-700">{{ $row['butir'] }}</td>
-                                    <td class="px-5 py-4">
-                                        <span class="inline-flex rounded-lg px-3 py-1 text-xs font-bold {{ $row['status_class'] }}">{{ $row['status'] }}</span>
-                                    </td>
-                                    <td class="px-5 py-4 font-semibold text-red-500">{{ $row['jatuh_tempo'] }}</td>
-                                    <td class="px-5 py-4">
-                                        @if ($row['reminder_gmail_url'])
-                                            <a href="{{ $row['reminder_gmail_url'] }}" target="_blank" rel="noopener"
-                                                class="inline-flex rounded-lg bg-sidewas-blue px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700"
-                                                title="Kirim pengingat ke {{ implode(', ', $row['reminder_recipients']) }}">
-                                                Pengingat
-                                            </a>
-                                        @else
-                                            <button type="button" disabled
-                                                class="cursor-not-allowed rounded-lg bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500 shadow-sm"
-                                                title="Belum ada email PIC aktif untuk butir ini.">
-                                                Pengingat
-                                            </button>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="px-5 py-12 text-center font-semibold text-slate-500">Belum ada data yang perlu perhatian.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-base font-bold text-slate-900">Aktivitas Terbaru</h2>
-                </div>
+            <section aria-labelledby="aktivitas-terbaru-heading" class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 id="aktivitas-terbaru-heading" class="text-base font-bold text-slate-900">Aktivitas Terbaru</h2>
                 <div class="mt-4 space-y-4">
                     @forelse ($recentActivities as $activity)
-                        <div class="flex gap-3 border-b border-slate-100 pb-4 last:border-0">
+                        <div class="flex gap-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
                             <span class="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-sidewas-blue">
                                 {{ strtoupper(substr($activity->type_code ?? '-', 0, 1)) }}
                             </span>
-                            <div class="min-w-0 flex-1">
+                            <div class="min-w-0 flex-1 break-words">
                                 <p class="text-sm font-semibold text-slate-800">{{ $activity->description ?: str($activity->action ?? '-')->replace('_', ' ')->title() }}</p>
                                 <p class="mt-1 text-xs text-slate-500">Oleh {{ $activity->user->name ?? '-' }}</p>
+                                <time class="mt-2 block text-xs font-semibold text-slate-500">{{ optional($activity->created_at)->format('d/m/Y H:i') }}</time>
                             </div>
-                            <time class="shrink-0 text-xs font-semibold text-slate-500">{{ optional($activity->created_at)->format('d/m/Y H:i') }}</time>
                         </div>
                     @empty
                         <p class="py-12 text-center text-xs font-semibold text-slate-500">Belum ada aktivitas terbaru.</p>
                     @endforelse
                 </div>
+            </section>
+        </div>
+
+        <section aria-labelledby="tindak-lanjut-perhatian-heading" class="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 p-5">
+                <h2 id="tindak-lanjut-perhatian-heading" class="text-base font-bold text-slate-900">Status Tindak Lanjut yang Perlu Perhatian</h2>
+            </div>
+            <div class="overflow-x-auto" tabindex="0" role="region" aria-labelledby="tindak-lanjut-perhatian-heading">
+                <table class="w-full min-w-[880px] divide-y divide-slate-200 text-left text-xs">
+                    <thead class="whitespace-nowrap bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+                        <tr>
+                            <th class="px-5 py-3">Hasil Pengawasan</th>
+                            <th class="px-5 py-3">No Surat</th>
+                            <th class="px-5 py-3">Butir</th>
+                            <th class="px-5 py-3">Status</th>
+                            <th class="px-5 py-3">Jatuh Tempo</th>
+                            <th class="px-5 py-3">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @forelse ($attentionRows as $row)
+                            <tr>
+                                <td class="px-5 py-4 font-semibold text-slate-700">{{ $row['jenis'] }}</td>
+                                <td class="px-5 py-4">
+                                    <p class="whitespace-nowrap font-bold text-sidewas-blue">{{ $row['id'] }}</p>
+                                    <p class="mt-1 max-w-xs text-xs text-slate-500">{{ $row['perihal'] }}</p>
+                                </td>
+                                <td class="whitespace-nowrap px-5 py-4 font-semibold text-slate-700">{{ $row['butir'] }}</td>
+                                <td class="px-5 py-4">
+                                    <span class="inline-flex whitespace-nowrap rounded-lg px-3 py-1 text-xs font-bold {{ $row['status_class'] }}">{{ $row['status'] }}</span>
+                                </td>
+                                <td class="whitespace-nowrap px-5 py-4 font-semibold text-red-500">{{ $row['jatuh_tempo'] }}</td>
+                                <td class="px-5 py-4">
+                                    @if ($row['reminder_gmail_url'])
+                                        <a href="{{ $row['reminder_gmail_url'] }}" target="_blank" rel="noopener"
+                                            class="inline-flex rounded-lg bg-sidewas-blue px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700"
+                                            title="Kirim pengingat ke {{ implode(', ', $row['reminder_recipients']) }}">
+                                            Pengingat
+                                        </a>
+                                    @else
+                                        <button type="button" disabled
+                                            class="cursor-not-allowed rounded-lg bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500 shadow-sm"
+                                            title="Belum ada email PIC aktif untuk butir ini.">
+                                            Pengingat
+                                        </button>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-5 py-12 text-center font-semibold text-slate-500">Belum ada data yang perlu perhatian.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </section>
     </div>
