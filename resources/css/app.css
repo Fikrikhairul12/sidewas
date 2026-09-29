@@ -14,6 +14,11 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
 }
 
+.statistics-dashboard__activities {
+    max-height: 32rem;
+    scrollbar-gutter: stable;
+}
+
 @container statistics-dashboard (min-width: 36rem) {
     .statistics-dashboard__filters {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -27,5 +32,11 @@
 
     .statistics-dashboard__middle {
         grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    }
+
+    .statistics-dashboard__activities {
+        height: 0;
+        max-height: none;
+        flex: 1 1 auto;
     }
 }

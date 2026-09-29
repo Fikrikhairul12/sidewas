@@ -91,7 +91,7 @@
             </div>
         </section>
 
-        <div class="statistics-dashboard__middle grid items-start gap-5">
+        <div class="statistics-dashboard__middle grid items-stretch gap-5">
             <section aria-labelledby="statistik-tindak-lanjut-heading" class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 id="statistik-tindak-lanjut-heading" class="text-lg font-bold text-slate-900">Statistik Tindak Lanjut Hasil Pengawasan</h2>
                 <p class="mt-1 text-sm text-slate-500">Progress per butir, dibedakan berdasarkan status tindak lanjut.</p>
@@ -142,9 +142,9 @@
                 </div>
             </section>
 
-            <section aria-labelledby="aktivitas-terbaru-heading" class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 id="aktivitas-terbaru-heading" class="text-base font-bold text-slate-900">Aktivitas Terbaru</h2>
-                <div class="mt-4 space-y-4">
+            <section aria-labelledby="aktivitas-terbaru-heading" class="flex min-h-0 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 id="aktivitas-terbaru-heading" class="shrink-0 text-base font-bold text-slate-900">Aktivitas Terbaru</h2>
+                <div class="statistics-dashboard__activities mt-4 min-h-0 space-y-4 overflow-y-auto pr-2" tabindex="0" role="region" aria-labelledby="aktivitas-terbaru-heading">
                     @forelse ($recentActivities as $activity)
                         <div class="flex gap-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
                             <span class="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-sidewas-blue">

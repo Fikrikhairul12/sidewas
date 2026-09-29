@@ -102,6 +102,13 @@ test('dashboard chart script loads chart js', function () {
 });
 
 test('dashboard rearranges panels while preserving statistics filters activities and reminders', function (): void {
+    $this->dashboardData['recentActivities'] = collect(range(1, 5))->map(fn (int $index): object => (object) [
+        'type_code' => 'snp',
+        'description' => 'User memperbarui tindak lanjut surat SNP.',
+        'user' => (object) ['name' => 'Pengguna Statistik '.$index],
+        'created_at' => Carbon::parse('2026-09-28 09:33')->subMinutes($index - 1),
+    ]);
+
     $view = $this->view('dashboard', $this->dashboardData);
 
     $view->assertSeeInOrder([
@@ -128,6 +135,17 @@ test('dashboard rearranges panels while preserving statistics filters activities
     expect($chartPanel->parentNode->isSameNode($attentionPanel->parentNode))->toBeTrue()
         ->and($progressPanel->parentNode->isSameNode($activityPanel->parentNode))->toBeTrue()
         ->and($progressPanel->parentNode->parentNode->isSameNode($chartPanel->parentNode))->toBeTrue();
+
+    $activityRegion = $xpath->query('.//div[@role="region"]', $activityPanel)->item(0);
+    expect($activityRegion->getAttribute('tabindex'))->toBe('0')
+        ->and($activityRegion->getAttribute('aria-labelledby'))->toBe('aktivitas-terbaru-heading')
+        ->and($xpath->query('.//h2', $activityRegion)->length)->toBe(0)
+        ->and($xpath->query('.//time', $activityRegion)->length)->toBe(5);
+
+    foreach ($this->dashboardData['recentActivities'] as $activity) {
+        expect($activityRegion->textContent)
+            ->toContain($activity->user->name, $activity->created_at->format('d/m/Y H:i'));
+    }
 
     foreach ($this->dashboardData['filters'] as $name => $value) {
         $selectedOption = $xpath->query('//select[@name="'.$name.'"]/option[@selected]');
