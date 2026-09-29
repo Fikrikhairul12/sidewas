@@ -86,7 +86,11 @@
         </div>
     </section>
 
-    <section class="calendar-summary-grid">
+    <section class="calendar-summary-grid" aria-labelledby="calendar-summary-title">
+        <div class="calendar-summary-heading">
+            <h2 id="calendar-summary-title">Ringkasan agenda</h2>
+            <p>Rentang kalender: {{ $days->first()->translatedFormat('j F Y') }} &ndash; {{ $days->last()->translatedFormat('j F Y') }}</p>
+        </div>
         <div class="card calendar-summary">
             <span class="calendar-summary-icon upcoming" aria-hidden="true">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
@@ -94,7 +98,7 @@
                     <path d="M12 7v5l3 2" />
                 </svg>
             </span>
-            <div><strong>{{ $visits->filter(fn($visit) => $visit->start_at->isFuture())->count() }}</strong><span>Agenda mendatang di periode ini</span></div>
+            <div><strong>{{ $visits->filter(fn($visit) => $visit->start_at->isFuture())->count() }}</strong><span>Agenda mendatang</span></div>
         </div>
         <div class="card calendar-summary">
             <span class="calendar-summary-icon past" aria-hidden="true">
@@ -103,7 +107,7 @@
                     <path d="m8 12 2.5 2.5L16 9" />
                 </svg>
             </span>
-            <div><strong>{{ $visits->filter(fn($visit) => $visit->end_at->isPast())->count() }}</strong><span>Agenda yang sudah berlalu</span></div>
+            <div><strong>{{ $visits->filter(fn($visit) => $visit->end_at->isPast())->count() }}</strong><span>Agenda sudah berlalu</span></div>
         </div>
         <div class="card calendar-summary">
             <span class="calendar-summary-icon total" aria-hidden="true">
