@@ -23,7 +23,8 @@
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <button type="button" @click="$dispatch('open-modal', 'create-direktorat')"
-                        class="rounded-xl bg-sky-700 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-800">Tambah Direktorat</button>
+                        class="rounded-xl px-4 py-3 text-sm font-semibold shadow-sm transition hover:opacity-90"
+                        style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Tambah Direktorat</button>
                     <button type="button" @click="$dispatch('open-modal', 'create-unit')"
                         class="rounded-xl border border-sky-700 bg-white px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-50">Tambah Unit Kerja</button>
                 </div>
@@ -54,7 +55,8 @@
                     <option value="inactive" @selected(($filters['status'] ?? '') === 'inactive')>Nonaktif</option>
                 </select>
             </label>
-            <button class="rounded-xl bg-sky-700 px-5 py-3 text-sm font-semibold text-white">Cari</button>
+            <button class="rounded-xl px-5 py-3 text-sm font-semibold shadow-sm transition hover:opacity-90"
+                style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Cari</button>
             <a href="{{ route('administrasi.manajemen-direktorat.index') }}" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700">Reset</a>
         </form>
 
@@ -98,15 +100,28 @@
                                         @csrf @method('DELETE')
                                         <button class="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 hover:bg-red-50">Hapus</button>
                                     </form>
-                                    <button type="button" @click="openUnits[{{ $direktorat->id }}] = ! openUnits[{{ $direktorat->id }}]" :aria-expanded="Boolean(openUnits[{{ $direktorat->id }}]).toString()"
-                                        class="rounded-lg border border-sky-200 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-50"
-                                        x-text="openUnits[{{ $direktorat->id }}] ? 'Sembunyikan Unit Kerja' : 'Lihat Unit Kerja'">Lihat Unit Kerja</button>
+                                    <button type="button" @click="openUnits[{{ $direktorat->id }}] = ! openUnits[{{ $direktorat->id }}]"
+                                        :aria-expanded="Boolean(openUnits[{{ $direktorat->id }}]).toString()" aria-controls="unit-kerja-{{ $direktorat->id }}"
+                                        class="inline-flex items-center gap-2 rounded-lg border border-sky-200 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-50">
+                                        <span x-text="openUnits[{{ $direktorat->id }}] ? 'Sembunyikan Unit Kerja' : 'Lihat Unit Kerja'">Lihat Unit Kerja</span>
+                                        <svg class="h-4 w-4" style="transition: transform 280ms ease;"
+                                            :style="{ transform: openUnits[{{ $direktorat->id }}] ? 'rotate(180deg)' : 'rotate(0deg)' }"
+                                            viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                            <path d="m5 7.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
-                        <tr x-show="openUnits[{{ $direktorat->id }}]" style="display: none;">
-                            <td colspan="4" class="bg-slate-50 px-5 py-5">
-                                <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                        <tr>
+                            <td colspan="4" class="p-0" style="padding: 0;">
+                                <div id="unit-kerja-{{ $direktorat->id }}"
+                                    :inert="!openUnits[{{ $direktorat->id }}]" :aria-hidden="(!openUnits[{{ $direktorat->id }}]).toString()"
+                                    style="display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 280ms ease, opacity 220ms ease;"
+                                    :style="{ gridTemplateRows: openUnits[{{ $direktorat->id }}] ? '1fr' : '0fr', opacity: openUnits[{{ $direktorat->id }}] ? 1 : 0 }">
+                                    <div class="min-h-0 overflow-hidden" style="min-height: 0; overflow: hidden;">
+                                        <div class="bg-slate-50 px-5 py-5">
+                                            <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
                                     <table class="min-w-full divide-y divide-slate-100 text-sm">
                                         <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                                             <tr>
@@ -151,7 +166,10 @@
                                                 <tr><td colspan="4" class="px-4 py-5 text-center text-slate-500">Belum ada unit kerja.</td></tr>
                                             @endforelse
                                         </tbody>
-                                    </table>
+                                            </table>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -178,7 +196,8 @@
                 </label>
                 <div class="mt-6 flex justify-end gap-2">
                     <button type="button" x-on:click="$dispatch('close-modal', 'create-direktorat')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Batal</button>
-                    <button class="rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white">Simpan Direktorat</button>
+                    <button class="rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:opacity-90"
+                        style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Simpan Direktorat</button>
                 </div>
             </form>
         </x-modal>
@@ -210,7 +229,8 @@
                 </label>
                 <div class="mt-6 flex justify-end gap-2">
                     <button type="button" x-on:click="$dispatch('close-modal', 'create-unit')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Batal</button>
-                    <button class="rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white">Simpan Unit Kerja</button>
+                    <button class="rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:opacity-90"
+                        style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Simpan Unit Kerja</button>
                 </div>
             </form>
         </x-modal>
@@ -232,7 +252,8 @@
                 </label>
                 <div class="mt-6 flex justify-end gap-2">
                     <button type="button" x-on:click="$dispatch('close-modal', 'edit-direktorat')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Batal</button>
-                    <button class="rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white">Simpan Perubahan</button>
+                    <button class="rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:opacity-90"
+                        style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Simpan Perubahan</button>
                 </div>
             </form>
         </x-modal>
@@ -264,7 +285,8 @@
                 </label>
                 <div class="mt-6 flex justify-end gap-2">
                     <button type="button" x-on:click="$dispatch('close-modal', 'edit-unit')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Batal</button>
-                    <button class="rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white">Simpan Perubahan</button>
+                    <button class="rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:opacity-90"
+                        style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Simpan Perubahan</button>
                 </div>
             </form>
         </x-modal>
