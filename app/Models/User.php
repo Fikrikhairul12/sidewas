@@ -2,12 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\TracksUser;
-use App\Models\LogActivity;
-use App\Models\RagabButir;
-use App\Models\RagabReview;
-use App\Models\RoleType;
-use App\Models\SnpButir;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -291,7 +285,7 @@ class User extends Authenticatable
             return false;
         }
 
-        return $this->hasRoleType('admin_' . $typeCode);
+        return $this->hasRoleType('admin_'.$typeCode);
     }
 
     public function canApprovePengajuan(): bool
@@ -345,6 +339,8 @@ class User extends Authenticatable
     {
         return $this->unitKerja()
             ->wherePivot('status', 'active')
+            ->where('tb_unit_kerja.status', 'active')
+            ->whereHas('direktorat', fn ($query) => $query->active())
             ->pluck('tb_unit_kerja.id')
             ->toArray();
     }
@@ -358,7 +354,7 @@ class User extends Authenticatable
         $hasAllowedRole = $this->hasRoleType('pic_snp')
             || $this->hasRoleType('moderator_snp');
 
-        if (!$hasAllowedRole) {
+        if (! $hasAllowedRole) {
             return false;
         }
 
@@ -418,11 +414,11 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!$this->hasRoleType('pic_snp') && !$this->hasRoleType('moderator_snp')) {
+        if (! $this->hasRoleType('pic_snp') && ! $this->hasRoleType('moderator_snp')) {
             return false;
         }
 
-        if (!$komiteId) {
+        if (! $komiteId) {
             return false;
         }
 
@@ -438,7 +434,7 @@ class User extends Authenticatable
         $hasAllowedRole = $this->hasRoleType('pic_snp')
             || $this->hasRoleType('moderator_snp');
 
-        if (!$hasAllowedRole) {
+        if (! $hasAllowedRole) {
             return false;
         }
 
@@ -601,7 +597,7 @@ class User extends Authenticatable
         $hasAllowedRole = $this->hasRoleType('pic_rawas')
             || $this->hasRoleType('moderator_rawas');
 
-        if (!$hasAllowedRole) {
+        if (! $hasAllowedRole) {
             return false;
         }
 
@@ -644,7 +640,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!$this->hasRoleType('pic_rawas') && !$this->hasRoleType('moderator_rawas')) {
+        if (! $this->hasRoleType('pic_rawas') && ! $this->hasRoleType('moderator_rawas')) {
             return false;
         }
 
@@ -706,7 +702,7 @@ class User extends Authenticatable
         $hasAllowedRole = $this->hasRoleType('pic_djsn')
             || $this->hasRoleType('moderator_djsn');
 
-        if (!$hasAllowedRole) {
+        if (! $hasAllowedRole) {
             return false;
         }
 
@@ -740,11 +736,11 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!$this->hasRoleType('pic_djsn') && !$this->hasRoleType('moderator_djsn')) {
+        if (! $this->hasRoleType('pic_djsn') && ! $this->hasRoleType('moderator_djsn')) {
             return false;
         }
 
-        if (!$komiteId) {
+        if (! $komiteId) {
             return false;
         }
 
@@ -760,7 +756,7 @@ class User extends Authenticatable
         $hasAllowedRole = $this->hasRoleType('pic_djsn')
             || $this->hasRoleType('moderator_djsn');
 
-        if (!$hasAllowedRole) {
+        if (! $hasAllowedRole) {
             return false;
         }
 
@@ -803,7 +799,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!$this->hasRoleType('pic_ragab')) {
+        if (! $this->hasRoleType('pic_ragab')) {
             return false;
         }
 
@@ -828,7 +824,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!$this->hasRoleType('pic_eksternal')) {
+        if (! $this->hasRoleType('pic_eksternal')) {
             return false;
         }
 

@@ -17,7 +17,9 @@ use App\Models\ProdukHukum;
 use App\Models\RagabRecord;
 use App\Models\RawasRecord;
 use App\Models\SnpRecord;
+use App\Models\UnitKerja;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +32,7 @@ class PengajuanController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessPengajuan()) {
+        if (! $user || ! $user->canAccessPengajuan()) {
             abort(403, 'Anda tidak memiliki akses ke halaman pengajuan.');
         }
 
@@ -54,7 +56,7 @@ class PengajuanController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canVerifyPengajuanType($deleteRequest->type_code)) {
+        if (! $user || ! $user->canVerifyPengajuanType($deleteRequest->type_code)) {
             abort(403, 'Anda tidak memiliki akses untuk memverifikasi pengajuan ini.');
         }
 
@@ -91,7 +93,7 @@ class PengajuanController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canApprovePengajuan()) {
+        if (! $user || ! $user->canApprovePengajuan()) {
             abort(403, 'Hanya Super Admin yang dapat menyetujui pengajuan.');
         }
 
@@ -205,7 +207,7 @@ class PengajuanController extends Controller
         }
 
         DB::connection($config['connection'])->transaction(function () use ($config, $deleteRequest, $user) {
-            /** @var class-string<\Illuminate\Database\Eloquent\Model> $modelClass */
+            /** @var class-string<Model> $modelClass */
             $modelClass = $config['model'];
             $record = $modelClass::where($config['key'], $deleteRequest->record_key)->firstOrFail();
 
@@ -234,7 +236,7 @@ class PengajuanController extends Controller
                 'table_name' => 'tb_record',
                 'record_key' => $recordKey,
                 'action' => 'approve_delete_request',
-                'description' => 'Super Admin menyetujui pengajuan hapus dan menghapus perekaman ' . $config['label'] . '.',
+                'description' => 'Super Admin menyetujui pengajuan hapus dan menghapus perekaman '.$config['label'].'.',
                 'old_values' => [
                     'delete_request' => $oldRequest,
                     'record' => $oldRecord,
@@ -345,7 +347,7 @@ class PengajuanController extends Controller
             ]);
         }
 
-        /** @var class-string<\Illuminate\Database\Eloquent\Model> $modelClass */
+        /** @var class-string<Model> $modelClass */
         $modelClass = $config['model'];
         $record = $modelClass::where($config['key'], $deleteRequest->record_key)->firstOrFail();
 
@@ -364,7 +366,7 @@ class PengajuanController extends Controller
             'table_name' => 'tb_delete_requests',
             'record_key' => $deleteRequest->record_key,
             'action' => 'approve_update_perekaman_request',
-            'description' => 'Super Admin menyetujui pengajuan edit perekaman ' . $config['label'] . '.',
+            'description' => 'Super Admin menyetujui pengajuan edit perekaman '.$config['label'].'.',
             'old_values' => [
                 'request' => $deleteRequest->getOriginal(),
             ],
@@ -429,13 +431,22 @@ class PengajuanController extends Controller
                     ->all()
             );
 
-            $targetUser->unitKerja()->sync([]);
+            $targetUser->unitKerja()
+                ->wherePivot('status', 'active')
+                ->get()
+                ->each(fn ($unit) => $targetUser->unitKerja()->updateExistingPivot($unit->id, ['status' => 'inactive']));
             $targetUser->komite()->sync([]);
 
             $assignment = $payload['assignment'] ?? ['type' => null, 'id' => null];
 
             if (($assignment['type'] ?? null) === 'unit') {
-                $targetUser->unitKerja()->attach((int) $assignment['id'], ['status' => 'active']);
+                if (! UnitKerja::active()->whereKey((int) $assignment['id'])->exists()) {
+                    throw ValidationException::withMessages(['pengajuan' => 'Unit kerja dalam pengajuan sudah tidak aktif.']);
+                }
+
+                $targetUser->unitKerja()->syncWithoutDetaching([
+                    (int) $assignment['id'] => ['status' => 'active'],
+                ]);
             }
 
             if (($assignment['type'] ?? null) === 'komite') {
@@ -587,12 +598,12 @@ class PengajuanController extends Controller
                 || $user->canVerifyPengajuanType($deleteRequest->type_code)
             );
 
-        if (!$canReject) {
+        if (! $canReject) {
             abort(403, 'Anda tidak memiliki akses untuk menolak pengajuan.');
         }
 
         if (
-            !in_array($deleteRequest->status, [
+            ! in_array($deleteRequest->status, [
                 'pending_admin_verification',
                 'pending_super_admin_approval',
             ])
@@ -606,7 +617,7 @@ class PengajuanController extends Controller
             'status' => 'rejected',
             'rejected_by' => $user->id,
             'rejected_at' => now(),
-            'reason' => trim(($deleteRequest->reason ?? '') . "\n\nAlasan penolakan: " . $request->input('reject_reason')),
+            'reason' => trim(($deleteRequest->reason ?? '')."\n\nAlasan penolakan: ".$request->input('reject_reason')),
         ]);
 
         LogActivity::create([

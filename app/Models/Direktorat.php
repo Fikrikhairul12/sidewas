@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Direktorat extends Model
@@ -14,7 +15,19 @@ class Direktorat extends Model
         'nama_direktorat',
         'kode_direktorat',
         'keterangan',
+        'status',
+        'managed_from_ui',
     ];
+
+    protected function casts(): array
+    {
+        return ['managed_from_ui' => 'boolean'];
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status', 'active');
+    }
 
     public function unitKerja()
     {

@@ -3,24 +3,24 @@
 namespace App\Http\Controllers\Snp;
 
 use App\Http\Controllers\Controller;
+use App\Models\DeleteRequest;
 use App\Models\Direktorat;
 use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\SnpButir;
 use App\Models\SnpButirPic;
 use App\Models\SnpCluster;
+use App\Models\SnpKompilasi;
 use App\Models\SnpRecord;
+use App\Models\SnpReview;
 use App\Models\SnpSubCluster;
 use App\Models\SnpTanggapan;
 use App\Models\SnpTindakLanjut;
-use App\Models\SnpReview;
-use App\Models\SnpKompilasi;
 use App\Models\UnitKerja;
 use App\Models\User;
-use App\Models\DeleteRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class PerekamanSnpController extends Controller
@@ -29,7 +29,7 @@ class PerekamanSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpPerekaman()) {
+        if (! $user || ! $user->canAccessSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses ke halaman perekaman SNP.');
         }
 
@@ -165,11 +165,11 @@ class PerekamanSnpController extends Controller
             ->orderBy('nama_cluster')
             ->get();
 
-        $direktorats = Direktorat::with('unitKerja')
+        $direktorats = Direktorat::active()->with(['unitKerja' => fn ($query) => $query->active()])
             ->orderBy('nama_direktorat')
             ->get();
 
-        $unitKerjas = UnitKerja::with('direktorat')
+        $unitKerjas = UnitKerja::active()->with('direktorat')
             ->orderBy('nama_unit')
             ->get();
 
@@ -196,7 +196,7 @@ class PerekamanSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateSnpPerekaman()) {
+        if (! $user || ! $user->canCreateSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman SNP.');
         }
 
@@ -257,7 +257,7 @@ class PerekamanSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateSnpPerekaman()) {
+        if (! $user || ! $user->canCreateSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman SNP.');
         }
 
@@ -272,10 +272,10 @@ class PerekamanSnpController extends Controller
         $validated = $request->validate([
             'butir_snp' => ['required', 'string'],
 
-            'unit_kerja_utama_id' => ['required', 'integer'],
+            'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
 
             'unit_kerja_pendukung_id' => ['nullable', 'array'],
-            'unit_kerja_pendukung_id.*' => ['nullable', 'integer'],
+            'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
 
             'komite_id' => ['required', 'integer'],
         ]);
@@ -295,7 +295,7 @@ class PerekamanSnpController extends Controller
             ]);
 
             foreach (($validated['unit_kerja_pendukung_id'] ?? []) as $unitKerjaPendukungId) {
-                if (!empty($unitKerjaPendukungId)) {
+                if (! empty($unitKerjaPendukungId)) {
                     SnpButirPic::create([
                         'id_butir_snp' => $butir->id_butir_snp,
                         'unit_kerja_id' => $unitKerjaPendukungId,
@@ -321,7 +321,7 @@ class PerekamanSnpController extends Controller
                 'table_name' => 'tb_butir_snp',
                 'record_key' => $butir->id_butir_snp,
                 'action' => 'create',
-                'description' => 'User menambahkan butir SNP pada surat ' . $record->id_snp . '.',
+                'description' => 'User menambahkan butir SNP pada surat '.$record->id_snp.'.',
                 'old_values' => null,
                 'new_values' => [
                     'record' => $record->fresh()->toArray(),
@@ -342,7 +342,7 @@ class PerekamanSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateSnpPerekaman()) {
+        if (! $user || ! $user->canCreateSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman SNP.');
         }
 
@@ -356,9 +356,9 @@ class PerekamanSnpController extends Controller
             'butir_id' => ['required', 'integer', 'exists:mysql_snp.tb_butir_snp,id'],
             'butir_snp' => ['required', 'string'],
             'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
-            'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'unit_kerja_pendukung_id' => ['nullable', 'array'],
-            'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'komite_id' => ['required', 'integer', 'exists:mysql.tb_komite,id'],
 
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
@@ -369,7 +369,7 @@ class PerekamanSnpController extends Controller
             ->where('cluster_id', $validated['cluster_id'])
             ->exists();
 
-        if (!$subClusterBelongsToCluster) {
+        if (! $subClusterBelongsToCluster) {
             return back()
                 ->withInput()
                 ->withErrors([
@@ -418,7 +418,7 @@ class PerekamanSnpController extends Controller
             'database_name' => 'sidewas_snp',
             'table_name' => 'tb_record',
             'record_key' => $record->id_snp,
-            'record_label' => $record->id_snp . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_snp.' - '.$record->nomor_surat,
             'reason' => json_encode([
                 'action' => 'update_snp_perekaman',
                 'payload' => $payload,
@@ -517,12 +517,12 @@ class PerekamanSnpController extends Controller
                 'updated_by' => $user->id,
             ];
 
-            if (!empty($recordUpdates['tanggal_surat'])) {
+            if (! empty($recordUpdates['tanggal_surat'])) {
                 $recordUpdates['jth_tempo'] = SnpRecord::hitungJatuhTempo($recordUpdates['tanggal_surat']);
             }
 
             foreach (['dokumen', 'dokumen_memo'] as $fileField) {
-                if (!empty($filePayload[$fileField]['path'])) {
+                if (! empty($filePayload[$fileField]['path'])) {
                     if ($record->{$fileField} && Storage::disk('public')->exists($record->{$fileField})) {
                         Storage::disk('public')->delete($record->{$fileField});
                     }
@@ -533,7 +533,7 @@ class PerekamanSnpController extends Controller
 
             $record->update($recordUpdates);
 
-            if (!empty($butirPayload['id'])) {
+            if (! empty($butirPayload['id'])) {
                 $butir = $record->butirSnp()
                     ->where('id', (int) $butirPayload['id'])
                     ->firstOrFail();
@@ -605,7 +605,7 @@ class PerekamanSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canRequestDeleteSnpPerekaman()) {
+        if (! $user || ! $user->canRequestDeleteSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menghapus perekaman SNP.');
         }
 
@@ -638,7 +638,7 @@ class PerekamanSnpController extends Controller
                     ->values()
                     ->toArray();
 
-                if (!empty($butirIds)) {
+                if (! empty($butirIds)) {
                     $tanggapans = SnpTanggapan::whereIn('id_butir_snp', $butirIds)->get();
 
                     foreach ($tanggapans as $tanggapan) {
@@ -734,7 +734,7 @@ class PerekamanSnpController extends Controller
             'database_name' => 'sidewas_snp',
             'table_name' => 'tb_record',
             'record_key' => $record->id_snp,
-            'record_label' => $record->id_snp . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_snp.' - '.$record->nomor_surat,
             'reason' => $request->input('reason'),
             'requested_by' => $user->id,
             'status' => $status,
@@ -766,17 +766,17 @@ class PerekamanSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpPerekaman()) {
+        if (! $user || ! $user->canAccessSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen.');
         }
 
-        if (!$record->dokumen) {
+        if (! $record->dokumen) {
             abort(404, 'Dokumen tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $record->dokumen);
+        $filePath = storage_path('app/public/'.$record->dokumen);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 
@@ -787,17 +787,17 @@ class PerekamanSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpPerekaman()) {
+        if (! $user || ! $user->canAccessSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen memo.');
         }
 
-        if (!$record->dokumen_memo) {
+        if (! $record->dokumen_memo) {
             abort(404, 'Dokumen memo tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $record->dokumen_memo);
+        $filePath = storage_path('app/public/'.$record->dokumen_memo);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 

@@ -28,7 +28,7 @@ class PerekamanRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabPerekaman()) {
+        if (! $user || ! $user->canAccessRagabPerekaman()) {
             abort(403, 'Anda tidak memiliki akses ke halaman perekaman RAGAB.');
         }
 
@@ -122,10 +122,10 @@ class PerekamanRagabController extends Controller
             ->orderBy('nama_cluster')
             ->get();
 
-        $direktorats = Direktorat::orderBy('nama_direktorat')
+        $direktorats = Direktorat::active()->orderBy('nama_direktorat')
             ->get();
 
-        $unitKerjas = UnitKerja::with('direktorat')
+        $unitKerjas = UnitKerja::active()->with('direktorat')
             ->orderBy('kode_unit')
             ->get();
 
@@ -153,7 +153,7 @@ class PerekamanRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateRagabPerekaman()) {
+        if (! $user || ! $user->canCreateRagabPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman RAGAB.');
         }
 
@@ -212,7 +212,7 @@ class PerekamanRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateRagabPerekaman()) {
+        if (! $user || ! $user->canCreateRagabPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah butir RAGAB.');
         }
 
@@ -234,10 +234,10 @@ class PerekamanRagabController extends Controller
             'keputusan_ragab' => ['required', 'string'],
 
             'direktorat_ids' => ['required', 'array', 'min:1'],
-            'direktorat_ids.*' => ['integer', 'exists:mysql.tb_direktorat,id'],
+            'direktorat_ids.*' => ['integer', 'exists:mysql.tb_direktorat,id,status,active'],
 
             'unit_kerja_ids' => ['required', 'array', 'min:1'],
-            'unit_kerja_ids.*' => ['integer', 'exists:mysql.tb_unit_kerja,id'],
+            'unit_kerja_ids.*' => ['integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
 
             'komite_id' => ['nullable', 'integer'],
         ]);
@@ -255,7 +255,7 @@ class PerekamanRagabController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'sub_cluster_ids' => 'Sub-cluster berikut tidak sesuai dengan cluster yang dipilih: ' . $invalidSubClusterIds->implode(', '),
+                    'sub_cluster_ids' => 'Sub-cluster berikut tidak sesuai dengan cluster yang dipilih: '.$invalidSubClusterIds->implode(', '),
                 ]);
         }
 
@@ -288,7 +288,7 @@ class PerekamanRagabController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'unit_kerja_ids' => 'Setiap direktorat yang dipilih wajib memiliki minimal 1 PIC Unit. Direktorat yang belum memiliki PIC Unit: ' . $missingDirektoratNames,
+                    'unit_kerja_ids' => 'Setiap direktorat yang dipilih wajib memiliki minimal 1 PIC Unit. Direktorat yang belum memiliki PIC Unit: '.$missingDirektoratNames,
                 ]);
         }
 
@@ -330,7 +330,7 @@ class PerekamanRagabController extends Controller
                 ]);
             }
 
-            if (!empty($validated['komite_id'])) {
+            if (! empty($validated['komite_id'])) {
                 RagabButirPic::create([
                     'id_butir_ragab' => $butir->id_butir_ragab,
                     'unit_kerja_id' => null,
@@ -374,13 +374,13 @@ class PerekamanRagabController extends Controller
 
     public function downloadDokumen(RagabRecord $record)
     {
-        if (!$record->dokumen) {
+        if (! $record->dokumen) {
             abort(404, 'Dokumen tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $record->dokumen);
+        $filePath = storage_path('app/public/'.$record->dokumen);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 
@@ -391,7 +391,7 @@ class PerekamanRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateRagabPerekaman()) {
+        if (! $user || ! $user->canCreateRagabPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman RAGAB.');
         }
 
@@ -412,9 +412,9 @@ class PerekamanRagabController extends Controller
             'agenda_ragab' => ['required', 'string'],
             'keputusan_ragab' => ['required', 'string'],
             'direktorat_ids' => ['required', 'array', 'min:1'],
-            'direktorat_ids.*' => ['required', 'integer', 'exists:mysql.tb_direktorat,id'],
+            'direktorat_ids.*' => ['required', 'integer', 'exists:mysql.tb_direktorat,id,status,active'],
             'unit_kerja_ids' => ['required', 'array', 'min:1'],
-            'unit_kerja_ids.*' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'unit_kerja_ids.*' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'komite_id' => ['nullable', 'integer', 'exists:mysql.tb_komite,id'],
         ]);
 
@@ -429,7 +429,7 @@ class PerekamanRagabController extends Controller
 
         if ($invalidSubClusterNames->isNotEmpty()) {
             return back()->withInput()->withErrors([
-                'sub_cluster_ids' => 'Sub-cluster berikut tidak sesuai dengan cluster yang dipilih: ' . $invalidSubClusterNames->implode(', '),
+                'sub_cluster_ids' => 'Sub-cluster berikut tidak sesuai dengan cluster yang dipilih: '.$invalidSubClusterNames->implode(', '),
             ]);
         }
 
@@ -450,7 +450,7 @@ class PerekamanRagabController extends Controller
                 ->implode(', ');
 
             return back()->withInput()->withErrors([
-                'unit_kerja_ids' => 'Setiap direktorat yang dipilih wajib memiliki minimal 1 PIC Unit. Direktorat yang belum memiliki PIC Unit: ' . $missingDirektoratNames,
+                'unit_kerja_ids' => 'Setiap direktorat yang dipilih wajib memiliki minimal 1 PIC Unit. Direktorat yang belum memiliki PIC Unit: '.$missingDirektoratNames,
             ]);
         }
 
@@ -484,7 +484,7 @@ class PerekamanRagabController extends Controller
             'database_name' => 'sidewas_ragab',
             'table_name' => 'tb_record',
             'record_key' => $record->id_ragab,
-            'record_label' => $record->id_ragab . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_ragab.' - '.$record->nomor_surat,
             'reason' => json_encode([
                 'action' => 'update_ragab_perekaman',
                 'payload' => $payload,
@@ -567,12 +567,12 @@ class PerekamanRagabController extends Controller
                 'updated_by' => $user->id,
             ];
 
-            if (!empty($recordUpdates['tanggal_surat'])) {
+            if (! empty($recordUpdates['tanggal_surat'])) {
                 $recordUpdates['jth_tempo'] = Carbon::parse($recordUpdates['tanggal_surat'])->addDays(30);
             }
 
             foreach (['dokumen', 'dokumen_memo'] as $fileField) {
-                if (!empty($filePayload[$fileField]['path'])) {
+                if (! empty($filePayload[$fileField]['path'])) {
                     if ($record->{$fileField} && Storage::disk('public')->exists($record->{$fileField})) {
                         Storage::disk('public')->delete($record->{$fileField});
                     }
@@ -583,7 +583,7 @@ class PerekamanRagabController extends Controller
 
             $record->update($recordUpdates);
 
-            if (!empty($butirPayload['id'])) {
+            if (! empty($butirPayload['id'])) {
                 $butir = $record->butirRagab()->where('id', (int) $butirPayload['id'])->firstOrFail();
                 $subClusterIds = collect($butirPayload['sub_cluster_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
 
@@ -625,7 +625,7 @@ class PerekamanRagabController extends Controller
                     ]);
                 }
 
-                if (!empty($butirPayload['komite_id'])) {
+                if (! empty($butirPayload['komite_id'])) {
                     RagabButirPic::create([
                         'id_butir_ragab' => $butir->id_butir_ragab,
                         'unit_kerja_id' => null,
@@ -657,13 +657,13 @@ class PerekamanRagabController extends Controller
 
     public function downloadDokumenMemo(RagabRecord $record)
     {
-        if (!$record->dokumen_memo) {
+        if (! $record->dokumen_memo) {
             abort(404, 'Dokumen memo tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $record->dokumen_memo);
+        $filePath = storage_path('app/public/'.$record->dokumen_memo);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File memo tidak ditemukan di storage.');
         }
 
@@ -674,7 +674,7 @@ class PerekamanRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canRequestDeleteRagabPerekaman()) {
+        if (! $user || ! $user->canRequestDeleteRagabPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menghapus perekaman RAGAB.');
         }
 
@@ -741,7 +741,7 @@ class PerekamanRagabController extends Controller
             'database_name' => 'sidewas_ragab',
             'table_name' => 'tb_record',
             'record_key' => $record->id_ragab,
-            'record_label' => $record->id_ragab . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_ragab.' - '.$record->nomor_surat,
             'reason' => $request->input('reason'),
             'requested_by' => $user->id,
             'status' => $status,

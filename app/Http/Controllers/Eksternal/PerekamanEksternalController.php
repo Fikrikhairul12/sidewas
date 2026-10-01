@@ -5,14 +5,14 @@ namespace App\Http\Controllers\Eksternal;
 use App\Http\Controllers\Controller;
 use App\Models\DeleteRequest;
 use App\Models\Direktorat;
-use App\Models\Komite;
-use App\Models\LogActivity;
 use App\Models\EksternalButir;
 use App\Models\EksternalButirDirektorat;
 use App\Models\EksternalButirPic;
 use App\Models\EksternalCluster;
 use App\Models\EksternalRecord;
 use App\Models\EksternalSubCluster;
+use App\Models\Komite;
+use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
 use Carbon\Carbon;
@@ -27,7 +27,7 @@ class PerekamanEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalPerekaman()) {
+        if (! $user || ! $user->canAccessEksternalPerekaman()) {
             abort(403, 'Anda tidak memiliki akses ke halaman perekaman EKSTERNAL.');
         }
 
@@ -117,10 +117,10 @@ class PerekamanEksternalController extends Controller
             ->orderBy('nama_cluster')
             ->get();
 
-        $direktorats = Direktorat::orderBy('nama_direktorat')
+        $direktorats = Direktorat::active()->orderBy('nama_direktorat')
             ->get();
 
-        $unitKerjas = UnitKerja::with('direktorat')
+        $unitKerjas = UnitKerja::active()->with('direktorat')
             ->orderBy('kode_unit')
             ->get();
 
@@ -148,7 +148,7 @@ class PerekamanEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateEksternalPerekaman()) {
+        if (! $user || ! $user->canCreateEksternalPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman EKSTERNAL.');
         }
 
@@ -209,7 +209,7 @@ class PerekamanEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateEksternalPerekaman()) {
+        if (! $user || ! $user->canCreateEksternalPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah butir EKSTERNAL.');
         }
 
@@ -230,21 +230,21 @@ class PerekamanEksternalController extends Controller
             'keputusan_eksternal' => ['required', 'string'],
 
             'direktorat_ids' => ['required', 'array', 'min:1'],
-            'direktorat_ids.*' => ['integer'],
+            'direktorat_ids.*' => ['integer', 'exists:mysql.tb_direktorat,id,status,active'],
 
             'unit_kerja_ids' => ['required', 'array', 'min:1'],
-            'unit_kerja_ids.*' => ['integer'],
+            'unit_kerja_ids.*' => ['integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
 
             'komite_id' => ['nullable', 'integer'],
         ]);
 
         $selectedDirektoratIds = collect($validated['direktorat_ids'])
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
         $selectedUnitKerjaIds = collect($validated['unit_kerja_ids'])
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
@@ -255,7 +255,7 @@ class PerekamanEksternalController extends Controller
 
         $missingDirektoratIds = $selectedDirektoratIds
             ->filter(function ($direktoratId) use ($unitKerjasByDirektorat) {
-                return !$unitKerjasByDirektorat->has($direktoratId);
+                return ! $unitKerjasByDirektorat->has($direktoratId);
             })
             ->values();
 
@@ -267,7 +267,7 @@ class PerekamanEksternalController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'unit_kerja_ids' => 'Setiap direktorat yang dipilih wajib memiliki minimal 1 PIC Unit. Direktorat yang belum memiliki PIC Unit: ' . $missingDirektoratNames,
+                    'unit_kerja_ids' => 'Setiap direktorat yang dipilih wajib memiliki minimal 1 PIC Unit. Direktorat yang belum memiliki PIC Unit: '.$missingDirektoratNames,
                 ]);
         }
 
@@ -302,7 +302,7 @@ class PerekamanEksternalController extends Controller
                 ]);
             }
 
-            if (!empty($validated['komite_id'])) {
+            if (! empty($validated['komite_id'])) {
                 EksternalButirPic::create([
                     'id_butir_eksternal' => $butir->id_butir_eksternal,
                     'unit_kerja_id' => null,
@@ -345,13 +345,13 @@ class PerekamanEksternalController extends Controller
 
     public function downloadDokumen(EksternalRecord $record)
     {
-        if (!$record->dokumen) {
+        if (! $record->dokumen) {
             abort(404, 'Dokumen tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $record->dokumen);
+        $filePath = storage_path('app/public/'.$record->dokumen);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 
@@ -362,7 +362,7 @@ class PerekamanEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateEksternalPerekaman()) {
+        if (! $user || ! $user->canCreateEksternalPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman Eksternal.');
         }
 
@@ -383,9 +383,9 @@ class PerekamanEksternalController extends Controller
             'agenda_eksternal' => ['required', 'string'],
             'keputusan_eksternal' => ['required', 'string'],
             'direktorat_ids' => ['required', 'array', 'min:1'],
-            'direktorat_ids.*' => ['required', 'integer', 'exists:mysql.tb_direktorat,id'],
+            'direktorat_ids.*' => ['required', 'integer', 'exists:mysql.tb_direktorat,id,status,active'],
             'unit_kerja_ids' => ['required', 'array', 'min:1'],
-            'unit_kerja_ids.*' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'unit_kerja_ids.*' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'komite_id' => ['nullable', 'integer', 'exists:mysql.tb_komite,id'],
         ]);
 
@@ -416,7 +416,7 @@ class PerekamanEksternalController extends Controller
                 ->implode(', ');
 
             return back()->withInput()->withErrors([
-                'unit_kerja_ids' => 'Setiap direktorat yang dipilih wajib memiliki minimal 1 PIC Unit. Direktorat yang belum memiliki PIC Unit: ' . $missingDirektoratNames,
+                'unit_kerja_ids' => 'Setiap direktorat yang dipilih wajib memiliki minimal 1 PIC Unit. Direktorat yang belum memiliki PIC Unit: '.$missingDirektoratNames,
             ]);
         }
 
@@ -450,7 +450,7 @@ class PerekamanEksternalController extends Controller
             'database_name' => 'sidewas_eksternal',
             'table_name' => 'tb_record',
             'record_key' => $record->id_eksternal,
-            'record_label' => $record->id_eksternal . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_eksternal.' - '.$record->nomor_surat,
             'reason' => json_encode([
                 'action' => 'update_eksternal_perekaman',
                 'payload' => $payload,
@@ -535,12 +535,12 @@ class PerekamanEksternalController extends Controller
                 'updated_by' => $user->id,
             ];
 
-            if (!empty($recordUpdates['tanggal_surat'])) {
+            if (! empty($recordUpdates['tanggal_surat'])) {
                 $recordUpdates['jth_tempo'] = Carbon::parse($recordUpdates['tanggal_surat'])->addDays(30);
             }
 
             foreach (['dokumen', 'dokumen_memo'] as $fileField) {
-                if (!empty($filePayload[$fileField]['path'])) {
+                if (! empty($filePayload[$fileField]['path'])) {
                     if ($record->{$fileField} && Storage::disk('public')->exists($record->{$fileField})) {
                         Storage::disk('public')->delete($record->{$fileField});
                     }
@@ -551,7 +551,7 @@ class PerekamanEksternalController extends Controller
 
             $record->update($recordUpdates);
 
-            if (!empty($butirPayload['id'])) {
+            if (! empty($butirPayload['id'])) {
                 $butir = $record->butirEksternal()->where('id', (int) $butirPayload['id'])->firstOrFail();
 
                 $butir->update([
@@ -584,7 +584,7 @@ class PerekamanEksternalController extends Controller
                     ]);
                 }
 
-                if (!empty($butirPayload['komite_id'])) {
+                if (! empty($butirPayload['komite_id'])) {
                     EksternalButirPic::create([
                         'id_butir_eksternal' => $butir->id_butir_eksternal,
                         'unit_kerja_id' => null,
@@ -616,13 +616,13 @@ class PerekamanEksternalController extends Controller
 
     public function downloadDokumenMemo(EksternalRecord $record)
     {
-        if (!$record->dokumen_memo) {
+        if (! $record->dokumen_memo) {
             abort(404, 'Dokumen memo tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $record->dokumen_memo);
+        $filePath = storage_path('app/public/'.$record->dokumen_memo);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File memo tidak ditemukan di storage.');
         }
 
@@ -633,7 +633,7 @@ class PerekamanEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canRequestDeleteEksternalPerekaman()) {
+        if (! $user || ! $user->canRequestDeleteEksternalPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menghapus perekaman EKSTERNAL.');
         }
 
@@ -699,7 +699,7 @@ class PerekamanEksternalController extends Controller
             'database_name' => 'sidewas_eksternal',
             'table_name' => 'tb_record',
             'record_key' => $record->id_eksternal,
-            'record_label' => $record->id_eksternal . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_eksternal.' - '.$record->nomor_surat,
             'reason' => $request->input('reason'),
             'requested_by' => $user->id,
             'status' => $status,

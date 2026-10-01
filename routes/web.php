@@ -1,7 +1,8 @@
 <?php
 
-use App\Http\Controllers\Administrasi\PengajuanController;
+use App\Http\Controllers\Administrasi\ManajemenDirektoratController;
 use App\Http\Controllers\Administrasi\ManajemenUserController;
+use App\Http\Controllers\Administrasi\PengajuanController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Djsn\PerekamanDjsnController;
@@ -20,8 +21,8 @@ use App\Http\Controllers\Kunjungan\EmployeeController as KunjunganEmployeeContro
 use App\Http\Controllers\Kunjungan\MapController as KunjunganMapController;
 use App\Http\Controllers\Kunjungan\ReportController as KunjunganReportController;
 use App\Http\Controllers\Kunjungan\VisitController as KunjunganVisitController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProdukHukum\ProdukHukumController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Ragab\PerekamanRagabController;
 use App\Http\Controllers\Ragab\ReportRagabController;
 use App\Http\Controllers\Ragab\ReviuRagabController;
@@ -81,7 +82,7 @@ Route::prefix('kunjungan')->name('kunjungan.')->middleware(['auth', 'verified', 
     Route::get('/{visit}/report/{report}/download', [KunjunganReportController::class, 'download'])->name('reports.download');
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';
 
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])
     ->name('google.redirect');
@@ -91,30 +92,49 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
 
 // TODO: ADMINISTRASI
 Route::middleware(['auth', 'verified'])->group(function () {
-        Route::get('/administrasi/manajemen-user', [ManajemenUserController::class, 'index'])
-            ->name('administrasi.manajemen-user.index');
+    Route::get('/administrasi/manajemen-user', [ManajemenUserController::class, 'index'])
+        ->name('administrasi.manajemen-user.index');
 
-        Route::post('/administrasi/manajemen-user', [ManajemenUserController::class, 'store'])
-            ->name('administrasi.manajemen-user.store');
+    Route::post('/administrasi/manajemen-user', [ManajemenUserController::class, 'store'])
+        ->name('administrasi.manajemen-user.store');
 
-        Route::patch('/administrasi/manajemen-user/{user}', [ManajemenUserController::class, 'update'])
-            ->name('administrasi.manajemen-user.update');
+    Route::patch('/administrasi/manajemen-user/{user}', [ManajemenUserController::class, 'update'])
+        ->name('administrasi.manajemen-user.update');
 
-        Route::delete('/administrasi/manajemen-user/{user}', [ManajemenUserController::class, 'destroy'])
-            ->name('administrasi.manajemen-user.destroy');
+    Route::delete('/administrasi/manajemen-user/{user}', [ManajemenUserController::class, 'destroy'])
+        ->name('administrasi.manajemen-user.destroy');
 
-        Route::get('/administrasi/pengajuan', [PengajuanController::class, 'index'])
-            ->name('administrasi.pengajuan.index');
+    Route::get('/administrasi/manajemen-direktorat', [ManajemenDirektoratController::class, 'index'])
+        ->name('administrasi.manajemen-direktorat.index');
+    Route::post('/administrasi/manajemen-direktorat', [ManajemenDirektoratController::class, 'storeDirektorat'])
+        ->name('administrasi.manajemen-direktorat.store');
+    Route::patch('/administrasi/manajemen-direktorat/{direktorat}', [ManajemenDirektoratController::class, 'updateDirektorat'])
+        ->name('administrasi.manajemen-direktorat.update');
+    Route::patch('/administrasi/manajemen-direktorat/{direktorat}/status', [ManajemenDirektoratController::class, 'statusDirektorat'])
+        ->name('administrasi.manajemen-direktorat.status');
+    Route::delete('/administrasi/manajemen-direktorat/{direktorat}', [ManajemenDirektoratController::class, 'destroyDirektorat'])
+        ->name('administrasi.manajemen-direktorat.destroy');
+    Route::post('/administrasi/manajemen-direktorat/unit', [ManajemenDirektoratController::class, 'storeUnit'])
+        ->name('administrasi.manajemen-direktorat.unit.store');
+    Route::patch('/administrasi/manajemen-direktorat/unit/{unitKerja}', [ManajemenDirektoratController::class, 'updateUnit'])
+        ->name('administrasi.manajemen-direktorat.unit.update');
+    Route::patch('/administrasi/manajemen-direktorat/unit/{unitKerja}/status', [ManajemenDirektoratController::class, 'statusUnit'])
+        ->name('administrasi.manajemen-direktorat.unit.status');
+    Route::delete('/administrasi/manajemen-direktorat/unit/{unitKerja}', [ManajemenDirektoratController::class, 'destroyUnit'])
+        ->name('administrasi.manajemen-direktorat.unit.destroy');
 
-        Route::patch('/administrasi/pengajuan/{deleteRequest}/verify', [PengajuanController::class, 'verify'])
-            ->name('administrasi.pengajuan.verify');
+    Route::get('/administrasi/pengajuan', [PengajuanController::class, 'index'])
+        ->name('administrasi.pengajuan.index');
 
-        Route::patch('/administrasi/pengajuan/{deleteRequest}/approve', [PengajuanController::class, 'approve'])
-            ->name('administrasi.pengajuan.approve');
+    Route::patch('/administrasi/pengajuan/{deleteRequest}/verify', [PengajuanController::class, 'verify'])
+        ->name('administrasi.pengajuan.verify');
+
+    Route::patch('/administrasi/pengajuan/{deleteRequest}/approve', [PengajuanController::class, 'approve'])
+        ->name('administrasi.pengajuan.approve');
 
     Route::patch('/administrasi/pengajuan/{deleteRequest}/reject', [PengajuanController::class, 'reject'])
         ->name('administrasi.pengajuan.reject');
-    });
+});
 
 // TODO: PRODUK HUKUM
 Route::middleware(['auth', 'verified'])->group(function () {

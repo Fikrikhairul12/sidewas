@@ -5,12 +5,12 @@ namespace App\Http\Controllers\Djsn;
 use App\Http\Controllers\Controller;
 use App\Models\DeleteRequest;
 use App\Models\Direktorat;
-use App\Models\Komite;
 use App\Models\DjsnButir;
 use App\Models\DjsnButirPic;
 use App\Models\DjsnCluster;
 use App\Models\DjsnRecord;
 use App\Models\DjsnSubCluster;
+use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
@@ -26,7 +26,7 @@ class PerekamanDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnPerekaman()) {
+        if (! $user || ! $user->canAccessDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses ke halaman perekaman DJSN.');
         }
 
@@ -166,11 +166,11 @@ class PerekamanDjsnController extends Controller
             ->orderBy('nama_cluster')
             ->get();
 
-        $direktorats = Direktorat::with('unitKerja')
+        $direktorats = Direktorat::active()->with(['unitKerja' => fn ($query) => $query->active()])
             ->orderBy('nama_direktorat')
             ->get();
 
-        $unitKerjas = UnitKerja::with('direktorat')
+        $unitKerjas = UnitKerja::active()->with('direktorat')
             ->orderBy('nama_unit')
             ->get();
 
@@ -197,7 +197,7 @@ class PerekamanDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateDjsnPerekaman()) {
+        if (! $user || ! $user->canCreateDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman DJSN.');
         }
 
@@ -247,7 +247,7 @@ class PerekamanDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateDjsnPerekaman()) {
+        if (! $user || ! $user->canCreateDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman DJSN.');
         }
 
@@ -264,10 +264,10 @@ class PerekamanDjsnController extends Controller
             'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id'],
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id'],
 
-            'unit_kerja_utama_id' => ['required', 'integer'],
+            'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
 
             'unit_kerja_pendukung_id' => ['nullable', 'array'],
-            'unit_kerja_pendukung_id.*' => ['nullable', 'integer'],
+            'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
 
             'komite_id' => ['required', 'integer'],
         ]);
@@ -289,7 +289,7 @@ class PerekamanDjsnController extends Controller
             ]);
 
             foreach (($validated['unit_kerja_pendukung_id'] ?? []) as $unitKerjaPendukungId) {
-                if (!empty($unitKerjaPendukungId)) {
+                if (! empty($unitKerjaPendukungId)) {
                     DjsnButirPic::create([
                         'id_butir_djsn' => $butir->id_butir_djsn,
                         'unit_kerja_id' => $unitKerjaPendukungId,
@@ -315,7 +315,7 @@ class PerekamanDjsnController extends Controller
                 'table_name' => 'tb_butir_djsn',
                 'record_key' => $butir->id_butir_djsn,
                 'action' => 'create',
-                'description' => 'User menambahkan butir DJSN pada surat ' . $record->id_djsn . '.',
+                'description' => 'User menambahkan butir DJSN pada surat '.$record->id_djsn.'.',
                 'old_values' => null,
                 'new_values' => [
                     'record' => $record->fresh()->toArray(),
@@ -336,7 +336,7 @@ class PerekamanDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canRequestDeleteDjsnPerekaman()) {
+        if (! $user || ! $user->canRequestDeleteDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menghapus perekaman DJSN.');
         }
 
@@ -402,7 +402,7 @@ class PerekamanDjsnController extends Controller
             'database_name' => 'sidewas_djsn',
             'table_name' => 'tb_record',
             'record_key' => $record->id_djsn,
-            'record_label' => $record->id_djsn . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_djsn.' - '.$record->nomor_surat,
             'reason' => $request->input('reason'),
             'requested_by' => $user->id,
             'status' => $status,
@@ -434,17 +434,17 @@ class PerekamanDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnPerekaman()) {
+        if (! $user || ! $user->canAccessDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen.');
         }
 
-        if (!$record->dokumen) {
+        if (! $record->dokumen) {
             abort(404, 'Dokumen tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $record->dokumen);
+        $filePath = storage_path('app/public/'.$record->dokumen);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 
@@ -455,7 +455,7 @@ class PerekamanDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateDjsnPerekaman()) {
+        if (! $user || ! $user->canCreateDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman DJSN.');
         }
 
@@ -471,9 +471,9 @@ class PerekamanDjsnController extends Controller
             'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
             'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id'],
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id'],
-            'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'unit_kerja_pendukung_id' => ['nullable', 'array'],
-            'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'komite_id' => ['required', 'integer', 'exists:mysql.tb_komite,id'],
         ]);
 
@@ -517,7 +517,7 @@ class PerekamanDjsnController extends Controller
             'database_name' => 'sidewas_djsn',
             'table_name' => 'tb_record',
             'record_key' => $record->id_djsn,
-            'record_label' => $record->id_djsn . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_djsn.' - '.$record->nomor_surat,
             'reason' => json_encode([
                 'action' => 'update_djsn_perekaman',
                 'payload' => $payload,
@@ -601,11 +601,11 @@ class PerekamanDjsnController extends Controller
                 'updated_by' => $user->id,
             ];
 
-            if (!empty($recordUpdates['tanggal_surat'])) {
+            if (! empty($recordUpdates['tanggal_surat'])) {
                 $recordUpdates['jth_tempo'] = Carbon::parse($recordUpdates['tanggal_surat'])->addDays(30);
             }
 
-            if (!empty($filePayload['dokumen']['path'])) {
+            if (! empty($filePayload['dokumen']['path'])) {
                 if ($record->dokumen && Storage::disk('public')->exists($record->dokumen)) {
                     Storage::disk('public')->delete($record->dokumen);
                 }
@@ -615,7 +615,7 @@ class PerekamanDjsnController extends Controller
 
             $record->update($recordUpdates);
 
-            if (!empty($butirPayload['id'])) {
+            if (! empty($butirPayload['id'])) {
                 $butir = $record->butirDjsn()->where('id', (int) $butirPayload['id'])->firstOrFail();
 
                 $butir->update([

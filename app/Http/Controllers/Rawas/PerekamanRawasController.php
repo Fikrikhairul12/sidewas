@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class PerekamanRawasController extends Controller
 {
@@ -26,7 +27,7 @@ class PerekamanRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRawasPerekaman()) {
+        if (! $user || ! $user->canAccessRawasPerekaman()) {
             abort(403, 'Anda tidak memiliki akses ke halaman perekaman RAWAS.');
         }
 
@@ -88,10 +89,10 @@ class PerekamanRawasController extends Controller
             ->orderBy('nama_cluster')
             ->get();
 
-        $dewasDirektorat = Direktorat::where('nama_direktorat', 'like', '%Dewan Pengawas%')
+        $dewasDirektorat = Direktorat::active()->where('nama_direktorat', 'like', '%Dewan Pengawas%')
             ->first();
 
-        $unitKerjas = UnitKerja::query()
+        $unitKerjas = UnitKerja::active()
             ->orderBy('nama_unit')
             ->get();
 
@@ -101,8 +102,8 @@ class PerekamanRawasController extends Controller
             ->merge(
                 $unitKerjas->map(function ($unit) {
                     return [
-                        'value' => 'unit:' . $unit->id,
-                        'label' => ($unit->kode_unit ?? '-') . ' - ' . $unit->nama_unit,
+                        'value' => 'unit:'.$unit->id,
+                        'label' => ($unit->kode_unit ?? '-').' - '.$unit->nama_unit,
                         'sub_label' => 'Dewan Pengawas',
                         'type' => 'Direktorat',
                     ];
@@ -111,8 +112,8 @@ class PerekamanRawasController extends Controller
             ->merge(
                 $komites->map(function ($komite) {
                     return [
-                        'value' => 'komite:' . $komite->id,
-                        'label' => ($komite->kode_komite ?? '-') . ' - ' . $komite->nama_komite,
+                        'value' => 'komite:'.$komite->id,
+                        'label' => ($komite->kode_komite ?? '-').' - '.$komite->nama_komite,
                         'sub_label' => 'Dewan Pengawas',
                         'type' => 'Direktorat',
                     ];
@@ -144,7 +145,7 @@ class PerekamanRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateRawasPerekaman()) {
+        if (! $user || ! $user->canCreateRawasPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman RAWAS.');
         }
 
@@ -194,7 +195,7 @@ class PerekamanRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateRawasPerekaman()) {
+        if (! $user || ! $user->canCreateRawasPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah butir RAWAS.');
         }
 
@@ -216,6 +217,8 @@ class PerekamanRawasController extends Controller
             'pic_ids.*' => ['required', 'string'],
         ]);
 
+        $this->validatePicUnits($validated['pic_ids']);
+
         DB::connection('mysql_rawas')->transaction(function () use ($request, $validated, $record) {
             $butir = RawasButir::create([
                 'id_rawas' => $record->id_rawas,
@@ -228,7 +231,7 @@ class PerekamanRawasController extends Controller
             ]);
 
             foreach ($validated['pic_ids'] as $picValue) {
-                if (!str_contains($picValue, ':')) {
+                if (! str_contains($picValue, ':')) {
                     continue;
                 }
 
@@ -262,7 +265,7 @@ class PerekamanRawasController extends Controller
                 'table_name' => 'tb_butir_rawas',
                 'record_key' => $butir->id_butir_rawas,
                 'action' => 'create',
-                'description' => 'User menambahkan butir RAWAS pada surat ' . $record->id_rawas . '.',
+                'description' => 'User menambahkan butir RAWAS pada surat '.$record->id_rawas.'.',
                 'old_values' => null,
                 'new_values' => [
                     'record' => $record->fresh()->toArray(),
@@ -288,7 +291,7 @@ class PerekamanRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateRawasPerekaman()) {
+        if (! $user || ! $user->canCreateRawasPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman RAWAS.');
         }
 
@@ -309,6 +312,8 @@ class PerekamanRawasController extends Controller
             'pic_ids' => ['required', 'array', 'min:1'],
             'pic_ids.*' => ['required', 'string'],
         ]);
+
+        $this->validatePicUnits($validated['pic_ids']);
 
         $subClusterBelongsToCluster = RawasSubCluster::where('id', $validated['sub_cluster_id'])
             ->where('cluster_id', $validated['cluster_id'])
@@ -350,7 +355,7 @@ class PerekamanRawasController extends Controller
             'database_name' => 'sidewas_rawas',
             'table_name' => 'tb_record',
             'record_key' => $record->id_rawas,
-            'record_label' => $record->id_rawas . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_rawas.' - '.$record->nomor_surat,
             'reason' => json_encode([
                 'action' => 'update_rawas_perekaman',
                 'payload' => $payload,
@@ -429,11 +434,11 @@ class PerekamanRawasController extends Controller
                 'updated_by' => $user->id,
             ];
 
-            if (!empty($recordUpdates['tanggal_surat'])) {
+            if (! empty($recordUpdates['tanggal_surat'])) {
                 $recordUpdates['jth_tempo'] = Carbon::parse($recordUpdates['tanggal_surat'])->addDays(30);
             }
 
-            if (!empty($filePayload['dokumen_memo']['path'])) {
+            if (! empty($filePayload['dokumen_memo']['path'])) {
                 if ($record->dokumen_memo && Storage::disk('public')->exists($record->dokumen_memo)) {
                     Storage::disk('public')->delete($record->dokumen_memo);
                 }
@@ -443,7 +448,7 @@ class PerekamanRawasController extends Controller
 
             $record->update($recordUpdates);
 
-            if (!empty($butirPayload['id'])) {
+            if (! empty($butirPayload['id'])) {
                 $butir = $record->butirRawas()->where('id', (int) $butirPayload['id'])->firstOrFail();
 
                 $butir->update([
@@ -459,7 +464,7 @@ class PerekamanRawasController extends Controller
                 $butir->butirPics()->delete();
 
                 foreach (($butirPayload['pic_ids'] ?? []) as $picValue) {
-                    if (!str_contains($picValue, ':')) {
+                    if (! str_contains($picValue, ':')) {
                         continue;
                     }
 
@@ -498,17 +503,17 @@ class PerekamanRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRawasPerekaman()) {
+        if (! $user || ! $user->canAccessRawasPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen.');
         }
 
-        if (!$record->dokumen_memo) {
+        if (! $record->dokumen_memo) {
             abort(404, 'Dokumen tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $record->dokumen_memo);
+        $filePath = storage_path('app/public/'.$record->dokumen_memo);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 
@@ -519,7 +524,7 @@ class PerekamanRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canRequestDeleteRawasPerekaman()) {
+        if (! $user || ! $user->canRequestDeleteRawasPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menghapus perekaman Rawas.');
         }
 
@@ -585,7 +590,7 @@ class PerekamanRawasController extends Controller
             'database_name' => 'sidewas_rawas',
             'table_name' => 'tb_record',
             'record_key' => $record->id_rawas,
-            'record_label' => $record->id_rawas . ' - ' . $record->nomor_surat,
+            'record_label' => $record->id_rawas.' - '.$record->nomor_surat,
             'reason' => $request->input('reason'),
             'requested_by' => $user->id,
             'status' => $status,
@@ -611,5 +616,23 @@ class PerekamanRawasController extends Controller
         return redirect()
             ->route('rawas.perekaman')
             ->with('success', 'Pengajuan hapus berhasil dikirim.');
+    }
+
+    /** @param array<int, string> $picIds */
+    private function validatePicUnits(array $picIds): void
+    {
+        foreach ($picIds as $picId) {
+            [$type, $id] = array_pad(explode(':', $picId, 2), 2, null);
+
+            if ($type === 'unit' && ctype_digit((string) $id) && UnitKerja::active()->whereKey((int) $id)->exists()) {
+                continue;
+            }
+
+            if ($type === 'komite' && ctype_digit((string) $id) && Komite::whereKey((int) $id)->exists()) {
+                continue;
+            }
+
+            throw ValidationException::withMessages(['pic_ids' => 'PIC unit kerja atau komite tidak valid atau sudah nonaktif.']);
+        }
     }
 }

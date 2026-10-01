@@ -23,9 +23,13 @@ class PicMasterSeeder extends Seeder
         ];
 
         foreach ($direktorats as [$id, $nama, $kode]) {
-            DB::table('tb_direktorat')->updateOrInsert(
-                ['id' => $id],
+            if (DB::table('tb_log_activity')->where('table_name', 'tb_direktorat')->where('record_key', (string) $id)->where('action', 'delete_direktorat')->exists()) {
+                continue;
+            }
+
+            DB::table('tb_direktorat')->insertOrIgnore(
                 [
+                    'id' => $id,
                     'nama_direktorat' => $nama,
                     'kode_direktorat' => $kode,
                     'keterangan' => null,
@@ -65,9 +69,13 @@ class PicMasterSeeder extends Seeder
         ];
 
         foreach ($units as [$id, $direktoratId, $namaUnit, $kodeUnit]) {
-            DB::table('tb_unit_kerja')->updateOrInsert(
-                ['id' => $id],
+            if (DB::table('tb_log_activity')->where('table_name', 'tb_unit_kerja')->where('record_key', (string) $id)->where('action', 'delete_unit_kerja')->exists()) {
+                continue;
+            }
+
+            DB::table('tb_unit_kerja')->insertOrIgnore(
                 [
+                    'id' => $id,
                     'direktorat_id' => $direktoratId,
                     'nama_unit' => $namaUnit,
                     'kode_unit' => $kodeUnit,

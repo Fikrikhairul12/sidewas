@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -86,13 +87,14 @@ class ManajemenUserController extends Controller
             ->orderBy('id')
             ->get();
 
-        $unitKerjas = UnitKerja::with('direktorat')
+        $unitKerjas = UnitKerja::active()->with('direktorat')
             ->orderBy('kode_unit')
             ->orderBy('nama_unit')
             ->get();
 
-        $direktorats = Direktorat::with([
+        $direktorats = Direktorat::active()->with([
             'unitKerja' => fn ($query) => $query
+                ->active()
                 ->orderBy('kode_unit')
                 ->orderBy('nama_unit'),
         ])
@@ -136,7 +138,7 @@ class ManajemenUserController extends Controller
             ],
             'password' => ['required', 'confirmed', Password::defaults()],
             'role_type_id' => ['required', 'integer', 'exists:tb_role_type,id'],
-            'direktorat_id' => ['nullable', 'integer', 'exists:tb_direktorat,id'],
+            'direktorat_id' => ['nullable', 'integer', Rule::exists('mysql.tb_direktorat', 'id')->where('status', 'active')],
             'assignment' => ['nullable', 'string'],
         ]);
 
@@ -207,7 +209,7 @@ class ManajemenUserController extends Controller
                 'nullable',
                 'email',
                 'max:255',
-                'unique:users,email,' . $user->id,
+                'unique:users,email,'.$user->id,
                 function (string $attribute, mixed $value, \Closure $fail): void {
                     if ($value && ! User::isAllowedEmailDomain((string) $value)) {
                         $fail('Email harus menggunakan domain @bpjsketenagakerjaan.go.id.');
@@ -216,7 +218,7 @@ class ManajemenUserController extends Controller
             ],
             'role_type_ids' => ['required', 'array', 'min:1'],
             'role_type_ids.*' => ['integer', 'exists:tb_role_type,id'],
-            'direktorat_id' => ['nullable', 'integer', 'exists:tb_direktorat,id'],
+            'direktorat_id' => ['nullable', 'integer', Rule::exists('mysql.tb_direktorat', 'id')->where('status', 'active')],
             'assignment' => ['nullable', 'string'],
         ]);
 
@@ -297,7 +299,7 @@ class ManajemenUserController extends Controller
         $id = (int) $id;
 
         if ($type === 'unit') {
-            $unitKerja = UnitKerja::find($id);
+            $unitKerja = UnitKerja::active()->find($id);
 
             if (! $unitKerja) {
                 throw ValidationException::withMessages([
@@ -387,7 +389,7 @@ class ManajemenUserController extends Controller
         foreach ($changedRoleTypes as $roleType) {
             if (! $this->canManageRoleType($authUser, $roleType)) {
                 throw ValidationException::withMessages([
-                    'role_type_ids' => 'Anda tidak memiliki akses untuk menambah atau mengurangi role ' . $this->roleTypeLabel($roleType) . '.',
+                    'role_type_ids' => 'Anda tidak memiliki akses untuk menambah atau mengurangi role '.$this->roleTypeLabel($roleType).'.',
                 ]);
             }
         }
@@ -405,7 +407,7 @@ class ManajemenUserController extends Controller
 
         if ($manageableTypeCodes->isEmpty()) {
             throw ValidationException::withMessages([
-                'user' => 'Anda hanya dapat ' . $actionLabel . ' user dengan role di bawah level akses Anda pada modul yang sama.',
+                'user' => 'Anda hanya dapat '.$actionLabel.' user dengan role di bawah level akses Anda pada modul yang sama.',
             ]);
         }
 
@@ -593,11 +595,16 @@ class ManajemenUserController extends Controller
                     ->all()
             );
 
-            $user->unitKerja()->sync([]);
+            $user->unitKerja()
+                ->wherePivot('status', 'active')
+                ->get()
+                ->each(fn ($unit) => $user->unitKerja()->updateExistingPivot($unit->id, ['status' => 'inactive']));
             $user->komite()->sync([]);
 
             if ($payload['assignment']['type'] === 'unit') {
-                $user->unitKerja()->attach($payload['assignment']['id'], ['status' => 'active']);
+                $user->unitKerja()->syncWithoutDetaching([
+                    $payload['assignment']['id'] => ['status' => 'active'],
+                ]);
             }
 
             if ($payload['assignment']['type'] === 'komite') {
@@ -663,6 +670,6 @@ class ManajemenUserController extends Controller
             default => ucwords(str_replace('_', ' ', (string) $roleType->role?->name)),
         };
 
-        return trim($roleLabel . ' ' . ($roleType->type?->name ?? ''));
+        return trim($roleLabel.' '.($roleType->type?->name ?? ''));
     }
 }

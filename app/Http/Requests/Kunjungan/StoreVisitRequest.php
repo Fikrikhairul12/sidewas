@@ -38,7 +38,7 @@ class StoreVisitRequest extends FormRequest
             'destination_unit_ids.*' => ['integer', 'distinct', 'exists:mysql_kunjungan.units,id'],
             'start_at' => ['required', 'date_format:Y-m-d H:i:s'],
             'end_at' => ['required', 'date_format:Y-m-d H:i:s', 'after:start_at'],
-            'pic_unit_kerja_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id'],
+            'pic_unit_kerja_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'participant_ids' => ['required', 'array', 'min:1'],
             'participant_ids.*' => ['integer', 'distinct', 'exists:mysql_kunjungan.employees,id'],
             'purpose' => ['required', 'string', 'max:5000'],

@@ -21,7 +21,7 @@ test('manajemen user page is wired for super admin monitoring', function () {
         ->toContain('roleTypes.role')
         ->toContain('roleTypes.type')
         ->toContain('unitKerja.direktorat')
-        ->toContain('Direktorat::with')
+        ->toContain('Direktorat::active()->with')
         ->toContain('latestLog')
         ->toContain("'keyword' => ['nullable', 'string', 'max:255']")
         ->toContain("'role_type_id' => ['nullable', 'integer', 'exists:tb_role_type,id']")

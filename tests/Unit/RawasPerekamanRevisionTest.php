@@ -21,7 +21,7 @@ test('rawas perekaman uses memo document and combined pic inputs', function () {
     expect($controller)
         ->toContain("'dokumen_memo' =>")
         ->toContain("'pic_ids' => ['required', 'array', 'min:1']")
-        ->toContain("UnitKerja::query()")
+        ->toContain('UnitKerja::active()')
         ->toContain("'type' => 'Direktorat'")
         ->toContain("'sub_label' => 'Dewan Pengawas'")
         ->toContain("'jenis_pic' => 'unit'")

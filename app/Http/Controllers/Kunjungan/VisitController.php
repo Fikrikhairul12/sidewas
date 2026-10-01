@@ -170,7 +170,7 @@ class VisitController extends Controller
 
     private function picUnitKerjas()
     {
-        return SidewasUnitKerja::query()
+        return SidewasUnitKerja::active()
             ->with('direktorat')
             ->orderBy('nama_unit')
             ->get();
