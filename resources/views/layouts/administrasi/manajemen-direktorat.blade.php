@@ -61,13 +61,13 @@
         </form>
 
         <div class="rounded-2xl border border-blue-100 bg-white shadow-sm" style="height: auto; max-height: none; overflow: visible;">
-            <table class="min-w-full divide-y divide-slate-200 text-sm">
-                <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <table class="min-w-full divide-y divide-slate-200 text-sm" style="border-collapse: separate; border-spacing: 0;">
+                <thead class="text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                     <tr>
-                        <th scope="col" class="px-5 py-4">Nama Direktorat</th>
-                        <th scope="col" class="px-5 py-4">Total Unit Kerja</th>
-                        <th scope="col" class="px-5 py-4">Status</th>
-                        <th scope="col" class="px-5 py-4 text-right">Aksi</th>
+                        <th scope="col" class="bg-slate-50 px-5 py-4" style="border-top-left-radius: 1rem;">Nama Direktorat</th>
+                        <th scope="col" class="bg-slate-50 px-5 py-4">Total Unit Kerja</th>
+                        <th scope="col" class="bg-slate-50 px-5 py-4">Status</th>
+                        <th scope="col" class="bg-slate-50 px-5 py-4 text-right" style="border-top-right-radius: 1rem;">Aksi</th>
                     </tr>
                 </thead>
                 @forelse ($direktorats as $direktorat)
@@ -78,7 +78,7 @@
                             'keterangan' => $direktorat->keterangan ?? '',
                         ];
                     @endphp
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100" style="background-color: {{ $loop->even ? '#eef5fb' : '#ffffff' }};">
                         <tr class="hover:bg-slate-50/70">
                             <td class="px-5 py-4 font-semibold text-slate-800">{{ $direktorat->nama_direktorat }}</td>
                             <td class="px-5 py-4 text-slate-700">{{ $direktorat->unitKerja->count() }}</td>
@@ -116,13 +116,13 @@
                         <tr id="unit-kerja-{{ $direktorat->id }}" x-show="openUnits[{{ $direktorat->id }}]" style="display: none;">
                             <td colspan="4" class="bg-slate-50 px-5 py-5">
                                 <div class="rounded-xl border border-slate-200 bg-white">
-                                    <table class="min-w-full divide-y divide-slate-100 text-sm">
-                                        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                    <table class="min-w-full divide-y divide-slate-100 text-sm" style="border-collapse: separate; border-spacing: 0;">
+                                        <thead class="text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                                             <tr>
-                                                <th scope="col" class="px-4 py-3">Unit Kerja</th>
-                                                <th scope="col" class="px-4 py-3">User Aktif</th>
-                                                <th scope="col" class="px-4 py-3">Status</th>
-                                                <th scope="col" class="px-4 py-3 text-right">Aksi</th>
+                                                <th scope="col" class="bg-slate-50 px-4 py-3" style="border-top-left-radius: 0.75rem;">Unit Kerja</th>
+                                                <th scope="col" class="bg-slate-50 px-4 py-3">User Aktif</th>
+                                                <th scope="col" class="bg-slate-50 px-4 py-3">Status</th>
+                                                <th scope="col" class="bg-slate-50 px-4 py-3 text-right" style="border-top-right-radius: 0.75rem;">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody class="divide-y divide-slate-100">
@@ -136,7 +136,7 @@
                                                         'keterangan' => $unit->keterangan ?? '',
                                                     ];
                                                 @endphp
-                                                <tr>
+                                                <tr style="background-color: {{ $loop->even ? '#f6f9fc' : '#ffffff' }};">
                                                     <td class="px-4 py-3 font-medium text-slate-800">{{ $unit->kode_unit ? $unit->kode_unit . ' - ' : '' }}{{ $unit->nama_unit }}</td>
                                                     <td class="px-4 py-3 text-slate-700">{{ $unit->active_users_count }}</td>
                                                     <td class="px-4 py-3 text-slate-700">{{ $unit->status === 'active' ? 'Aktif' : 'Nonaktif' }}</td>

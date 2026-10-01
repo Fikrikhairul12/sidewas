@@ -135,6 +135,10 @@ test('super admin can create a directorate and a unit under it', function () {
 
     expect(UnitKerja::where('kode_unit', 'UB')->firstOrFail()->direktorat_id)->toBe($direktorat->id);
     expect(DB::table('tb_log_activity')->count())->toBe(2);
+    $this->post(route('administrasi.manajemen-direktorat.store'), [
+        'nama_direktorat' => 'Direktorat Kedua',
+    ])->assertRedirect(route('administrasi.manajemen-direktorat.index'));
+
     $this->get(route('administrasi.manajemen-direktorat.index'))
         ->assertOk()
         ->assertSee('Total Unit Kerja')
@@ -142,6 +146,12 @@ test('super admin can create a directorate and a unit under it', function () {
         ->assertSee('Unit Baru')
         ->assertSee('color: #fff;">Tambah Direktorat', false)
         ->assertSee('style="height: auto; max-height: none; overflow: visible;"', false)
+        ->assertSee('border-top-left-radius: 1rem;', false)
+        ->assertSee('border-top-right-radius: 1rem;', false)
+        ->assertSee('border-top-left-radius: 0.75rem;', false)
+        ->assertSee('border-top-right-radius: 0.75rem;', false)
+        ->assertSee('background-color: #ffffff;', false)
+        ->assertSee('background-color: #eef5fb;', false)
         ->assertSee('x-show="openUnits[', false)
         ->assertSee('aria-controls="unit-kerja-', false)
         ->assertDontSee('grid-template-rows: 0fr', false)
