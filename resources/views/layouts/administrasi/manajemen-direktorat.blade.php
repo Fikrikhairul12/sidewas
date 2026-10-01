@@ -60,7 +60,7 @@
             <a href="{{ route('administrasi.manajemen-direktorat.index') }}" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700">Reset</a>
         </form>
 
-        <div class="overflow-x-auto rounded-2xl border border-blue-100 bg-white shadow-sm">
+        <div class="rounded-2xl border border-blue-100 bg-white shadow-sm" style="height: auto; max-height: none; overflow: visible;">
             <table class="min-w-full divide-y divide-slate-200 text-sm">
                 <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                     <tr>
@@ -104,7 +104,7 @@
                                         :aria-expanded="Boolean(openUnits[{{ $direktorat->id }}]).toString()" aria-controls="unit-kerja-{{ $direktorat->id }}"
                                         class="inline-flex items-center gap-2 rounded-lg border border-sky-200 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-50">
                                         <span x-text="openUnits[{{ $direktorat->id }}] ? 'Sembunyikan Unit Kerja' : 'Lihat Unit Kerja'">Lihat Unit Kerja</span>
-                                        <svg class="h-4 w-4" style="transition: transform 280ms ease;"
+                                        <svg class="h-4 w-4"
                                             :style="{ transform: openUnits[{{ $direktorat->id }}] ? 'rotate(180deg)' : 'rotate(0deg)' }"
                                             viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                             <path d="m5 7.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round" />
@@ -113,15 +113,9 @@
                                 </div>
                             </td>
                         </tr>
-                        <tr>
-                            <td colspan="4" class="p-0" style="padding: 0;">
-                                <div id="unit-kerja-{{ $direktorat->id }}"
-                                    :inert="!openUnits[{{ $direktorat->id }}]" :aria-hidden="(!openUnits[{{ $direktorat->id }}]).toString()"
-                                    style="display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 280ms ease, opacity 220ms ease;"
-                                    :style="{ gridTemplateRows: openUnits[{{ $direktorat->id }}] ? '1fr' : '0fr', opacity: openUnits[{{ $direktorat->id }}] ? 1 : 0 }">
-                                    <div class="min-h-0 overflow-hidden" style="min-height: 0; overflow: hidden;">
-                                        <div class="bg-slate-50 px-5 py-5">
-                                            <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                        <tr id="unit-kerja-{{ $direktorat->id }}" x-show="openUnits[{{ $direktorat->id }}]" style="display: none;">
+                            <td colspan="4" class="bg-slate-50 px-5 py-5">
+                                <div class="rounded-xl border border-slate-200 bg-white">
                                     <table class="min-w-full divide-y divide-slate-100 text-sm">
                                         <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                                             <tr>
@@ -166,10 +160,7 @@
                                                 <tr><td colspan="4" class="px-4 py-5 text-center text-slate-500">Belum ada unit kerja.</td></tr>
                                             @endforelse
                                         </tbody>
-                                            </table>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    </table>
                                 </div>
                             </td>
                         </tr>
