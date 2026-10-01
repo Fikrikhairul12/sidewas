@@ -135,7 +135,23 @@ test('super admin can create a directorate and a unit under it', function () {
 
     expect(UnitKerja::where('kode_unit', 'UB')->firstOrFail()->direktorat_id)->toBe($direktorat->id);
     expect(DB::table('tb_log_activity')->count())->toBe(2);
-    $this->get(route('administrasi.manajemen-direktorat.index'))->assertOk()->assertSee('Unit Baru');
+    $this->get(route('administrasi.manajemen-direktorat.index'))
+        ->assertOk()
+        ->assertSee('Total Unit Kerja')
+        ->assertSee('Lihat Unit Kerja')
+        ->assertSee('Unit Baru')
+        ->assertSee('x-show="openUnits[', false)
+        ->assertSee('name="_form" value="create-direktorat"', false)
+        ->assertSee('name="_form" value="create-unit"', false)
+        ->assertSee('name="_form" value="edit-direktorat"', false)
+        ->assertSee('name="_form" value="edit-unit"', false)
+        ->assertDontSee('name="kode_direktorat"', false);
+
+    $this->patch(route('administrasi.manajemen-direktorat.update', $direktorat), [
+        'nama_direktorat' => 'Direktorat Diperbarui',
+        'keterangan' => 'Keterangan baru',
+    ])->assertRedirect(route('administrasi.manajemen-direktorat.index'));
+    expect($direktorat->fresh()->kode_direktorat)->toBe('BARU');
 
     $unit = UnitKerja::where('kode_unit', 'UB')->firstOrFail();
     $this->delete(route('administrasi.manajemen-direktorat.unit.destroy', $unit))
@@ -159,7 +175,10 @@ test('a unit with an active user cannot be deactivated or deleted', function () 
     $member = User::factory()->create(['status' => 'active']);
     $member->unitKerja()->attach($unit->id, ['status' => 'active']);
 
-    $this->get(route('administrasi.manajemen-direktorat.index'))->assertOk()->assertSee('1 user aktif');
+    $this->get(route('administrasi.manajemen-direktorat.index'))
+        ->assertOk()
+        ->assertSee('User Aktif')
+        ->assertViewHas('direktorats', fn ($items) => $items->first()->unitKerja->first()->active_users_count === 1);
 
     $this->patch(route('administrasi.manajemen-direktorat.unit.status', $unit), ['status' => 'inactive'])
         ->assertSessionHasErrors('status');
