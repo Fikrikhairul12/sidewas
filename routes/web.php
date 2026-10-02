@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Administrasi\ManajemenClusterController;
 use App\Http\Controllers\Administrasi\ManajemenDirektoratController;
 use App\Http\Controllers\Administrasi\ManajemenUserController;
 use App\Http\Controllers\Administrasi\PengajuanController;
@@ -128,6 +129,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('administrasi.manajemen-direktorat.komite.update');
     Route::delete('/administrasi/manajemen-direktorat/komite/{komite}', [ManajemenDirektoratController::class, 'destroyKomite'])
         ->name('administrasi.manajemen-direktorat.komite.destroy');
+
+    Route::prefix('administrasi/manajemen-cluster')->name('administrasi.manajemen-cluster.')->group(function () {
+        Route::get('/', [ManajemenClusterController::class, 'index'])->name('index');
+        Route::get('/{module}', [ManajemenClusterController::class, 'show'])->name('show');
+        Route::post('/{module}/cluster', [ManajemenClusterController::class, 'storeCluster'])->name('cluster.store');
+        Route::patch('/{module}/cluster/{cluster}', [ManajemenClusterController::class, 'updateCluster'])->whereNumber('cluster')->name('cluster.update');
+        Route::delete('/{module}/cluster/{cluster}', [ManajemenClusterController::class, 'destroyCluster'])->whereNumber('cluster')->name('cluster.destroy');
+        Route::post('/{module}/subcluster', [ManajemenClusterController::class, 'storeSubCluster'])->name('subcluster.store');
+        Route::patch('/{module}/cluster/{cluster}/subcluster/{subCluster}', [ManajemenClusterController::class, 'updateSubCluster'])->whereNumber(['cluster', 'subCluster'])->name('subcluster.update');
+        Route::delete('/{module}/cluster/{cluster}/subcluster/{subCluster}', [ManajemenClusterController::class, 'destroySubCluster'])->whereNumber(['cluster', 'subCluster'])->name('subcluster.destroy');
+    });
 
     Route::get('/administrasi/pengajuan', [PengajuanController::class, 'index'])
         ->name('administrasi.pengajuan.index');

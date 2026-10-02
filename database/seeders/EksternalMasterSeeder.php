@@ -28,9 +28,13 @@ class EksternalMasterSeeder extends Seeder
         ];
 
         foreach ($clusters as $cluster) {
-            $db->table('tb_cluster')->updateOrInsert(
-                ['id' => $cluster['id']],
+            if (DB::connection('mysql')->table('tb_log_activity')->where('type_code', 'eksternal')->where('table_name', 'tb_cluster')->where('record_key', (string) $cluster['id'])->where('action', 'delete_cluster')->exists()) {
+                continue;
+            }
+
+            $db->table('tb_cluster')->insertOrIgnore(
                 [
+                    'id' => $cluster['id'],
                     'nama_cluster' => $cluster['nama_cluster'],
                     'keterangan' => null,
                     'created_at' => $now,
@@ -82,9 +86,14 @@ class EksternalMasterSeeder extends Seeder
         ];
 
         foreach ($subClusters as [$id, $clusterId, $name]) {
-            $db->table('tb_sub_cluster')->updateOrInsert(
-                ['id' => $id],
+            if (! $db->table('tb_cluster')->where('id', $clusterId)->exists()
+                || DB::connection('mysql')->table('tb_log_activity')->where('type_code', 'eksternal')->where('table_name', 'tb_sub_cluster')->where('record_key', (string) $id)->where('action', 'delete_sub_cluster')->exists()) {
+                continue;
+            }
+
+            $db->table('tb_sub_cluster')->insertOrIgnore(
                 [
+                    'id' => $id,
                     'cluster_id' => $clusterId,
                     'nama_sub_cluster' => $name,
                     'keterangan' => null,

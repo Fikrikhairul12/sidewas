@@ -857,6 +857,18 @@
                 <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl text-sky-500 shadow-sm ring-1 ring-slate-200">▦</span>
                 <span>Manajemen Direktorat</span>
             </a>
+            <a href="{{ route('administrasi.manajemen-cluster.index') }}"
+                class="group flex w-full items-center gap-3 border-b border-slate-300/70 px-6 py-4 text-sm font-medium transition hover:bg-white hover:text-sidewas-blue {{ request()->routeIs('administrasi.manajemen-cluster.*') ? 'bg-white text-sidewas-blue font-semibold is-active' : 'text-slate-600' }}">
+                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sky-500 shadow-sm ring-1 ring-slate-200">
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <rect x="8" y="3" width="8" height="5" rx="1" />
+                        <path d="M12 8v5M5 16v-3h14v3" />
+                        <rect x="2" y="16" width="6" height="5" rx="1" />
+                        <rect x="16" y="16" width="6" height="5" rx="1" />
+                    </svg>
+                </span>
+                <span>Manajemen Cluster</span>
+            </a>
         @endif
         @if ($canAccessPengajuan)
             <a href="{{ route('administrasi.pengajuan.index') }}"
