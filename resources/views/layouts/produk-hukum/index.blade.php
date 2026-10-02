@@ -72,16 +72,41 @@
             <dl class="grid gap-4 sm:grid-cols-3">
                 @foreach ($statusOptions as $status => $label)
                     @php
-                        $statusColor = match ($status) {
-                            'berlaku' => 'border-green-200 bg-green-50 text-green-700',
-                            'tidak_berlaku' => 'border-red-200 bg-red-50 text-red-700',
-                            default => 'border-amber-200 bg-amber-50 text-amber-700',
+                        $borderColor = match ($status) {
+                            'berlaku' => 'border-green-100',
+                            'tidak_berlaku' => 'border-yellow-100',
+                            default => 'border-slate-200',
                         };
                     @endphp
-                    <div class="rounded-2xl border p-5 shadow-sm {{ $statusColor }}">
-                        <dt class="text-sm font-semibold">{{ $label }}</dt>
-                        <dd class="mt-3 text-3xl font-bold tabular-nums">{{ number_format($statusStatistics[$status], 0, ',', '.') }}</dd>
-                        <dd class="mt-1 text-xs font-medium">Peraturan</dd>
+                    <div class="rounded-2xl border bg-white p-5 shadow-sm {{ $borderColor }}">
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <dt class="text-sm font-medium text-slate-500">{{ $label }}</dt>
+                                <dd class="mt-2 text-3xl font-bold tabular-nums {{ $status === 'draft' ? 'text-slate-700' : 'text-slate-800' }}"
+                                    @if ($status === 'berlaku') style="color: #6bb17e;" @endif>{{ number_format($statusStatistics[$status], 0, ',', '.') }}</dd>
+                            </div>
+                            @if ($status === 'berlaku')
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white" style="background-color: #6bb17e;" aria-hidden="true">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                </div>
+                            @elseif ($status === 'tidak_berlaku')
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-slate-700" style="background-color: #c8e079;" aria-hidden="true">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m6 6 12 12" />
+                                    </svg>
+                                </div>
+                            @else
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600" aria-hidden="true">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487 18.55 2.8a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                    </svg>
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 @endforeach
             </dl>

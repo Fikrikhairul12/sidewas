@@ -53,6 +53,11 @@ test('status statistics count all regulations beyond pagination and count docume
     expect(trim($xpath->query('.//dd', $cards->item(0))->item(0)->textContent))->toBe('11');
     expect(trim($xpath->query('.//dd', $cards->item(1))->item(0)->textContent))->toBe('2');
     expect(trim($xpath->query('.//dd', $cards->item(2))->item(0)->textContent))->toBe('3');
+    foreach ($cards as $card) {
+        expect($card->getAttribute('class'))->toContain('bg-white', 'rounded-2xl', 'p-5', 'shadow-sm');
+        expect($xpath->query('./div[contains(@class, "justify-between")]/div[1]/dt', $card)->length)->toBe(1);
+        expect($xpath->query('./div/div[@aria-hidden="true"]/svg', $card)->length)->toBe(1);
+    }
     expect($xpath->query('//form[@method="GET"]//div[contains(@class, "xl:grid-cols-5")]/div/select[@name="status_peraturan"]')->length)->toBe(1);
 });
 
