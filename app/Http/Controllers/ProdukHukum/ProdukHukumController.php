@@ -20,13 +20,30 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProdukHukumController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $user = User::find(Auth::id());
 
         if (! $user || ! $user->canAccessProdukHukum()) {
             abort(403, 'Anda tidak memiliki akses ke halaman Produk Hukum.');
         }
+
+        $statusOptions = [
+            'berlaku' => 'Berlaku',
+            'tidak_berlaku' => 'Tidak Berlaku',
+            'draft' => 'Draf',
+        ];
+        $filters = $request->validateWithBag('filters', [
+            'status_peraturan' => ['nullable', 'string', Rule::in(array_keys($statusOptions))],
+        ]);
+        $statusCounts = ProdukHukum::query()
+            ->select('status_peraturan')
+            ->selectRaw('COUNT(*) as total')
+            ->groupBy('status_peraturan')
+            ->pluck('total', 'status_peraturan');
+        $statusStatistics = collect($statusOptions)
+            ->map(fn (string $label, string $status): int => (int) ($statusCounts[$status] ?? 0))
+            ->all();
 
         $query = ProdukHukum::query()
             ->withCount('files')
@@ -59,6 +76,10 @@ class ProdukHukumController extends Controller
 
         if ($request->filled('tahun_peraturan')) {
             $query->where('tahun_peraturan', $request->tahun_peraturan);
+        }
+
+        if (! empty($filters['status_peraturan'])) {
+            $query->where('status_peraturan', $filters['status_peraturan']);
         }
 
         $produkHukums = $query
@@ -124,7 +145,9 @@ class ProdukHukumController extends Controller
             'bidangOptions',
             'jenisOptions',
             'tahunOptions',
-            'relatedProdukOptions'
+            'relatedProdukOptions',
+            'statusOptions',
+            'statusStatistics'
         ));
     }
 

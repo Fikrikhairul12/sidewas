@@ -64,9 +64,35 @@
             </div>
         @endif
 
+        <section aria-labelledby="statistik-peraturan-title" class="space-y-3">
+            <div>
+                <h2 id="statistik-peraturan-title" class="text-lg font-bold text-slate-800">Statistik Peraturan</h2>
+                <p class="mt-1 text-sm text-slate-500">Total seluruh produk hukum, sebelum filter diterapkan.</p>
+            </div>
+            <dl class="grid gap-4 sm:grid-cols-3">
+                @foreach ($statusOptions as $status => $label)
+                    @php
+                        $statusColor = match ($status) {
+                            'berlaku' => 'border-green-200 bg-green-50 text-green-700',
+                            'tidak_berlaku' => 'border-red-200 bg-red-50 text-red-700',
+                            default => 'border-amber-200 bg-amber-50 text-amber-700',
+                        };
+                    @endphp
+                    <div class="rounded-2xl border p-5 shadow-sm {{ $statusColor }}">
+                        <dt class="text-sm font-semibold">{{ $label }}</dt>
+                        <dd class="mt-3 text-3xl font-bold tabular-nums">{{ number_format($statusStatistics[$status], 0, ',', '.') }}</dd>
+                        <dd class="mt-1 text-xs font-medium">Peraturan</dd>
+                    </div>
+                @endforeach
+            </dl>
+        </section>
+
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+            @if ($errors->filters->any())
+                <p class="mb-4 text-sm text-red-700" role="alert">{{ $errors->filters->first() }}</p>
+            @endif
             <form method="GET" action="{{ route('produk-hukum.index') }}">
-                <div class="grid gap-4 lg:grid-cols-4">
+                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                     <div>
                         <label class="mb-2 block text-sm font-semibold text-slate-700">Keyword</label>
                         <input type="text" name="keyword" value="{{ request('keyword') }}"
@@ -108,6 +134,16 @@
                             <option value="">Semua Tahun</option>
                             @foreach ($tahunOptions as $tahun)
                                 <option value="{{ $tahun }}" @selected((string) request('tahun_peraturan') === (string) $tahun)>{{ $tahun }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filter-status-peraturan" class="mb-2 block text-sm font-semibold text-slate-700">Status Peraturan</label>
+                        <select id="filter-status-peraturan" name="status_peraturan"
+                            class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Semua Status</option>
+                            @foreach ($statusOptions as $status => $label)
+                                <option value="{{ $status }}" @selected(request('status_peraturan') === $status)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
