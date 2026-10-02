@@ -122,6 +122,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('administrasi.manajemen-direktorat.unit.status');
     Route::delete('/administrasi/manajemen-direktorat/unit/{unitKerja}', [ManajemenDirektoratController::class, 'destroyUnit'])
         ->name('administrasi.manajemen-direktorat.unit.destroy');
+    Route::post('/administrasi/manajemen-direktorat/komite', [ManajemenDirektoratController::class, 'storeKomite'])
+        ->name('administrasi.manajemen-direktorat.komite.store');
+    Route::patch('/administrasi/manajemen-direktorat/komite/{komite}', [ManajemenDirektoratController::class, 'updateKomite'])
+        ->name('administrasi.manajemen-direktorat.komite.update');
+    Route::delete('/administrasi/manajemen-direktorat/komite/{komite}', [ManajemenDirektoratController::class, 'destroyKomite'])
+        ->name('administrasi.manajemen-direktorat.komite.destroy');
 
     Route::get('/administrasi/pengajuan', [PengajuanController::class, 'index'])
         ->name('administrasi.pengajuan.index');

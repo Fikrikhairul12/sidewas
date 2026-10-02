@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Direktorat;
+use App\Models\Komite;
+use App\Models\LogActivity;
 use App\Models\Role;
 use App\Models\RoleType;
 use App\Models\UnitKerja;
@@ -86,7 +88,7 @@ beforeEach(function () {
     Schema::create('tb_komite', function (Blueprint $table) {
         $table->id();
         $table->string('nama_komite');
-        $table->string('kode_komite')->nullable();
+        $table->string('kode_komite')->nullable()->unique();
         $table->text('keterangan')->nullable();
         $table->timestamps();
     });
@@ -314,4 +316,160 @@ test('an activity log prevents deletion after a user assignment row disappears',
     $this->delete(route('administrasi.manajemen-direktorat.unit.destroy', $unit))
         ->assertSessionHasErrors('unit_kerja');
     expect($unit->fresh())->not->toBeNull();
+});
+
+test('super admin manages komite inside the dewan pengawas unit details', function () {
+    $dewas = Direktorat::create(['nama_direktorat' => 'Dewan Pengawas']);
+    $other = Direktorat::create(['nama_direktorat' => 'Direktorat Pelayanan']);
+    $index = route('administrasi.manajemen-direktorat.index');
+
+    $this->post(route('administrasi.manajemen-direktorat.komite.store'), [
+        'nama_komite' => 'Komite Baru', 'kode_komite' => 'KB', 'keterangan' => 'Keterangan awal',
+    ])->assertRedirect($index)->assertSessionHas('open_komite', true);
+
+    $komite = Komite::where('kode_komite', 'KB')->firstOrFail();
+    $response = $this->get($index)->assertOk()->assertSee('Lihat Unit Kerja &amp; Komite', false);
+    $document = new DOMDocument;
+    @$document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
+    $xpath = new DOMXPath($document);
+    expect($xpath->query('//tr[@id="unit-kerja-'.$dewas->id.'"]//section[@aria-labelledby="komite-heading"]')->length)->toBe(1);
+    expect($xpath->query('//tr[@id="unit-kerja-'.$other->id.'"]//section[@aria-labelledby="komite-heading"]')->length)->toBe(0);
+
+    $this->patch(route('administrasi.manajemen-direktorat.komite.update', $komite), [
+        'nama_komite' => 'Komite Diperbarui', 'kode_komite' => 'KB', 'keterangan' => 'Keterangan baru',
+    ])->assertRedirect($index);
+    expect($komite->fresh()->nama_komite)->toBe('Komite Diperbarui');
+    expect($komite->fresh()->keterangan)->toBe('Keterangan baru');
+
+    $log = LogActivity::where('action', 'update_komite')->firstOrFail();
+    expect($log->old_values['nama_komite'])->toBe('Komite Baru');
+    expect($log->new_values['nama_komite'])->toBe('Komite Diperbarui');
+
+    $this->get($index.'?keyword=kb')->assertOk()
+        ->assertViewHas('direktorats', fn ($items) => $items->modelKeys() === [$dewas->id]);
+
+    $this->delete(route('administrasi.manajemen-direktorat.komite.destroy', $komite))->assertRedirect($index);
+    expect($komite->fresh())->toBeNull();
+    expect(LogActivity::where('table_name', 'tb_komite')->pluck('action')->all())
+        ->toBe(['create_komite', 'update_komite', 'delete_komite']);
+});
+
+test('komite mutations are restricted to super admin', function () {
+    $komite = Komite::create(['nama_komite' => 'Komite Tetap']);
+    $this->actingAs(User::factory()->create(['status' => 'active']));
+    $this->post(route('administrasi.manajemen-direktorat.komite.store'), ['nama_komite' => 'Tidak Boleh'])->assertForbidden();
+    $this->patch(route('administrasi.manajemen-direktorat.komite.update', $komite), ['nama_komite' => 'Tidak Boleh'])->assertForbidden();
+    $this->delete(route('administrasi.manajemen-direktorat.komite.destroy', $komite))->assertForbidden();
+    expect(Komite::count())->toBe(1);
+    expect($komite->fresh()->nama_komite)->toBe('Komite Tetap');
+    expect(LogActivity::count())->toBe(0);
+});
+
+test('komite validation rejects invalid fields and restores the edit form', function () {
+    Direktorat::create(['nama_direktorat' => 'Dewan Pengawas']);
+    Komite::create(['nama_komite' => 'Komite Pertama', 'kode_komite' => 'K1']);
+    $second = Komite::create(['nama_komite' => 'Komite Kedua', 'kode_komite' => 'K2']);
+    $index = route('administrasi.manajemen-direktorat.index');
+
+    $this->from($index)->post(route('administrasi.manajemen-direktorat.komite.store'), [
+        '_form' => 'create-komite', 'nama_komite' => '', 'kode_komite' => 'K1',
+    ])->assertSessionHasErrors(['nama_komite', 'kode_komite']);
+
+    $this->from($index)->patch(route('administrasi.manajemen-direktorat.komite.update', $second), [
+        '_form' => 'edit-komite', '_komite_id' => $second->id,
+        'nama_komite' => 'Nama yang diketik', 'kode_komite' => 'K1',
+    ])->assertRedirect($index)->assertSessionHasErrors('kode_komite')->assertSessionHasInput('nama_komite', 'Nama yang diketik');
+    $this->get($index)->assertOk()->assertSee('Nama yang diketik')->assertSee('Edit Komite');
+    expect($second->fresh()->kode_komite)->toBe('K2');
+
+    $this->post(route('administrasi.manajemen-direktorat.komite.store'), [
+        'nama_komite' => str_repeat('a', 256), 'kode_komite' => str_repeat('b', 101), 'keterangan' => ['invalid'],
+    ])->assertSessionHasErrors(['nama_komite', 'kode_komite', 'keterangan']);
+    $this->post(route('administrasi.manajemen-direktorat.komite.store'), ['nama_komite' => 'Tanpa Kode'])
+        ->assertSessionHasNoErrors()->assertRedirect($index);
+});
+
+test('komite membership prevents deletion regardless of membership status', function (string $status) {
+    $komite = Komite::create(['nama_komite' => 'Komite Anggota']);
+    $member = User::factory()->create();
+    $member->komite()->attach($komite->id, ['status' => $status]);
+
+    $this->delete(route('administrasi.manajemen-direktorat.komite.destroy', $komite))->assertSessionHasErrors('komite');
+    expect($komite->fresh())->not->toBeNull();
+    expect($member->komite()->first()->pivot->status)->toBe($status);
+})->with(['active', 'inactive']);
+
+test('operational komite references prevent deletion across modules', function (string $connection, string $tableName) {
+    $komite = Komite::create(['nama_komite' => 'Komite Digunakan']);
+    Schema::connection($connection)->create($tableName, function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('komite_id');
+    });
+    DB::connection($connection)->table($tableName)->insert(['komite_id' => $komite->id]);
+
+    $this->delete(route('administrasi.manajemen-direktorat.komite.destroy', $komite))->assertSessionHasErrors('komite');
+    expect($komite->fresh())->not->toBeNull();
+    expect(DB::connection($connection)->table($tableName)->value('komite_id'))->toBe($komite->id);
+})->with([
+    ['mysql_snp', 'tb_butir_pic'], ['mysql_snp', 'tb_review'],
+    ['mysql_ragab', 'tb_butir_pic'], ['mysql_rawas', 'tb_butir_pic'],
+    ['mysql_rawas', 'tb_review'], ['mysql_djsn', 'tb_butir_pic'],
+    ['mysql_djsn', 'tb_review'], ['mysql_eksternal', 'tb_butir_pic'],
+]);
+
+test('komite assignment history prevents deletion after membership was removed', function (array $history) {
+    $komite = Komite::create(['nama_komite' => 'Komite Riwayat']);
+    LogActivity::create(['table_name' => 'users', 'action' => 'update_user', 'old_values' => $history]);
+    $this->delete(route('administrasi.manajemen-direktorat.komite.destroy', $komite))->assertSessionHasErrors('komite');
+    expect($komite->fresh())->not->toBeNull();
+})->with([
+    [['assignment' => ['type' => 'komite', 'id' => 1]]],
+    [['komite_ids' => [1]]],
+]);
+
+test('editing komite preserves cross directorate assignment and existing review permissions', function () {
+    $direktorat = Direktorat::create(['nama_direktorat' => 'Direktorat Pelayanan']);
+    $komite = Komite::create(['nama_komite' => 'Komite Lama', 'kode_komite' => 'KL']);
+    $otherKomite = Komite::create(['nama_komite' => 'Komite Lain']);
+    $role = Role::create(['name' => 'pic', 'display_name' => 'PIC', 'level' => 10, 'is_universal' => false]);
+    $roles = collect(['pic_snp', 'pic_djsn'])->map(fn ($name) => RoleType::create(['role_id' => $role->id, 'name' => $name]));
+    $member = User::factory()->create(['status' => 'active']);
+
+    $this->patch(route('administrasi.manajemen-user.update', $member), [
+        'role_type_ids' => $roles->pluck('id')->all(),
+        'direktorat_id' => $direktorat->id,
+        'assignment' => 'komite:'.$komite->id,
+    ])->assertRedirect(route('administrasi.manajemen-user.index'));
+
+    $this->patch(route('administrasi.manajemen-direktorat.komite.update', $komite), [
+        'nama_komite' => 'Komite Diperbarui', 'kode_komite' => 'KB',
+    ])->assertSessionHasNoErrors();
+
+    $member = $member->fresh();
+    expect($member->komiteIds())->toBe([$komite->id]);
+    expect($member->unitKerjaIds())->toBe([]);
+    expect($member->canReviewSnpByKomite($komite->id))->toBeTrue();
+    expect($member->canReviewDjsnByKomite($komite->id))->toBeTrue();
+    expect($member->canReviewSnpByKomite($otherKomite->id))->toBeFalse();
+    expect($member->canReviewDjsnByKomite($otherKomite->id))->toBeFalse();
+    expect($member->komite()->first()->nama_komite)->toBe('Komite Diperbarui');
+
+    $member->komite()->updateExistingPivot($komite->id, ['status' => 'inactive']);
+    expect($member->canReviewSnpByKomite($komite->id))->toBeFalse();
+    expect($member->canReviewDjsnByKomite($komite->id))->toBeFalse();
+});
+
+test('master seeder retains komite edits and does not recreate a deleted komite', function () {
+    (new PicMasterSeeder)->run();
+    $first = Komite::findOrFail(1);
+    $this->patch(route('administrasi.manajemen-direktorat.komite.update', $first), [
+        'nama_komite' => 'Nama Komite Diubah', 'kode_komite' => 'BARU', 'keterangan' => 'Tetap tersimpan',
+    ])->assertSessionHasNoErrors();
+    $this->delete(route('administrasi.manajemen-direktorat.komite.destroy', Komite::findOrFail(2)))->assertSessionHasNoErrors();
+
+    (new PicMasterSeeder)->run();
+    expect($first->fresh()->nama_komite)->toBe('Nama Komite Diubah');
+    expect($first->fresh()->kode_komite)->toBe('BARU');
+    expect($first->fresh()->keterangan)->toBe('Tetap tersimpan');
+    expect(Komite::whereKey(2)->exists())->toBeFalse();
 });

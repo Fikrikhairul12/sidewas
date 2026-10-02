@@ -93,9 +93,13 @@ class PicMasterSeeder extends Seeder
         ];
 
         foreach ($komites as [$id, $nama, $kode]) {
-            DB::table('tb_komite')->updateOrInsert(
-                ['id' => $id],
+            if (DB::table('tb_log_activity')->where('table_name', 'tb_komite')->where('record_key', (string) $id)->where('action', 'delete_komite')->exists()) {
+                continue;
+            }
+
+            DB::table('tb_komite')->insertOrIgnore(
                 [
+                    'id' => $id,
                     'nama_komite' => $nama,
                     'kode_komite' => $kode,
                     'keterangan' => null,

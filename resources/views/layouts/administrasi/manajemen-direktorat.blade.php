@@ -1,6 +1,13 @@
 <x-app-layout>
     <div x-data="{
-        openUnits: {},
+        openUnits: @js((object) (($dewanPengawas && (session('open_komite') || in_array(old('_form'), ['create-komite', 'edit-komite', 'delete-komite'], true) || !empty($filters['keyword']))) ? [$dewanPengawas->id => true] : [])),
+        editKomite: @js([
+            'id' => old('_form') === 'edit-komite' ? old('_komite_id', '') : '',
+            'nama_komite' => old('_form') === 'edit-komite' ? old('nama_komite', '') : '',
+            'kode_komite' => old('_form') === 'edit-komite' ? old('kode_komite', '') : '',
+            'keterangan' => old('_form') === 'edit-komite' ? old('keterangan', '') : '',
+        ]),
+        komiteActions: @js($komites->mapWithKeys(fn ($komite) => [$komite->id => route('administrasi.manajemen-direktorat.komite.update', $komite)])),
         editDirektorat: @js([
             'action' => old('_form') === 'edit-direktorat' ? old('_edit_action', '') : '',
             'nama_direktorat' => old('_form') === 'edit-direktorat' ? old('nama_direktorat', '') : '',
@@ -19,7 +26,7 @@
             <div class="mt-2 flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-bold text-slate-800">Manajemen Direktorat</h1>
-                    <p class="mt-2 text-sm text-slate-500">Kelola direktorat dan unit kerja. Penugasan user dilakukan melalui Manajemen User.</p>
+                    <p class="mt-2 text-sm text-slate-500">Kelola direktorat, unit kerja, dan komite di Dewan Pengawas. Penugasan user dilakukan melalui Manajemen User.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <button type="button" @click="$dispatch('open-modal', 'create-direktorat')"
@@ -34,7 +41,7 @@
         @if (session('success'))
             <div class="rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm text-green-800">{{ session('success') }}</div>
         @endif
-        @if ($errors->any() && ! in_array(old('_form'), ['create-direktorat', 'create-unit', 'edit-direktorat', 'edit-unit'], true))
+        @if ($errors->any() && ! in_array(old('_form'), ['create-direktorat', 'create-unit', 'edit-direktorat', 'edit-unit', 'create-komite', 'edit-komite'], true))
             <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800" role="alert">
                 <ul class="list-inside list-disc space-y-1">
                     @foreach ($errors->all() as $error)
@@ -45,8 +52,8 @@
         @endif
 
         <form method="GET" action="{{ route('administrasi.manajemen-direktorat.index') }}" class="flex flex-wrap items-end gap-3 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-            <label class="min-w-52 flex-1 text-sm font-medium text-slate-700">Cari direktorat atau unit kerja
-                <input name="keyword" value="{{ $filters['keyword'] ?? '' }}" class="mt-1 w-full rounded-xl border-slate-300 text-sm" placeholder="Nama direktorat, unit kerja, atau kode unit" />
+            <label class="min-w-52 flex-1 text-sm font-medium text-slate-700">Cari direktorat, unit kerja, atau komite
+                <input name="keyword" value="{{ $filters['keyword'] ?? '' }}" class="mt-1 w-full rounded-xl border-slate-300 text-sm" placeholder="Nama direktorat, unit kerja, komite, atau kode" />
             </label>
             <label class="text-sm font-medium text-slate-700">Status direktorat
                 <select name="status" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
@@ -103,7 +110,11 @@
                                     <button type="button" @click="openUnits[{{ $direktorat->id }}] = ! openUnits[{{ $direktorat->id }}]"
                                         :aria-expanded="Boolean(openUnits[{{ $direktorat->id }}]).toString()" aria-controls="unit-kerja-{{ $direktorat->id }}"
                                         class="inline-flex items-center gap-2 rounded-lg border border-sky-200 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-50">
-                                        <span x-text="openUnits[{{ $direktorat->id }}] ? 'Sembunyikan Unit Kerja' : 'Lihat Unit Kerja'">Lihat Unit Kerja</span>
+                                        @if ($direktorat->id === $dewanPengawas?->id)
+                                            <span x-text="openUnits[{{ $direktorat->id }}] ? 'Sembunyikan Unit Kerja & Komite' : 'Lihat Unit Kerja & Komite'">Lihat Unit Kerja &amp; Komite</span>
+                                        @else
+                                            <span x-text="openUnits[{{ $direktorat->id }}] ? 'Sembunyikan Unit Kerja' : 'Lihat Unit Kerja'">Lihat Unit Kerja</span>
+                                        @endif
                                         <svg class="h-4 w-4"
                                             :style="{ transform: openUnits[{{ $direktorat->id }}] ? 'rotate(180deg)' : 'rotate(0deg)' }"
                                             viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -162,6 +173,64 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                @if ($direktorat->id === $dewanPengawas?->id)
+                                    <section aria-labelledby="komite-heading" class="mt-5 rounded-xl border border-slate-200 bg-white">
+                                        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4">
+                                            <div>
+                                                <h2 id="komite-heading" class="font-bold text-slate-800">Komite</h2>
+                                                <p class="mt-1 text-sm text-slate-500">Daftar Komite Dewan Pengawas.</p>
+                                            </div>
+                                            <button type="button" @click="$dispatch('open-modal', 'create-komite')"
+                                                class="rounded-lg px-3 py-2 text-sm font-semibold shadow-sm transition hover:opacity-90"
+                                                style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Tambah Komite</button>
+                                        </div>
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full divide-y divide-slate-100 text-sm">
+                                                <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                                    <tr>
+                                                        <th scope="col" class="px-4 py-3">Kode</th>
+                                                        <th scope="col" class="px-4 py-3">Nama Komite</th>
+                                                        <th scope="col" class="px-4 py-3">Keterangan</th>
+                                                        <th scope="col" class="px-4 py-3">User Aktif</th>
+                                                        <th scope="col" class="px-4 py-3 text-right">Aksi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100">
+                                                    @forelse ($komites as $komite)
+                                                        @php
+                                                            $editKomitePayload = [
+                                                                'id' => $komite->id,
+                                                                'nama_komite' => $komite->nama_komite,
+                                                                'kode_komite' => $komite->kode_komite ?? '',
+                                                                'keterangan' => $komite->keterangan ?? '',
+                                                            ];
+                                                        @endphp
+                                                        <tr style="background-color: {{ $loop->even ? '#f6f9fc' : '#ffffff' }};">
+                                                            <td class="px-4 py-3 font-medium text-slate-800">{{ $komite->kode_komite ?? '-' }}</td>
+                                                            <td class="px-4 py-3 font-medium text-slate-800">{{ $komite->nama_komite }}</td>
+                                                            <td class="px-4 py-3 text-slate-700">{{ $komite->keterangan ?: '-' }}</td>
+                                                            <td class="px-4 py-3 text-slate-700">{{ $komite->active_users_count }}</td>
+                                                            <td class="px-4 py-3">
+                                                                <div class="flex justify-end gap-2">
+                                                                    <button type="button" @click="editKomite = @js($editKomitePayload); $dispatch('open-modal', 'edit-komite')"
+                                                                        aria-label="Edit {{ $komite->nama_komite }}"
+                                                                        class="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700">Edit</button>
+                                                                    <form method="POST" action="{{ route('administrasi.manajemen-direktorat.komite.destroy', $komite) }}" onsubmit="return confirm('Hapus komite ini? Komite yang telah digunakan tidak dapat dihapus.')">
+                                                                        @csrf @method('DELETE')
+                                                                        <input type="hidden" name="_form" value="delete-komite" />
+                                                                        <button aria-label="Hapus {{ $komite->nama_komite }}" class="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700">Hapus</button>
+                                                                    </form>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @empty
+                                                        <tr><td colspan="5" class="px-4 py-5 text-center text-slate-500">Belum ada komite.</td></tr>
+                                                    @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </section>
+                                @endif
                             </td>
                         </tr>
                     </tbody>
@@ -170,6 +239,57 @@
                 @endforelse
             </table>
         </div>
+
+        <x-modal name="create-komite" :show="$errors->any() && old('_form') === 'create-komite'" maxWidth="lg" focusable>
+            <form method="POST" action="{{ route('administrasi.manajemen-direktorat.komite.store') }}" class="p-6">
+                @csrf
+                <input type="hidden" name="_form" value="create-komite" />
+                <h2 class="text-xl font-bold text-slate-800">Tambah Komite</h2>
+                @if ($errors->any() && old('_form') === 'create-komite')
+                    <p class="mt-3 text-sm text-red-700" role="alert">{{ $errors->first() }}</p>
+                @endif
+                <label class="mt-5 block text-sm font-medium text-slate-700">Nama komite
+                    <input name="nama_komite" value="{{ old('_form') === 'create-komite' ? old('nama_komite') : '' }}" required maxlength="255" class="mt-1 w-full rounded-xl border-slate-300 text-sm" />
+                </label>
+                <label class="mt-4 block text-sm font-medium text-slate-700">Kode komite
+                    <input name="kode_komite" value="{{ old('_form') === 'create-komite' ? old('kode_komite') : '' }}" maxlength="100" class="mt-1 w-full rounded-xl border-slate-300 text-sm" />
+                </label>
+                <label class="mt-4 block text-sm font-medium text-slate-700">Keterangan
+                    <textarea name="keterangan" rows="3" class="mt-1 w-full rounded-xl border-slate-300 text-sm">{{ old('_form') === 'create-komite' ? old('keterangan') : '' }}</textarea>
+                </label>
+                <div class="mt-6 flex justify-end gap-2">
+                    <button type="button" @click="$dispatch('close-modal', 'create-komite')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Batal</button>
+                    <button class="rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:opacity-90"
+                        style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Simpan Komite</button>
+                </div>
+            </form>
+        </x-modal>
+
+        <x-modal name="edit-komite" :show="$errors->any() && old('_form') === 'edit-komite'" maxWidth="lg" focusable>
+            <form method="POST" :action="komiteActions[editKomite.id]" class="p-6">
+                @csrf @method('PATCH')
+                <input type="hidden" name="_form" value="edit-komite" />
+                <input type="hidden" name="_komite_id" :value="editKomite.id" />
+                <h2 class="text-xl font-bold text-slate-800">Edit Komite</h2>
+                @if ($errors->any() && old('_form') === 'edit-komite')
+                    <p class="mt-3 text-sm text-red-700" role="alert">{{ $errors->first() }}</p>
+                @endif
+                <label class="mt-5 block text-sm font-medium text-slate-700">Nama komite
+                    <input name="nama_komite" x-model="editKomite.nama_komite" required maxlength="255" class="mt-1 w-full rounded-xl border-slate-300 text-sm" />
+                </label>
+                <label class="mt-4 block text-sm font-medium text-slate-700">Kode komite
+                    <input name="kode_komite" x-model="editKomite.kode_komite" maxlength="100" class="mt-1 w-full rounded-xl border-slate-300 text-sm" />
+                </label>
+                <label class="mt-4 block text-sm font-medium text-slate-700">Keterangan
+                    <textarea name="keterangan" x-model="editKomite.keterangan" rows="3" class="mt-1 w-full rounded-xl border-slate-300 text-sm"></textarea>
+                </label>
+                <div class="mt-6 flex justify-end gap-2">
+                    <button type="button" @click="$dispatch('close-modal', 'edit-komite')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Batal</button>
+                    <button :disabled="!komiteActions[editKomite.id]" class="rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:opacity-90"
+                        style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Simpan Perubahan</button>
+                </div>
+            </form>
+        </x-modal>
 
         <x-modal name="create-direktorat" :show="$errors->any() && old('_form') === 'create-direktorat'" maxWidth="lg" focusable>
             <form method="POST" action="{{ route('administrasi.manajemen-direktorat.store') }}" class="p-6">

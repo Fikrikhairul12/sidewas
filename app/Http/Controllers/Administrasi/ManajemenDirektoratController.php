@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Administrasi;
 
 use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
+use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use Illuminate\Http\RedirectResponse;
@@ -25,25 +26,32 @@ class ManajemenDirektoratController extends Controller
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
         ]);
 
+        $allDirektorats = Direktorat::query()->orderBy('nama_direktorat')->get();
+        $dewanPengawas = $allDirektorats->first(fn (Direktorat $direktorat) => strcasecmp(trim($direktorat->nama_direktorat), 'Dewan Pengawas') === 0);
+        $komites = Komite::query()
+            ->withCount(['users as active_users_count' => fn ($users) => $users->where('tb_user_komite.status', 'active')])
+            ->orderBy('kode_komite')->orderBy('nama_komite')->get();
+        $matchesKomite = ! empty($filters['keyword']) && $komites->contains(fn (Komite $komite) => mb_stripos($komite->nama_komite, $filters['keyword']) !== false
+            || mb_stripos($komite->kode_komite ?? '', $filters['keyword']) !== false);
+
         $direktorats = Direktorat::query()
             ->with(['unitKerja' => fn ($query) => $query
                 ->withCount(['users as active_users_count' => fn ($users) => $users->where('tb_user_unit_kerja.status', 'active')])
                 ->orderBy('nama_unit')])
             ->when($filters['keyword'] ?? null, fn ($query, $keyword) => $query
-                ->where(function ($query) use ($keyword) {
+                ->where(function ($query) use ($keyword, $matchesKomite, $dewanPengawas) {
                     $query->where('nama_direktorat', 'like', '%'.$keyword.'%')
                         ->orWhere('kode_direktorat', 'like', '%'.$keyword.'%')
                         ->orWhereHas('unitKerja', fn ($units) => $units
                             ->where('nama_unit', 'like', '%'.$keyword.'%')
-                            ->orWhere('kode_unit', 'like', '%'.$keyword.'%'));
+                            ->orWhere('kode_unit', 'like', '%'.$keyword.'%'))
+                        ->when($matchesKomite && $dewanPengawas, fn ($query) => $query->orWhere('id', $dewanPengawas->id));
                 }))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->orderBy('nama_direktorat')
             ->get();
 
-        $allDirektorats = Direktorat::query()->orderBy('nama_direktorat')->get();
-
-        return view('layouts.administrasi.manajemen-direktorat', compact('direktorats', 'allDirektorats', 'filters'));
+        return view('layouts.administrasi.manajemen-direktorat', compact('direktorats', 'allDirektorats', 'filters', 'dewanPengawas', 'komites'));
     }
 
     public function storeDirektorat(Request $request): RedirectResponse
@@ -207,6 +215,80 @@ class ManajemenDirektoratController extends Controller
         return $this->redirect('Unit kerja berhasil dihapus.');
     }
 
+    public function storeKomite(Request $request): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $validated = $request->validate($this->komiteRules());
+
+        DB::connection('mysql')->transaction(function () use ($request, $validated) {
+            $komite = Komite::create($validated);
+            $this->log($request, $komite, 'create_komite', null, $komite->toArray());
+        });
+
+        return $this->redirect('Komite berhasil ditambahkan.')->with('open_komite', true);
+    }
+
+    public function updateKomite(Request $request, Komite $komite): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $validated = $request->validate($this->komiteRules($komite));
+
+        DB::connection('mysql')->transaction(function () use ($request, $komite, $validated) {
+            $komite = Komite::query()->lockForUpdate()->findOrFail($komite->id);
+            $before = $komite->toArray();
+            $komite->update($validated);
+            $this->log($request, $komite, 'update_komite', $before, $komite->toArray());
+        });
+
+        return $this->redirect('Komite berhasil diperbarui.')->with('open_komite', true);
+    }
+
+    public function destroyKomite(Request $request, Komite $komite): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+
+        DB::connection('mysql')->transaction(function () use ($request, $komite) {
+            $komite = Komite::query()->lockForUpdate()->findOrFail($komite->id);
+
+            if ($komite->users()->exists()
+                || $this->hasReferences($this->komiteReferences(), $komite->id)
+                || $this->wasReferencedInActivityLog('komite', $komite->id)) {
+                throw ValidationException::withMessages(['komite' => 'Komite yang telah digunakan oleh user atau data operasional tidak dapat dihapus agar riwayat tetap terjaga.']);
+            }
+
+            $before = $komite->toArray();
+            $komite->delete();
+            $this->log($request, $komite, 'delete_komite', $before, null);
+        });
+
+        return $this->redirect('Komite berhasil dihapus.')->with('open_komite', true);
+    }
+
+    /** @return array<string, array<int, mixed>> */
+    private function komiteRules(?Komite $komite = null): array
+    {
+        return [
+            'nama_komite' => ['required', 'string', 'max:255'],
+            'kode_komite' => ['nullable', 'string', 'max:100', Rule::unique('mysql.tb_komite', 'kode_komite')->ignore($komite?->id)],
+            'keterangan' => ['nullable', 'string'],
+        ];
+    }
+
+    /** @return array<int, array{string, string, string}> */
+    private function komiteReferences(): array
+    {
+        return [
+            ['mysql_snp', 'tb_butir_pic', 'komite_id'],
+            ['mysql_snp', 'tb_review', 'komite_id'],
+            ['mysql_ragab', 'tb_butir_pic', 'komite_id'],
+            ['mysql_rawas', 'tb_butir_pic', 'komite_id'],
+            ['mysql_rawas', 'tb_review', 'komite_id'],
+            ['mysql_djsn', 'tb_butir_pic', 'komite_id'],
+            ['mysql_djsn', 'tb_review', 'komite_id'],
+            ['mysql_eksternal', 'tb_butir_pic', 'komite_id'],
+        ];
+    }
+
     private function authorizeSuperAdmin(Request $request): void
     {
         abort_unless($request->user()?->isSuperAdmin(), 403);
@@ -330,12 +412,12 @@ class ManajemenDirektoratController extends Controller
     private function wasReferencedInActivityLog(string $field, int $id): bool
     {
         $logs = LogActivity::query()
-            ->whereNotIn('table_name', ['tb_direktorat', 'tb_unit_kerja'])
+            ->whereNotIn('table_name', ['tb_direktorat', 'tb_unit_kerja', 'tb_komite'])
             ->where(function ($query) use ($field) {
                 $query->where('old_values', 'like', '%'.$field.'%')
                     ->orWhere('new_values', 'like', '%'.$field.'%');
 
-                if ($field === 'unit_kerja') {
+                if (in_array($field, ['unit_kerja', 'komite'], true)) {
                     $query->orWhere('old_values', 'like', '%assignment%')
                         ->orWhere('new_values', 'like', '%assignment%');
                 }
@@ -359,8 +441,8 @@ class ManajemenDirektoratController extends Controller
         }
 
         foreach ($value as $key => $item) {
-            if ($key === 'assignment' && $field === 'unit_kerja' && is_array($item)
-                && ($item['type'] ?? null) === 'unit' && (int) ($item['id'] ?? 0) === $id) {
+            if ($key === 'assignment' && in_array($field, ['unit_kerja', 'komite'], true) && is_array($item)
+                && ($item['type'] ?? null) === ($field === 'unit_kerja' ? 'unit' : 'komite') && (int) ($item['id'] ?? 0) === $id) {
                 return true;
             }
 
@@ -400,7 +482,7 @@ class ManajemenDirektoratController extends Controller
         return false;
     }
 
-    private function log(Request $request, Direktorat|UnitKerja $record, string $action, ?array $before, ?array $after): void
+    private function log(Request $request, Direktorat|UnitKerja|Komite $record, string $action, ?array $before, ?array $after): void
     {
         LogActivity::create([
             'user_id' => $request->user()->id,
