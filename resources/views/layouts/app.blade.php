@@ -154,6 +154,9 @@
         </div>
     </div>
     @stack('modals')
+    @if (request()->routeIs('snp.*', 'administrasi.pengajuan.*'))
+        <x-snp-butir-reader />
+    @endif
 </body>
 
 </html>

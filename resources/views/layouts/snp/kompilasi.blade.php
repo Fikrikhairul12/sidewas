@@ -214,9 +214,7 @@
                                             {{ $butir?->id_butir_snp ?? '-' }}
                                         </p>
 
-                                        <p class="mt-3 whitespace-pre-line text-xs text-slate-800">
-                                            {{ $butir?->butir_snp ?? '-' }}
-                                        </p>
+                                        <x-snp-butir-preview class="mt-3" :content="$butir?->butir_snp ?? ''" :butir-id="$butir?->id_butir_snp ?? ''" context="Kompilasi SNP" />
                                     </div>
 
                                     <div class="mt-4">
@@ -391,6 +389,7 @@
                                                 @click="selectedItem = {
                                                     id: {{ $butir->id }},
                                                     id_butir_snp: @js($butir->id_butir_snp),
+                                                    butir_snp: @js($butir->butir_snp),
                                                     tahap: @js($item->tahap),
                                                     putaran_tl: @js($item->putaran_tl ?? 1),
                                                     tahap_label: @js($item->tahap_label),
@@ -469,6 +468,7 @@
                 <form method="POST" :action="`/snp/kompilasi/${selectedItem?.id}`" enctype="multipart/form-data"
                     class="px-6 py-6">
                     @csrf
+                    <x-snp-butir-preview class="mb-5" content-expression="selectedItem?.butir_snp" id-expression="selectedItem?.id_butir_snp" context="Rujukan kompilasi SNP" />
 
                     <input type="hidden" name="tahap_kompilasi" :value="selectedItem?.tahap">
 

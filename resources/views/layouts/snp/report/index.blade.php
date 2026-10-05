@@ -219,10 +219,7 @@
                                                     return [
                                                         'id' => $butir->id,
                                                         'id_butir_snp' => $butir->id_butir_snp,
-                                                        'butir_snp' => \Illuminate\Support\Str::limit(
-                                                            $butir->butir_snp,
-                                                            120,
-                                                        ),
+                                                        'butir_snp' => $butir->butir_snp,
                                                         'tanggapan_units' => $unitOptions,
                                                         'tindak_lanjut_units' => $unitOptions,
                                                     ];

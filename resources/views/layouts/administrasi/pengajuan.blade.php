@@ -175,6 +175,7 @@
                                     })
                                     ->join(', ');
                                 $editDetailPayload = [
+                                    'type_code' => $item->type_code,
                                     'title' => 'Detail Edit Perekaman',
                                     'subtitle' => $item->record_label,
                                     'record_key' => $item->record_key,
@@ -478,12 +479,13 @@
                             </div>
                         </div>
 
-                        <div class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-4">
-                            <p class="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                        <div id="pengajuanDetailIsiButirPanel" class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-4">
+                            <p id="pengajuanDetailIsiButirLabel" class="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">
                                 Isi Butir
                             </p>
                             <p id="pengajuanDetailIsiButir"
                                 class="whitespace-pre-line text-sm leading-relaxed text-slate-700">-</p>
+                            <button type="button" id="pengajuanDetailBacaButir" class="snp-butir-read-button" hidden>Perbesar bacaan</button>
                         </div>
                     </div>
                 </div>

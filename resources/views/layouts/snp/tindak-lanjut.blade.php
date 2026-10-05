@@ -265,10 +265,7 @@
                                                 'jenis_pic' => $jenisPic,
                                                 'putaran_tl' => $tl->putaran_tl ?? 1,
                                                 'id_butir_snp' => $butir?->id_butir_snp,
-                                                'isi_butir_singkat' => \Illuminate\Support\Str::limit(
-                                                    $butir?->butir_snp ?? '-',
-                                                    80,
-                                                ),
+                                                'butir_snp' => $butir?->butir_snp,
                                                 'tindak_lanjut' => $tl->tindak_lanjut,
                                                 'tindak_lanjut_singkat' => \Illuminate\Support\Str::limit(
                                                     $tl->tindak_lanjut ?? '-',
@@ -315,10 +312,7 @@
                                         Butir: {{ $butir?->id_butir_snp ?? '-' }}
                                     </p>
 
-                                    <p
-                                        class="mt-3 max-w-md whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $butir?->butir_snp ?? '-' }}
-                                    </p>
+                                    <x-snp-butir-preview class="mt-3" :content="$butir?->butir_snp ?? ''" :butir-id="$butir?->id_butir_snp ?? ''" context="Tindak Lanjut SNP" />
 
                                     <div class="mt-4">
                                         <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -547,7 +541,7 @@
             class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
             style="display: none;">
             <div @click.outside="openDetailModal = false" x-transition
-                class="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+                class="w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl">
 
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
@@ -566,7 +560,7 @@
                     </button>
                 </div>
 
-                <div class="grid max-h-[70vh] overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)]">
+                <div class="grid max-h-[70vh] overflow-y-auto lg:grid-cols-[260px_minmax(0,1fr)] lg:overflow-hidden">
                     <div class="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
                         <div class="relative">
                             <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
@@ -611,7 +605,9 @@
                         </div>
                     </div>
 
-                    <div class="max-h-[70vh] overflow-y-auto p-6">
+                    <div class="min-w-0 space-y-5 p-6 lg:max-h-[70vh] lg:overflow-y-auto">
+                        <x-snp-butir-preview content-expression="detailButir?.butir_snp" id-expression="detailButir?.id_butir_snp"
+                            :expanded="true" context="Tindak Lanjut SNP" />
                         <template x-if="selectedDetailTl">
                             <div class="space-y-5">
                                 <div>
@@ -628,9 +624,6 @@
 
                                     <p class="font-bold text-slate-600">Butir SNP</p>
                                     <p class="text-slate-700" x-text="selectedDetailTl.id_butir_snp"></p>
-
-                                    <p class="font-bold text-slate-600">Isi Butir Singkat</p>
-                                    <p class="text-slate-700" x-text="selectedDetailTl.isi_butir_singkat"></p>
 
                                     <p class="font-bold text-slate-600">Tindak Lanjut</p>
                                     <p class="whitespace-pre-line leading-relaxed text-slate-700"
@@ -706,6 +699,7 @@
             style="display: none;">
             <div @click.outside="openEditModal = false" class="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
                 <h2 class="text-xl font-bold text-slate-800">Edit Tindak Lanjut SNP</h2>
+                <x-snp-butir-preview class="mt-4" content-expression="editTindakLanjut?.butir_snp" id-expression="editTindakLanjut?.id_butir_snp" context="Rujukan tindak lanjut SNP" />
                 <form method="POST" enctype="multipart/form-data" :action="`/snp/tindak-lanjut/${editTindakLanjut?.id}`" class="mt-5 space-y-4">
                     @csrf
                     @method('PATCH')
@@ -796,7 +790,7 @@
                                                         <span x-text="butir.nomor_surat ?? '-'"></span>
                                                     </p>
 
-                                                    <p class="mt-2 text-sm font-semibold uppercase leading-relaxed text-slate-800"
+                                                    <p class="snp-butir-preview__text mt-2"
                                                         x-text="butir.butir_snp"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
@@ -824,6 +818,8 @@
 
                                     <p class="mt-1 text-sm font-bold" style="color: #2377b9;"
                                         x-text="selectedButir.id_butir_snp"></p>
+
+                                    <x-snp-butir-preview class="mt-3" content-expression="selectedButir.butir_snp" id-expression="selectedButir.id_butir_snp" context="Rujukan tindak lanjut SNP" />
 
                                     <p class="mt-2 text-sm text-slate-700">
                                         Jatuh tempo tindak lanjut:

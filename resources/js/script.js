@@ -1,3 +1,5 @@
+import { readSnpButir } from './snp-butir-reader';
+
 /**
  * ============================================================
  * PEREKAMAN SNP
@@ -605,16 +607,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const idButir = butir.id_butir_snp ?? butir.id_butir_ragab ?? butir.id_butir_rawas ?? butir.id_butir_djsn ?? '-';
                 const isiButir = butir.butir_snp ?? butir.butir_ragab ?? butir.id_butir_rawas ?? butir.id_butir_djsn ?? '-';
+                const isSnp = Object.hasOwn(butir, 'butir_snp');
 
                 span.innerHTML = `
                     <span class="font-bold" style="color:#2377b9;">${escapeHtml(idButir)}</span>
                     <br>
-                    <span class="text-xs">${escapeHtml(isiButir)}</span>
+                    <span class="${isSnp ? 'snp-butir-preview__text' : 'text-xs'}">${escapeHtml(isiButir)}</span>
                 `;
 
                 label.appendChild(input);
                 label.appendChild(span);
-                group.appendChild(label);
+
+                if (isSnp) {
+                    span.classList.add('min-w-0');
+                    const option = document.createElement('div');
+                    option.className = 'snp-report-butir-option';
+                    label.className = 'flex cursor-pointer items-start gap-3 text-sm';
+                    const readButton = document.createElement('button');
+                    readButton.type = 'button';
+                    readButton.className = 'snp-butir-read-button';
+                    readButton.textContent = 'Baca isi lengkap';
+                    readButton.setAttribute('aria-label', `Baca isi lengkap ${idButir}`);
+                    readButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        readSnpButir({ id: idButir, content: isiButir, items: butirs, context: `Laporan SNP · ${recordLabel}` });
+                    });
+                    option.append(label, readButton);
+                    group.appendChild(option);
+                } else {
+                    group.appendChild(label);
+                }
             });
 
             customReportButirList.appendChild(group);
@@ -1204,6 +1226,19 @@ document.addEventListener('DOMContentLoaded', () => {
         subtitle.textContent = detail.subtitle || '-';
         recordKey.textContent = detail.record_key || '-';
         isiButir.textContent = detail.isi_butir || '-';
+        const isSnp = detail.type_code === 'snp';
+        const readButton = document.getElementById('pengajuanDetailBacaButir');
+        const contentPanel = document.getElementById('pengajuanDetailIsiButirPanel');
+        const contentLabel = document.getElementById('pengajuanDetailIsiButirLabel');
+        contentPanel.classList.toggle('snp-butir-preview--expanded', isSnp);
+        isiButir.classList.toggle('snp-butir-preview__text', isSnp);
+        contentLabel.textContent = isSnp ? 'Isi Butir SNP yang Diajukan' : 'Isi Butir';
+        readButton.hidden = !isSnp;
+        readButton.onclick = () => readSnpButir({
+            id: detail.butir?.['ID Butir'],
+            content: detail.isi_butir,
+            context: 'Pengajuan edit SNP · Isi yang diajukan',
+        });
         renderDetailRows(suratContainer, detail.surat || {});
         renderDetailRows(butirContainer, detail.butir || {});
 

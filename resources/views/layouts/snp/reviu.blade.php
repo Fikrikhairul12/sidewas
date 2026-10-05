@@ -216,10 +216,7 @@
                                         Butir: {{ $review->id_butir_snp }}
                                     </p>
 
-                                    <p
-                                        class="mt-3 max-w-md text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $review->butir?->butir_snp ?? '-' }}
-                                    </p>
+                                    <x-snp-butir-preview class="mt-3" :content="$review->butir?->butir_snp ?? ''" :butir-id="$review->id_butir_snp" context="Reviu SNP" />
 
                                     <p class="mt-3 text-xs text-slate-500">
                                         Komite: {{ $review->komite?->kode_komite ?? '-' }}
@@ -360,6 +357,7 @@
                                                 @click="selectedReview = {
                                                     id: {{ $review->id }},
                                                     id_butir_snp: @js($review->id_butir_snp),
+                                                    butir_snp: @js($review->butir?->butir_snp),
                                                     tahap_review: @js($review->tahap_review),
                                                     status: @js($review->status),
                                                     status_pengajuan_tgl: @js($kompilasi?->status_pengajuan_tgl ?? 'pending'),
@@ -427,56 +425,59 @@
                     </button>
                 </div>
 
-                <div class="grid max-h-[72vh] overflow-hidden lg:grid-cols-[380px_minmax(0,1fr)]">
-                    <div class="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
-                        <div class="relative">
-                            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
-                                fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
-                            </svg>
-                            <input type="text" x-model="detailSearch" placeholder="Cari ID / isi butir..."
-                                class="w-full rounded-xl border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
+                <div class="flex max-h-[72vh] flex-col overflow-hidden">
+                    <details class="shrink-0 border-b border-slate-100 px-6 py-3">
+                        <summary class="cursor-pointer text-sm font-semibold text-sidewas-blue">Pilih atau cari butir lain</summary>
+                        <div class="mt-3">
+                            <div class="relative">
+                                <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                                    fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                                </svg>
+                                <input type="text" x-model="detailSearch" placeholder="Cari ID / isi butir..."
+                                    class="w-full rounded-xl border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
 
-                        <div class="mt-4 max-h-[48vh] space-y-3 overflow-y-auto pr-1">
-                            <template x-for="butir in filteredDetailButirs" :key="butir.id">
-                                <button type="button" @click="selectDetailButir(butir)"
-                                    class="flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition hover:bg-blue-50"
-                                    :class="String(selectedDetailButir?.id) === String(butir.id)
-                                        ? 'border-blue-300 bg-blue-50'
-                                        : 'border-slate-200 bg-white'">
-                                    <span
-                                        class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                                        :class="butir.selesai ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'">
-                                        <svg x-show="butir.selesai" class="h-5 w-5" fill="none"
-                                            stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="m4.5 12.75 6 6 9-13.5" />
-                                        </svg>
-                                        <span x-show="!butir.selesai" class="text-xs font-bold">-</span>
-                                    </span>
+                            <div class="mt-3 max-h-48 space-y-3 overflow-y-auto pr-1">
+                                <template x-for="butir in filteredDetailButirs" :key="butir.id">
+                                    <button type="button" @click="selectDetailButir(butir)"
+                                        class="flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition hover:bg-blue-50"
+                                        :class="String(selectedDetailButir?.id) === String(butir.id)
+                                            ? 'border-blue-300 bg-blue-50'
+                                            : 'border-slate-200 bg-white'">
+                                        <span
+                                            class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                                            :class="butir.selesai ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'">
+                                            <svg x-show="butir.selesai" class="h-5 w-5" fill="none"
+                                                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="m4.5 12.75 6 6 9-13.5" />
+                                            </svg>
+                                            <span x-show="!butir.selesai" class="text-xs font-bold">-</span>
+                                        </span>
 
-                                    <span class="min-w-0 flex-1">
-                                        <span class="block text-sm font-bold" style="color: #2377b9;"
-                                            x-text="butir.id_butir_snp"></span>
-                                        <span class="mt-1 block text-xs leading-relaxed text-slate-600"
-                                            x-text="butir.butir_singkat"></span>
-                                        <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
-                                            :style="`background-color: ${butir.tahap === 'tindak_lanjut' ? '#6bb17e' : '#2377b9'}`"
-                                            x-text="butir.tahap_label"></span>
-                                    </span>
-                                </button>
-                            </template>
+                                        <span class="min-w-0 flex-1">
+                                            <span class="block text-sm font-bold" style="color: #2377b9;"
+                                                x-text="butir.id_butir_snp"></span>
+                                            <span class="mt-1 block text-xs leading-relaxed text-slate-600"
+                                                x-text="butir.butir_singkat"></span>
+                                            <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
+                                                :style="`background-color: ${butir.tahap === 'tindak_lanjut' ? '#6bb17e' : '#2377b9'}`"
+                                                x-text="butir.tahap_label"></span>
+                                        </span>
+                                    </button>
+                                </template>
 
-                            <div x-show="filteredDetailButirs.length === 0"
-                                class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
-                                Butir tidak ditemukan.
+                                <div x-show="filteredDetailButirs.length === 0"
+                                    class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
+                                    Butir tidak ditemukan.
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </details>
 
-                    <div class="max-h-[72vh] overflow-y-auto p-6">
+                    <div class="min-h-0 flex-1 overflow-y-auto p-6">
                         <template x-if="selectedDetailButir">
                             <div class="space-y-5">
                                 <div>
@@ -485,13 +486,8 @@
                                     <p class="mt-2 text-sm text-slate-500" x-text="selectedDetailButir.tahap_label"></p>
                                 </div>
 
-                                <div>
-                                    <p class="mb-2 text-sm font-bold text-slate-700">Isi Butir</p>
-                                    <div
-                                        class="rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm leading-relaxed text-slate-700">
-                                        <p x-text="selectedDetailButir.butir_snp"></p>
-                                    </div>
-                                </div>
+                                <x-snp-butir-preview content-expression="selectedDetailButir.butir_snp" id-expression="selectedDetailButir.id_butir_snp"
+                                    items-expression="detailButirs" :expanded="true" context="Reviu SNP" />
 
                                 <div class="grid gap-4 text-sm md:grid-cols-[170px_minmax(0,1fr)]">
                                     <p class="font-bold text-slate-600" x-text="selectedDetailButir.kompilasi_label"></p>
@@ -593,6 +589,7 @@
                 <form method="POST" :action="`/snp/reviu/${selectedReview?.id}`" enctype="multipart/form-data"
                     class="px-6 py-6">
                     @csrf
+                    <x-snp-butir-preview class="mb-5" content-expression="selectedReview?.butir_snp" id-expression="selectedReview?.id_butir_snp" context="Rujukan reviu SNP" />
                     @method('PATCH')
 
                     <div class="grid gap-5">
