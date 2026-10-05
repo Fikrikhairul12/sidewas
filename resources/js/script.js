@@ -1,3 +1,4 @@
+import { renderSnpButir, snpButirPlain } from './snp-butir-content';
 import { readSnpButir } from './snp-butir-reader';
 
 /**
@@ -5,7 +6,7 @@ import { readSnpButir } from './snp-butir-reader';
  * PEREKAMAN SNP
  * ============================================================
  */
-window.perekamanSnpModal = function (clusters = [], direktorats = []) {
+window.perekamanSnpModal = function (clusters = [], direktorats = [], oldEditor = {}) {
     return {
         openCreateModal: false,
         openButirModal: false,
@@ -13,6 +14,8 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
         openEditModal: false,
 
         selectedRecord: null,
+        newButirContent: '',
+        editorSession: 0,
         editRecord: null,
         selectedEditButirId: null,
         detailRecord: null,
@@ -36,6 +39,9 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
 
         openButirModalFor(record) {
             this.selectedRecord = record;
+            this.newButirContent = String(oldEditor.editor_record_id) === String(record.id) && !oldEditor.butir_id
+                ? (oldEditor.butir_snp ?? '') : '';
+            this.editorSession++;
             this.selectedClusterId = '';
             this.selectedSubClusterId = '';
             this.selectedDirektoratUtamaId = '';
@@ -45,8 +51,16 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
         },
 
         openEditModalFor(record) {
-            this.editRecord = record;
+            this.editRecord = JSON.parse(JSON.stringify(record));
+            this.editorSession++;
             this.selectedEditButirId = record.butirs?.[0]?.id ? String(record.butirs[0].id) : null;
+            if (String(oldEditor.editor_record_id) === String(record.id) && oldEditor.butir_id) {
+                const restored = this.editRecord.butirs.find(butir => String(butir.id) === String(oldEditor.butir_id));
+                if (restored) {
+                    restored.butir_snp = oldEditor.butir_snp ?? restored.butir_snp;
+                    this.selectedEditButirId = String(restored.id);
+                }
+            }
             this.editClusterId = record.cluster_id ? String(record.cluster_id) : '';
             this.editSubClusterId = '';
             this.editPicPendukungSearch = '';
@@ -82,7 +96,7 @@ window.perekamanSnpModal = function (clusters = [], direktorats = []) {
 
             return this.detailButirs.filter(butir => {
                 const id = String(butir.id_butir_snp || '').toLowerCase();
-                const isi = String(butir.butir_snp || '').toLowerCase();
+                const isi = snpButirPlain(butir.butir_snp).toLowerCase();
 
                 return id.includes(keyword) || isi.includes(keyword);
             });
@@ -612,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 span.innerHTML = `
                     <span class="font-bold" style="color:#2377b9;">${escapeHtml(idButir)}</span>
                     <br>
-                    <span class="${isSnp ? 'snp-butir-preview__text' : 'text-xs'}">${escapeHtml(isiButir)}</span>
+                    <span class="${isSnp ? 'snp-butir-preview__text' : 'text-xs'}">${escapeHtml(isSnp ? snpButirPlain(isiButir) : isiButir)}</span>
                 `;
 
                 label.appendChild(input);
@@ -1225,7 +1239,8 @@ document.addEventListener('DOMContentLoaded', () => {
         title.textContent = detail.title || 'Detail Pengajuan';
         subtitle.textContent = detail.subtitle || '-';
         recordKey.textContent = detail.record_key || '-';
-        isiButir.textContent = detail.isi_butir || '-';
+        if (detail.type_code === 'snp') renderSnpButir(isiButir, detail.isi_butir);
+        else { isiButir.classList.remove('snp-rich-content'); isiButir.textContent = detail.isi_butir || '-'; }
         const isSnp = detail.type_code === 'snp';
         const readButton = document.getElementById('pengajuanDetailBacaButir');
         const contentPanel = document.getElementById('pengajuanDetailIsiButirPanel');

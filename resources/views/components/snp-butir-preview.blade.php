@@ -12,10 +12,16 @@
     @if ($expanded)
         <p class="snp-butir-preview__heading text-sm font-bold text-slate-600">Isi Butir SNP</p>
     @endif
-    @if ($contentExpression)
-        <p class="snp-butir-preview__text" x-text="({{ $contentExpression }}) || 'Belum ada isi butir.'"></p>
+    @if ($expanded)
+        @if ($contentExpression)
+            <div class="snp-butir-preview__text snp-rich-content" x-html="snpButirHtml(({{ $contentExpression }}) || 'Belum ada isi butir.')"></div>
+        @else
+            <div class="snp-butir-preview__text snp-rich-content">{!! app(\App\Services\SnpButirContent::class)->html($content ?: 'Belum ada isi butir.') !!}</div>
+        @endif
+    @elseif ($contentExpression)
+        <p class="snp-butir-preview__text" x-text="snpButirPlain({{ $contentExpression }}) || 'Belum ada isi butir.'"></p>
     @else
-        <p class="snp-butir-preview__text">{{ $content ?: 'Belum ada isi butir.' }}</p>
+        <p class="snp-butir-preview__text">{{ app(\App\Services\SnpButirContent::class)->plain($content) ?: (\App\Services\SnpButirContent::isRich($content) ? '[Gambar]' : 'Belum ada isi butir.') }}</p>
     @endif
     <button type="button" class="snp-butir-read-button"
         x-on:click.stop="$dispatch('snp-read-butir', {

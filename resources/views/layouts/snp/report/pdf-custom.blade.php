@@ -264,7 +264,9 @@
                             @elseif ($field === 'id_butir')
                                 <td>{{ $butir->id_butir_snp }}</td>
                             @elseif ($field === 'isi_butir')
-                                <td class="pre-line">{{ $normalizeReportText($butir->butir_snp) }}</td>
+                                <td class="pre-line">{{ \Illuminate\Support\Str::limit(app(\App\Services\SnpButirContent::class)->plain($butir->butir_snp), 180) }}
+                                    <br><strong>Isi lengkap dan gambar: lihat lampiran butir {{ $butir->id_butir_snp }}.</strong>
+                                </td>
                             @elseif ($field === 'pic_utama')
                                 <td>{{ $picUtama?->unitKerja?->kode_unit ?? '-' }}</td>
                             @elseif ($field === 'pic_pendukung')
@@ -385,6 +387,9 @@
     <div class="print-footer">
         Dokumen ini dicetak oleh {{ $printedBy ?? '-' }} pada {{ $printedAt ?? '-' }}
     </div>
+    @if (in_array('isi_butir', $selectedFields, true))
+        @include('layouts.snp.report.butir-content')
+    @endif
 </body>
 
 </html>

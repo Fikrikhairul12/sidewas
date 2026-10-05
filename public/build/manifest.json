@@ -16,7 +16,7 @@
     "src": "node_modules/leaflet/dist/images/marker-icon.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-gqnY_yFi.css",
+    "file": "assets/app-4WsNor08.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -34,12 +34,15 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-DFXNzjzX.js",
+    "file": "assets/app-BmR1dNNA.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
       "_auto-gxYKIjES.js"
+    ],
+    "dynamicImports": [
+      "resources/js/snp-butir-editor.js"
     ]
   },
   "resources/js/kunjungan.js": {
@@ -48,6 +51,16 @@
     "src": "resources/js/kunjungan.js",
     "isEntry": true,
     "imports": [
+      "_auto-gxYKIjES.js"
+    ]
+  },
+  "resources/js/snp-butir-editor.js": {
+    "file": "assets/snp-butir-editor-CVkDI1eM.js",
+    "name": "snp-butir-editor",
+    "src": "resources/js/snp-butir-editor.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js",
       "_auto-gxYKIjES.js"
     ]
   }

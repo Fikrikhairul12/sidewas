@@ -169,7 +169,7 @@
                                                     'id' => $recordButir->id,
                                                     'id_butir_snp' => $recordButir->id_butir_snp,
                                                     'butir_snp' => $recordButir->butir_snp,
-                                                    'butir_singkat' => \Illuminate\Support\Str::limit($recordButir->butir_snp, 95),
+                                                    'butir_singkat' => \Illuminate\Support\Str::limit(app(\App\Services\SnpButirContent::class)->plain($recordButir->butir_snp), 95),
                                                     'tahap' => $tahapAktif,
                                                     'tahap_label' =>
                                                         $tahapAktif === 'tindak_lanjut'

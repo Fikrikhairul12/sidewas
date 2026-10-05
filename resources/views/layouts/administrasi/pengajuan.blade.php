@@ -483,8 +483,8 @@
                             <p id="pengajuanDetailIsiButirLabel" class="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">
                                 Isi Butir
                             </p>
-                            <p id="pengajuanDetailIsiButir"
-                                class="whitespace-pre-line text-sm leading-relaxed text-slate-700">-</p>
+                            <div id="pengajuanDetailIsiButir"
+                                class="whitespace-pre-line text-sm leading-relaxed text-slate-700">-</div>
                             <button type="button" id="pengajuanDetailBacaButir" class="snp-butir-read-button" hidden>Perbesar bacaan</button>
                         </div>
                     </div>

@@ -36,6 +36,7 @@ use App\Http\Controllers\Snp\KompilasiSnpController;
 use App\Http\Controllers\Snp\PerekamanSnpController;
 use App\Http\Controllers\Snp\ReportSnpController;
 use App\Http\Controllers\Snp\ReviuSnpController;
+use App\Http\Controllers\Snp\SnpButirImageController;
 use App\Http\Controllers\Snp\TanggapanSnpController;
 use App\Http\Controllers\Snp\TindakLanjutSnpController;
 use Illuminate\Support\Facades\Route;
@@ -188,6 +189,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/snp/perekaman/{record}/butir', [PerekamanSnpController::class, 'storeButir'])
         ->name('snp.perekaman.butir.store');
+
+    Route::post('/snp/perekaman/{record}/gambar', [SnpButirImageController::class, 'store'])
+        ->middleware('throttle:30,1')->name('snp.butir-images.store');
+    Route::get('/snp/perekaman/{record}/gambar/{filename}', [SnpButirImageController::class, 'show'])
+        ->name('snp.butir-images.show');
 
     Route::patch('/snp/perekaman/{record}', [PerekamanSnpController::class, 'update'])
         ->name('snp.perekaman.update');

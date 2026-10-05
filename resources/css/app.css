@@ -2,6 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+.snp-rich-content { white-space: normal; overflow-wrap: anywhere; font-size: 16px; line-height: 1.85; font-weight: 400; text-transform: none; }
+.snp-rich-content p { margin: 0 0 0.8em; min-height: 1em; }
+.snp-rich-content ul, .snp-rich-content ol { padding-left: 1.75em; margin: 0.6em 0; }
+.snp-rich-content ul { list-style-type: disc; }
+.snp-rich-content ol { list-style-type: decimal; }
+.snp-rich-content li p { margin-bottom: 0.3em; }
+.snp-rich-content img { display: inline-block; max-width: 100%; height: auto; vertical-align: middle; margin: 0.5em 0; }
+.snp-rich-content strong { font-weight: 700; }
+.snp-rich-content em { font-style: italic; }
+.snp-rich-content u { text-decoration: underline; }
+.snp-butir-preview__text.snp-rich-content, .snp-butir-reader__content.snp-rich-content { white-space: normal; }
+.snp-editor { min-width: 0; }
+.snp-editor__surface { border: 1px solid #b9cddd; border-radius: 0.75rem; background: white; overflow: hidden; }
+.snp-editor__toolbar, .snp-editor__image-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; padding: 0.65rem; background: #f1f7fb; border-bottom: 1px solid #dbe7ef; }
+.snp-editor__toolbar { position: sticky; top: 0; z-index: 1; }
+.snp-editor button, .snp-editor__dialog button { padding: 0.4rem 0.6rem; border: 1px solid transparent; border-radius: 0.35rem; font-size: 0.8rem; color: #334155; }
+.snp-editor button:hover, .snp-editor__dialog button:hover { background: #dcebf7; }
+.snp-editor [aria-pressed="true"], .snp-editor__dialog [aria-pressed="true"] { background: #d5eafa; border-color: #2377b9; color: #135180; }
+.snp-editor button:disabled, .snp-editor__dialog button:disabled { opacity: 0.4; }
+.snp-editor__toolbar select { font-size: 0.8rem; border: 1px solid #b9cddd; border-radius: 0.35rem; padding-block: 0.35rem; }
+.snp-editor__canvas { max-height: 420px; overflow-y: auto; }
+.snp-editor__canvas .tiptap { min-height: 320px; padding: 1.25rem; outline: none; }
+.snp-editor__canvas .tiptap:focus { box-shadow: inset 0 0 0 2px #2377b9; }
+.snp-editor__canvas .ProseMirror-selectednode { outline: 3px solid #2377b9; }
+.snp-editor__help { padding: 0.5rem 1rem; font-size: 0.75rem; color: #64748b; }
+.snp-editor__error { padding: 0.5rem 1rem; font-size: 0.875rem; color: #b91c1c; }
+.snp-editor__dialog { width: calc(100% - 2rem); max-width: 76rem; height: calc(100dvh - 2rem); max-height: none; margin: auto; padding: 0; border: 0; border-radius: 0.75rem; }
+.snp-editor__dialog::backdrop { background: rgb(15 23 42 / 65%); }
+.snp-editor__dialog .snp-editor__surface { height: 100%; display: flex; flex-direction: column; }
+.snp-editor__dialog .snp-editor__canvas { flex: 1; min-height: 0; max-height: none; }
+.snp-editor__dialog .tiptap { min-height: 100%; max-width: 90ch; margin: auto; }
+
 .snp-butir-preview {
     min-width: 0;
     max-width: 42rem;

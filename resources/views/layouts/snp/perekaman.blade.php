@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div x-data="perekamanSnpModal(@js($clusters), @js($direktorats))" class="space-y-6">
+    <div x-data="perekamanSnpModal(@js($clusters), @js($direktorats), @js(collect(old())->only(['editor_record_id', 'butir_id', 'butir_snp'])->all()))" class="space-y-6">
         {{-- Page Header --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -370,7 +370,7 @@
                                                 'id' => $butir->id,
                                                 'id_butir_snp' => $butir->id_butir_snp,
                                                 'butir_snp' => $butir->butir_snp,
-                                                'ringkasan' => \Illuminate\Support\Str::limit($butir->butir_snp, 90),
+                                                'ringkasan' => \Illuminate\Support\Str::limit(app(\App\Services\SnpButirContent::class)->plain($butir->butir_snp), 90),
                                                 'pic_utama' => $picUtama?->unitKerja
                                                     ? $picUtama->unitKerja->kode_unit .
                                                         ' - ' .
@@ -907,8 +907,10 @@
                                                 Isi Butir
                                             </label>
 
-                                            <textarea name="butir_snp" x-model="selectedEditButir.butir_snp" rows="4" required
-                                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                            <div @snp-editor-change.stop="selectedEditButir.butir_snp = $event.detail">
+                                                <x-snp-butir-editor content-expression="selectedEditButir?.butir_snp"
+                                                    record-expression="editRecord?.id" key-expression="'edit-' + editorSession + '-' + selectedEditButir?.id" />
+                                            </div>
                                         </div>
 
                                         <div>
@@ -1391,9 +1393,10 @@
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
                                 Isi Butir SNP
                             </label>
-                            <textarea name="butir_snp" rows="4" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan isi butir SNP..."></textarea>
+                            <div @snp-editor-change.stop="newButirContent = $event.detail">
+                                <x-snp-butir-editor content-expression="newButirContent" record-expression="selectedRecord?.id"
+                                    key-expression="'new-' + editorSession + '-' + selectedRecord?.id" />
+                            </div>
                         </div>
 
                         <div>

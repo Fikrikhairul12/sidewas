@@ -19,7 +19,14 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "@tiptap/core": "^3.31.4",
+        "@tiptap/extension-image": "^3.31.4",
+        "@tiptap/extension-text-align": "^3.31.4",
+        "@tiptap/extension-text-style": "^3.31.4",
+        "@tiptap/pm": "^3.31.4",
+        "@tiptap/starter-kit": "^3.31.4",
         "chart.js": "^4.5.1",
+        "dompurify": "^3.4.16",
         "leaflet": "^1.9.4",
         "puppeteer": "^25.1.0"
     }

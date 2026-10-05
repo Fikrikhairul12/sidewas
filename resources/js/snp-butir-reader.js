@@ -1,3 +1,5 @@
+import { renderSnpButir } from './snp-butir-content';
+
 export function readSnpButir(detail) {
     window.dispatchEvent(new CustomEvent('snp-read-butir', { detail }));
 }
@@ -27,7 +29,7 @@ export function initializeSnpButirReader() {
     const render = () => {
         const item = items[selectedIndex];
         title.textContent = item.id || 'Isi Butir SNP';
-        content.textContent = item.content || 'Belum ada isi butir.';
+        renderSnpButir(content, item.content);
         select.value = String(selectedIndex);
         previous.disabled = selectedIndex === 0;
         next.disabled = selectedIndex === items.length - 1;

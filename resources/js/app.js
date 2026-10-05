@@ -6,4 +6,8 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
-Alpine.start();
+const editorReady = document.querySelector('[data-snp-editor]')
+    ? import('./snp-butir-editor')
+    : Promise.resolve();
+
+editorReady.then(() => Alpine.start());

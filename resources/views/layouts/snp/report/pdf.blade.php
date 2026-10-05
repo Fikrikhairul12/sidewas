@@ -260,7 +260,8 @@
                         </td>
 
                         <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
-                            {{ $butir->butir_snp }}
+                            {{ \Illuminate\Support\Str::limit(app(\App\Services\SnpButirContent::class)->plain($butir->butir_snp), 180) }}
+                            <br><strong>Isi lengkap dan gambar: lihat lampiran butir {{ $butir->id_butir_snp }}.</strong>
                         </td>
 
                         <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
@@ -378,6 +379,7 @@
     <div class="print-footer">
         Dokumen ini dicetak oleh {{ $printedBy ?? '-' }} pada {{ $printedAt ?? '-' }}
     </div>
+    @include('layouts.snp.report.butir-content')
 </body>
 
 </html>

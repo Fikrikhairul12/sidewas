@@ -791,7 +791,7 @@
                                                     </p>
 
                                                     <p class="snp-butir-preview__text mt-2"
-                                                        x-text="butir.butir_snp"></p>
+                                                        x-text="snpButirPlain(butir.butir_snp)"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
                                                         Jatuh Tempo:

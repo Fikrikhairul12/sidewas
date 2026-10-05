@@ -77,7 +77,7 @@
                         @elseif ($field === 'id_butir')
                             <td>{{ $butir->id_butir_snp }}</td>
                         @elseif ($field === 'isi_butir')
-                            <td>{{ $butir->butir_snp }}</td>
+                            <td>Isi Butir SNP</td>
                         @elseif ($field === 'pic_utama')
                             <td>{{ $picUtama?->unitKerja?->kode_unit ?? '-' }}</td>
                         @elseif ($field === 'pic_pendukung')
