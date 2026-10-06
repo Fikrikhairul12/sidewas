@@ -135,6 +135,16 @@ test('regular and custom PDF render long rich content across pages with embedded
     foreach (['pdf', 'pdf-custom'] as $template) {
         $html = view('layouts.snp.report.'.$template, ['records' => $records, 'selectedFields' => ['id_butir', 'isi_butir'], 'fieldLabels' => ['id_butir' => 'ID', 'isi_butir' => 'ISI']])->render();
         expect($html)->toContain('data:image/png;base64', 'AKHIR-KONTEN-SNP')->not->toContain('&lt;p&gt;');
+        expect($html)->not->toContain('lihat lampiran butir', 'snp-content-appendix');
+        $document = new DOMDocument;
+        @$document->loadHTML($html);
+        $xpath = new DOMXPath($document);
+        expect($xpath->query('//img[not(ancestor::td[@data-snp-butir-content])]'))->toHaveCount(0);
+        $completeText = '';
+        foreach ($xpath->query('//td[@data-snp-butir-content]/div[@class="snp-content-line"]') as $line) {
+            $completeText .= $line->textContent."\n";
+        }
+        expect(substr_count(preg_replace('/\s+/u', ' ', $completeText), 'Paragraf lengkap tidak terpotong.'))->toBe(650);
         $dompdf = new Dompdf;
         $dompdf->setPaper('legal', 'landscape');
         $dompdf->loadHtml($html);

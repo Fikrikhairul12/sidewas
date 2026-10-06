@@ -1,6 +1,6 @@
 <?php
 
-test('snp report pdf merges status per butir and uses latest butir status', function () {
+test('snp report pdf shows the latest status per butir and supports continuation rows', function () {
     $rootPath = dirname(__DIR__, 2);
 
     $pdf = file_get_contents($rootPath.'/resources/views/layouts/snp/report/pdf.blade.php');
@@ -10,7 +10,7 @@ test('snp report pdf merges status per butir and uses latest butir status', func
     expect($pdf)
         ->toContain('$reviewTerbaruButir = $butir->reviews->sortByDesc(\'id\')->first();')
         ->toContain('$statusTerbaruButir')
-        ->toContain('<td class="center" rowspan="{{ $jumlahBarisButir }}">')
+        ->not->toContain('rowspan=')
         ->toContain('display: table-header-group;')
         ->not->toContain('page-break-inside: avoid;')
         ->not->toContain('td[rowspan]')

@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Services\SnpButirContent;
+use App\Services\SnpButirReportContent;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Concerns\FromView;
@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\StringValueBinder;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 
 class SnpReportExport extends StringValueBinder implements FromView, WithCustomValueBinder, WithEvents
@@ -65,43 +66,48 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
                 return;
             }
             $column = Coordinate::stringFromColumnIndex($index + 1);
-            $sheet->getColumnDimension($column)->setWidth(80);
+            $sheet->getColumnDimension($column)->setWidth(90);
             $idIndex = array_search('id_butir', $this->selectedFields, true);
-            $content = app(SnpButirContent::class);
+            $content = app(SnpButirReportContent::class);
             $butirs = collect($this->records)->flatMap(fn ($record) => $record->butirSnp)->values();
 
             for ($index = $butirs->count() - 1; $index >= 0; $index--) {
                 $butir = $butirs[$index];
                 $row = $index + 2;
-                $text = $content->plain($butir->butir_snp);
-                $lines = $this->textLines($text);
-                $chunks = array_map(fn (array $lines): string => implode("\n", $lines), array_chunk($lines, 18));
-                $images = $content->images($butir->butir_snp);
-                $extraRows = count($chunks) + count($images) - 1;
+                $chunks = $content->excelChunks($butir->butir_snp, 600);
+                $chunkRows = array_map(fn (array $chunk): int => $chunk['type'] === 'image' ? max(1, (int) ceil(($chunk['height'] + 20) / 500)) : 1, $chunks);
+                $extraRows = array_sum($chunkRows) - 1;
                 if ($extraRows > 0) {
                     $sheet->insertNewRowBefore($row + 1, $extraRows);
-                }
-                foreach ($chunks as $offset => $chunk) {
-                    $sheet->setCellValueExplicit($column.($row + $offset), $chunk, DataType::TYPE_STRING);
-                    $sheet->getRowDimension($row + $offset)->setRowHeight(max(45, (substr_count($chunk, "\n") + 2) * 15));
-                }
-                foreach ($images as $imageIndex => $image) {
-                    $imageRow = $row + count($chunks) + $imageIndex;
-                    $sheet->setCellValueExplicit($column.$imageRow, 'Gambar '.($imageIndex + 1).' — '.$butir->id_butir_snp, DataType::TYPE_STRING);
-                    if (! Storage::disk('local')->exists($image['path'])) {
-                        $sheet->setCellValueExplicit($column.$imageRow, '[Gambar tidak tersedia] '.$butir->id_butir_snp, DataType::TYPE_STRING);
-
-                        continue;
+                    foreach ($this->selectedFields as $fieldIndex => $field) {
+                        if ($field !== 'isi_butir' && $field !== 'id_butir') {
+                            $fieldColumn = Coordinate::stringFromColumnIndex($fieldIndex + 1);
+                            $sheet->mergeCells($fieldColumn.$row.':'.$fieldColumn.($row + $extraRows));
+                        }
                     }
-                    $drawing = new Drawing;
-                    $drawing->setName('Gambar '.$butir->id_butir_snp.' '.($imageIndex + 1));
-                    $drawing->setPath(Storage::disk('local')->path($image['path']));
-                    $scale = min((520 * $image['width'] / 100) / $drawing->getWidth(), 280 / $drawing->getHeight());
-                    $drawing->setWidth((int) round($drawing->getWidth() * $scale));
-                    $drawing->setCoordinates($column.$imageRow);
-                    $drawing->setOffsetX(8)->setOffsetY(25);
-                    $drawing->setWorksheet($sheet);
-                    $sheet->getRowDimension($imageRow)->setRowHeight(($drawing->getHeight() + 45) * 0.75);
+                }
+                $contentRow = $row;
+                foreach ($chunks as $offset => $chunk) {
+                    $sheet->setCellValueExplicit($column.$contentRow, $chunk['text'] ?? '', DataType::TYPE_STRING);
+                    if ($chunk['type'] === 'image') {
+                        if ($chunkRows[$offset] > 1) {
+                            $sheet->mergeCells($column.$contentRow.':'.$column.($contentRow + $chunkRows[$offset] - 1));
+                        }
+                        $drawing = new Drawing;
+                        $drawing->setName('Gambar '.$butir->id_butir_snp.' '.($offset + 1));
+                        $drawing->setPath(Storage::disk('local')->path($chunk['image']['path']));
+                        $drawing->setWidth($chunk['width']);
+                        $drawing->setCoordinates($column.$contentRow);
+                        $drawing->setOffsetX(8)->setOffsetY(8);
+                        $drawing->setEditAs('oneCell');
+                        $drawing->setWorksheet($sheet);
+                        for ($imageRow = $contentRow; $imageRow < $contentRow + $chunkRows[$offset]; $imageRow++) {
+                            $sheet->getRowDimension($imageRow)->setRowHeight(($drawing->getHeight() + 20) * 0.75 / $chunkRows[$offset]);
+                        }
+                    } else {
+                        $sheet->getRowDimension($contentRow)->setRowHeight(max(36, ($chunk['height'] + 16) * 0.75));
+                    }
+                    $contentRow += $chunkRows[$offset];
                 }
                 if ($idIndex !== false) {
                     $idColumn = Coordinate::stringFromColumnIndex($idIndex + 1);
@@ -111,23 +117,7 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
                 }
             }
             $sheet->getStyle($sheet->calculateWorksheetDimension())->getAlignment()->setWrapText(true)->setVertical('top');
+            $sheet->getStyle($sheet->calculateWorksheetDimension())->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         }];
-    }
-
-    /** @return list<string> */
-    private function textLines(string $text): array
-    {
-        $lines = [];
-        foreach (preg_split('/\r\n|\r|\n/', $text) as $paragraph) {
-            while (mb_strlen($paragraph) > 80) {
-                $boundary = mb_strrpos(mb_substr($paragraph, 0, 80), ' ');
-                $length = $boundary === false || $boundary === 0 ? 80 : $boundary + 1;
-                $lines[] = mb_substr($paragraph, 0, $length);
-                $paragraph = mb_substr($paragraph, $length);
-            }
-            $lines[] = $paragraph;
-        }
-
-        return $lines;
     }
 }

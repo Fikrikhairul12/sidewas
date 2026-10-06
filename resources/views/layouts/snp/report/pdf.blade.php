@@ -8,10 +8,11 @@
     <style>
         @page {
             size: legal landscape;
-            margin: 8mm;
+            margin: 8mm 8mm 14mm;
         }
 
         body {
+            margin: 0;
             font-family: Arial, Helvetica, sans-serif;
             font-size: 8px;
             color: #000;
@@ -48,6 +49,10 @@
         thead {
             display: table-header-group;
         }
+
+        .snp-butir-cell { white-space: normal; }
+        .snp-content-line { white-space: normal; }
+        .continuation { color: #666; }
 
         .justify {
             text-align: justify;
@@ -112,8 +117,8 @@
 
         .print-footer {
             position: fixed;
-            left: 8mm;
-            bottom: 1mm;
+            left: 0;
+            bottom: -7mm;
             font-family: Arial, Helvetica, sans-serif;
             font-size: 6px;
             color: #444;
@@ -147,35 +152,22 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 10%;">NOMOR, TANGGAL & PERIHAL SURAT</th>
-                <th style="width: 6%;">ID BUTIR SNP</th>
-                <th style="width: 12%;">ISI BUTIR SNP</th>
-                <th style="width: 8%;">PIC UNIT KERJA</th>
+                <th style="width: 8%;">NOMOR, TANGGAL & PERIHAL SURAT</th>
+                <th style="width: 5%;">ID BUTIR SNP</th>
+                <th style="width: 28%;">ISI BUTIR SNP</th>
+                <th style="width: 7%;">PIC UNIT KERJA</th>
                 <th style="width: 12%;">TANGGAPAN & TINDAK LANJUT DIREKSI</th>
-                <th style="width: 7%;">DELIVERABLE</th>
-                <th style="width: 8%;">DOKUMEN PENDUKUNG</th>
-                <th style="width: 9%;">TGL. JATUH TEMPO</th>
-                <th style="width: 8%;">PIC KOMITE DEWAN PENGAWAS</th>
-                <th style="width: 10%;">HASIL REVIU DEWAN PENGAWAS</th>
-                <th style="width: 8%;">STATUS TINDAK LANJUT</th>
+                <th style="width: 6%;">DELIVERABLE</th>
+                <th style="width: 6%;">DOKUMEN PENDUKUNG</th>
+                <th style="width: 7%;">TGL. JATUH TEMPO</th>
+                <th style="width: 6%;">PIC KOMITE DEWAN PENGAWAS</th>
+                <th style="width: 8%;">HASIL REVIU DEWAN PENGAWAS</th>
+                <th style="width: 7%;">STATUS TINDAK LANJUT</th>
             </tr>
         </thead>
 
         <tbody>
             @foreach ($records as $record)
-                @php
-                    $totalRowsRecord = 0;
-
-                    foreach ($record->butirSnp as $butirHitung) {
-                        $jumlahKompilasiTl = $butirHitung->kompilasiTindakLanjuts?->count() ?? 0;
-
-                        // 1 baris tanggapan + minimal 1 baris TL
-                        $totalRowsRecord += 1 + max(1, $jumlahKompilasiTl);
-                    }
-
-                    $isFirstRecordRow = true;
-                @endphp
-
                 @foreach ($record->butirSnp as $butir)
                     @php
                         $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
@@ -237,141 +229,44 @@
                             $jatuhTempoFinal = \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl);
                         }
 
-                        $jumlahBarisButir = 1 + $kompilasiTindakLanjuts->count();
+                        $contentChunks = app(\App\Services\SnpButirReportContent::class)->pdfChunks($butir->butir_snp, 346);
+                        $rowCount = max(count($contentChunks), 1 + $kompilasiTindakLanjuts->count());
                     @endphp
-
-                    {{-- Baris Tanggapan --}}
-                    <tr>
-                        @if ($isFirstRecordRow)
-                            <td rowspan="{{ $totalRowsRecord }}" class="top pre-line">
-                                {{ $record->nomor_surat }}
-                                {{ $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-' }}
-
-                                {{ $record->perihal_surat }}
-                            </td>
-
-                            @php
-                                $isFirstRecordRow = false;
-                            @endphp
-                        @endif
-
-                        <td class="center pre-line" rowspan="{{ $jumlahBarisButir }}">
-                            {{ $butir->id_butir_snp }}
-                        </td>
-
-                        <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
-                            {{ \Illuminate\Support\Str::limit(app(\App\Services\SnpButirContent::class)->plain($butir->butir_snp), 180) }}
-                            <br><strong>Isi lengkap dan gambar: lihat lampiran butir {{ $butir->id_butir_snp }}.</strong>
-                        </td>
-
-                        <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
-                            PIC UNIT KERJA UTAMA:
-                            {{ $picUtama?->unitKerja?->kode_unit ?? '-' }}
-
-                            PIC UNIT KERJA PENDUKUNG:
-                            @if ($picPendukung->count() > 0)
-                                {{ $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') }}
-                            @else
-                                -
-                            @endif
-                        </td>
-
-                        <td class="pre-line top">
-                            {{ $kompilasiTanggapan?->hasil_kompilasi ?? '-' }}
-                        </td>
-
-                        <td class="pre-line top">
-                            {{ $kompilasiTanggapan?->deliverables ?? '-' }}
-                        </td>
-
-                        <td class="center">
-                            @if ($kompilasiTanggapan?->dokumen)
-                                <a href="{{ asset('storage/' . $kompilasiTanggapan->dokumen) }}" class="pre-line">
-                                    Dokumen Kompilasi Tanggapan
-                                </a>
-                            @else
-                                -
-                            @endif
-                        </td>
-
-                        <td class="pre-line top">
-                            {{ $jatuhTempoAwal ? $jatuhTempoAwal->format('d-M-Y') : '-' }}
-
-                            @if ($kompilasiTanggapan?->ubah_tgl)
-                                Pengajuan ubah tanggal:
-                                {{ \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl)->format('d-M-Y') }}
-
-                                Status pengajuan:
-                                {{ ucwords(str_replace('_', ' ', $kompilasiTanggapan->status_pengajuan_tgl ?? 'pending')) }}
-                            @endif
-                        </td>
-
-                        <td class="center pre-line" rowspan="{{ $jumlahBarisButir }}">
-                            {{ $komitePic?->komite?->kode_komite ?? '-' }}
-                        </td>
-
-                        <td class="pre-line top">
-                            {{ $reviewTanggapan?->hasil_review ?? '-' }}
-                        </td>
-
-                        <td class="center" rowspan="{{ $jumlahBarisButir }}">
-                            <span class="status-badge {{ $statusTerbaruButirClass }}">
-                                {{ ucwords(str_replace('_', ' ', $statusTerbaruButir)) }}
-                            </span>
-                        </td>
-                    </tr>
-
-                    {{-- Baris Kompilasi Tindak Lanjut per Putaran --}}
-                    @foreach ($kompilasiTindakLanjuts as $kompilasiTl)
+                    @for ($rowIndex = 0; $rowIndex < $rowCount; $rowIndex++)
                         @php
-                            $reviewTl = $kompilasiTl
-                                ? $butir->reviews
-                                    ->where('tahap_review', 'tindak_lanjut')
-                                    ->where('putaran_tl', $kompilasiTl->putaran_tl)
-                                    ->sortByDesc('id')
-                                    ->first()
-                                : null;
+                            $hasStage = $rowIndex <= $kompilasiTindakLanjuts->count();
+                            $stage = $rowIndex === 0 ? $kompilasiTanggapan : ($kompilasiTindakLanjuts[$rowIndex - 1] ?? null);
+                            $review = $rowIndex === 0 ? $reviewTanggapan : ($stage
+                                ? $butir->reviews->where('tahap_review', 'tindak_lanjut')->where('putaran_tl', $stage->putaran_tl)->sortByDesc('id')->first()
+                                : null);
                         @endphp
-
                         <tr>
-                            <td class="pre-line top">
-                                @if ($kompilasiTl)
-                                    {{-- Putaran {{ $kompilasiTl->putaran_tl }}: --}}
-                                    {{ $kompilasiTl->hasil_kompilasi ?? '-' }}
-                                @else
-                                    -
+                            <td class="pre-line top">@if ($rowIndex === 0){{ implode("\n", [$record->nomor_surat, $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-', $record->perihal_surat]) }}@endif</td>
+                            <td class="center">{{ $butir->id_butir_snp }}@if ($rowIndex > 0 && isset($contentChunks[$rowIndex]))<br><span class="continuation">Lanjutan</span>@endif</td>
+                            <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">{!! $contentChunks[$rowIndex] ?? '' !!}</td>
+                            <td class="pre-line top">@if ($rowIndex === 0){{ implode("\n", ['PIC UNIT KERJA UTAMA:', $picUtama?->unitKerja?->kode_unit ?? '-', '', 'PIC UNIT KERJA PENDUKUNG:', $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') ?: '-']) }}@endif</td>
+                            <td class="pre-line top">@if ($hasStage){{ $stage?->hasil_kompilasi ?? '-' }}@endif</td>
+                            <td class="pre-line top">@if ($hasStage){{ $stage?->deliverables ?? '-' }}@endif</td>
+                            <td class="center">
+                                @if ($hasStage)
+                                    @if ($stage?->dokumen)
+                                        @if ($rowIndex > 0)Putaran {{ $stage->putaran_tl }}:<br>@endif
+                                        <a href="{{ asset('storage/' . $stage->dokumen) }}">{{ $rowIndex === 0 ? 'Dokumen Kompilasi Tanggapan' : 'Dokumen Kompilasi TL' }}</a>
+                                    @else
+                                        -
+                                    @endif
                                 @endif
                             </td>
-
-                            <td class="pre-line top">
-                                @if ($kompilasiTl)
-                                    {{-- Putaran {{ $kompilasiTl->putaran_tl }}: --}}
-                                    {{ $kompilasiTl->deliverables ?? '-' }}
-                                @else
-                                    -
+                            <td class="pre-line top">@if ($hasStage){{ ($rowIndex === 0 ? $jatuhTempoAwal : $jatuhTempoFinal)?->format('d-M-Y') ?? '-' }}@if ($rowIndex === 0 && $kompilasiTanggapan?->ubah_tgl){{ "\n\nPengajuan ubah tanggal:\n" . \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl)->format('d-M-Y') . "\n\nStatus pengajuan:\n" . ucwords(str_replace('_', ' ', $kompilasiTanggapan->status_pengajuan_tgl ?? 'pending')) }}@endif @endif</td>
+                            <td class="center">@if ($rowIndex === 0){{ $komitePic?->komite?->kode_komite ?? '-' }}@endif</td>
+                            <td class="pre-line top">@if ($hasStage){{ $review?->hasil_review ?? '-' }}@endif</td>
+                            <td class="center">
+                                @if ($rowIndex === 0)
+                                    <span class="status-badge {{ $statusTerbaruButirClass }}">{{ ucwords(str_replace('_', ' ', $statusTerbaruButir)) }}</span>
                                 @endif
-                            </td>
-
-                            <td class="center pre-line">
-                                @if ($kompilasiTl?->dokumen)
-                                    Putaran {{ $kompilasiTl->putaran_tl }}:
-                                    <a href="{{ asset('storage/' . $kompilasiTl->dokumen) }}">
-                                        Dokumen Kompilasi TL
-                                    </a>
-                                @else
-                                    -
-                                @endif
-                            </td>
-
-                            <td class="center pre-line">
-                                {{ $jatuhTempoFinal ? $jatuhTempoFinal->format('d-M-Y') : '-' }}
-                            </td>
-
-                            <td class="pre-line top">
-                                {{ $reviewTl?->hasil_review ?? '-' }}
                             </td>
                         </tr>
-                    @endforeach
+                    @endfor
                 @endforeach
             @endforeach
         </tbody>
@@ -379,7 +274,6 @@
     <div class="print-footer">
         Dokumen ini dicetak oleh {{ $printedBy ?? '-' }} pada {{ $printedAt ?? '-' }}
     </div>
-    @include('layouts.snp.report.butir-content')
 </body>
 
 </html>

@@ -8,10 +8,11 @@
     <style>
         @page {
             size: legal landscape;
-            margin: 8mm;
+            margin: 8mm 8mm 14mm;
         }
 
         body {
+            margin: 0;
             font-family: Arial, Helvetica, sans-serif;
             font-size: 8px;
             color: #000;
@@ -38,6 +39,11 @@
             font-weight: bold;
             background: #f2f2f2;
         }
+
+        thead { display: table-header-group; }
+        .snp-butir-cell { white-space: normal; }
+        .snp-content-line { white-space: normal; }
+        .continuation { color: #666; margin-bottom: 4px; }
 
         .center {
             text-align: center;
@@ -101,8 +107,8 @@
 
         .print-footer {
             position: fixed;
-            left: 8mm;
-            bottom: 5mm;
+            left: 0;
+            bottom: -7mm;
             font-family: Arial, Helvetica, sans-serif;
             font-size: 7px;
             color: #444;
@@ -134,6 +140,9 @@
         SIDEWAS SNP DEWAS
     </div>
     @php
+        $hasButirContent = in_array('isi_butir', $selectedFields, true);
+        $contentPercent = count($selectedFields) === 1 ? 100 : min(60, max(28, 150 / count($selectedFields)));
+        $otherPercent = count($selectedFields) > 1 ? (100 - $contentPercent) / (count($selectedFields) - 1) : 100;
         $normalizeReportText = function ($value): string {
             $value = trim((string) ($value ?? ''));
 
@@ -170,7 +179,7 @@
         <thead>
             <tr>
                 @foreach ($selectedFields as $field)
-                    <th>
+                    <th style="width: {{ $hasButirContent ? ($field === 'isi_butir' ? $contentPercent : $otherPercent) : 100 / count($selectedFields) }}%;">
                         {{ $fieldLabels[$field] ?? strtoupper($field) }}
                     </th>
                 @endforeach
@@ -246,6 +255,7 @@
                             $jatuhTempoFinal = \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl);
                         }
 
+                        $contentChunks = $hasButirContent ? app(\App\Services\SnpButirReportContent::class)->pdfChunks($butir->butir_snp, 1280 * $contentPercent / 100 - 12) : [''];
                         $status =
                             $reviewTerbaruButir?->status ??
                             ($reviewTl?->status ?? ($reviewTanggapan?->status ?? 'belum_ditanggapi'));
@@ -264,9 +274,7 @@
                             @elseif ($field === 'id_butir')
                                 <td>{{ $butir->id_butir_snp }}</td>
                             @elseif ($field === 'isi_butir')
-                                <td class="pre-line">{{ \Illuminate\Support\Str::limit(app(\App\Services\SnpButirContent::class)->plain($butir->butir_snp), 180) }}
-                                    <br><strong>Isi lengkap dan gambar: lihat lampiran butir {{ $butir->id_butir_snp }}.</strong>
-                                </td>
+                                <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">{!! $contentChunks[0] !!}</td>
                             @elseif ($field === 'pic_utama')
                                 <td>{{ $picUtama?->unitKerja?->kode_unit ?? '-' }}</td>
                             @elseif ($field === 'pic_pendukung')
@@ -380,6 +388,22 @@
                             @endif
                         @endforeach
                     </tr>
+                    @foreach (array_slice($contentChunks, 1) as $chunk)
+                        <tr>
+                            @foreach ($selectedFields as $field)
+                                @if ($field === 'isi_butir')
+                                    <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">
+                                        <div class="continuation">{{ $butir->id_butir_snp }} - Lanjutan</div>
+                                        {!! $chunk !!}
+                                    </td>
+                                @elseif ($field === 'id_butir')
+                                    <td>{{ $butir->id_butir_snp }}</td>
+                                @else
+                                    <td></td>
+                                @endif
+                            @endforeach
+                        </tr>
+                    @endforeach
                 @endforeach
             @endforeach
         </tbody>
@@ -387,9 +411,6 @@
     <div class="print-footer">
         Dokumen ini dicetak oleh {{ $printedBy ?? '-' }} pada {{ $printedAt ?? '-' }}
     </div>
-    @if (in_array('isi_butir', $selectedFields, true))
-        @include('layouts.snp.report.butir-content')
-    @endif
 </body>
 
 </html>
