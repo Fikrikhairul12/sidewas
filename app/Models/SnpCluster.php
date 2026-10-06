@@ -10,7 +10,7 @@ class SnpCluster extends Model
 
     protected $table = 'tb_cluster';
 
-    protected $fillable = ['nama_cluster', 'keterangan', 'status'];
+    protected $fillable = ['nama_cluster', 'keterangan', 'status', 'shared_key'];
 
     public function subClusters()
     {

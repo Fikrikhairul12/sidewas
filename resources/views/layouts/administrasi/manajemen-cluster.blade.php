@@ -3,9 +3,9 @@
         $openClusterId = session('open_cluster', old('cluster_id'));
         $openClusters = $clusters->filter(fn ($cluster) => !empty($filters['keyword']) || (string) $cluster->id === (string) $openClusterId)
             ->mapWithKeys(fn ($cluster) => [$cluster->id => true]);
-        $clusterActions = $allClusters->mapWithKeys(fn ($cluster) => [$cluster->id => route('administrasi.manajemen-cluster.cluster.update', [$module, $cluster->id])]);
+        $clusterActions = $allClusters->mapWithKeys(fn ($cluster) => [$cluster->id => route('administrasi.manajemen-cluster.cluster.update', $cluster->id)]);
         $subClusterActions = $clusters->flatMap(fn ($cluster) => $cluster->subClusters)->mapWithKeys(fn ($subCluster) => [
-            $subCluster->id => route('administrasi.manajemen-cluster.subcluster.update', [$module, $subCluster->cluster_id, $subCluster->id]),
+            $subCluster->id => route('administrasi.manajemen-cluster.subcluster.update', [$subCluster->cluster_id, $subCluster->id]),
         ]);
     @endphp
     <div x-data="{
@@ -26,11 +26,11 @@
         ]),
     }" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
-            <a href="{{ route('administrasi.manajemen-cluster.index') }}" class="text-sm font-semibold text-sky-700 hover:underline">&larr; Pilih Fitur</a>
+            <p class="text-sm font-semibold uppercase tracking-wide text-sky-700">Administrasi</p>
             <div class="mt-3 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-slate-800">Manajemen Cluster {{ $moduleLabel }}</h1>
-                    <p class="mt-2 text-sm text-slate-500">Kelola cluster dan subcluster untuk fitur {{ $moduleLabel }}. Cluster nonaktif beserta subclusternya tidak tersedia untuk input baru; data lama tetap tersimpan.</p>
+                    <h1 class="text-3xl font-bold text-slate-800">Manajemen Cluster dan Subcluster</h1>
+                    <p class="mt-2 text-sm text-slate-500">Satu daftar cluster dan subcluster untuk SNP, RAGAB, RAWAS, DJSN, dan Eksternal. Setiap perubahan berlaku untuk semua modul. Cluster nonaktif beserta subclusternya tidak tersedia untuk input baru; data lama tetap tersimpan.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <button type="button" @click="$dispatch('open-modal', 'create-cluster')" class="rounded-xl px-4 py-3 text-sm font-semibold shadow-sm transition hover:opacity-90"
@@ -46,12 +46,12 @@
         @if ($errors->any() && !in_array(old('_form'), ['create-cluster', 'edit-cluster', 'create-subcluster', 'edit-subcluster'], true))
             <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800" role="alert">{{ $errors->first() }}</div>
         @endif
-        <form method="GET" action="{{ route('administrasi.manajemen-cluster.show', $module) }}" class="flex flex-wrap items-end gap-3 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <form method="GET" action="{{ route('administrasi.manajemen-cluster.index') }}" class="flex flex-wrap items-end gap-3 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
             <label class="min-w-52 flex-1 text-sm font-medium text-slate-700">Cari cluster atau subcluster
                 <input name="keyword" value="{{ $filters['keyword'] ?? '' }}" maxlength="255" class="mt-1 w-full rounded-xl border-slate-300 text-sm" placeholder="Nama cluster atau subcluster" />
             </label>
             <button class="rounded-xl px-5 py-3 text-sm font-semibold shadow-sm transition hover:opacity-90" style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Cari</button>
-            <a href="{{ route('administrasi.manajemen-cluster.show', $module) }}" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700">Reset</a>
+            <a href="{{ route('administrasi.manajemen-cluster.index') }}" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700">Reset</a>
         </form>
         <div class="rounded-2xl border border-blue-100 bg-white shadow-sm" style="height: auto; max-height: none; overflow: visible;">
             <div class="overflow-x-auto rounded-2xl">
@@ -77,12 +77,12 @@
                                     <div class="flex flex-wrap items-center justify-end gap-2">
                                         <button type="button" @click="editCluster = @js($editClusterPayload); $dispatch('open-modal', 'edit-cluster')" aria-label="Edit cluster {{ $cluster->nama_cluster }}"
                                             class="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50">Edit</button>
-                                        <form method="POST" action="{{ route('administrasi.manajemen-cluster.cluster.status', [$module, $cluster->id]) }}">
+                                        <form method="POST" action="{{ route('administrasi.manajemen-cluster.cluster.status', $cluster->id) }}">
                                             @csrf @method('PATCH')
                                             <input type="hidden" name="status" value="{{ $cluster->status === 'active' ? 'inactive' : 'active' }}" />
                                             <button class="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700">{{ $cluster->status === 'active' ? 'Nonaktifkan' : 'Aktifkan' }}</button>
                                         </form>
-                                        <form method="POST" action="{{ route('administrasi.manajemen-cluster.cluster.destroy', [$module, $cluster->id]) }}" onsubmit="return confirm('Hapus cluster ini? Cluster yang memiliki subcluster atau sudah digunakan tidak dapat dihapus.')">
+                                        <form method="POST" action="{{ route('administrasi.manajemen-cluster.cluster.destroy', $cluster->id) }}" onsubmit="return confirm('Hapus cluster ini dari semua modul? Cluster yang memiliki subcluster atau sudah digunakan tidak dapat dihapus.')">
                                             @csrf @method('DELETE')
                                             <button class="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 hover:bg-red-50">Hapus</button>
                                         </form>
@@ -117,12 +117,12 @@
                                                         <td class="px-4 py-3">
                                                             <div class="flex justify-end gap-2">
                                                                 <button type="button" @click="editSubCluster = @js($editSubClusterPayload); $dispatch('open-modal', 'edit-subcluster')" aria-label="Edit subcluster {{ $subCluster->nama_sub_cluster }}" class="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700">Edit</button>
-                                                                <form method="POST" action="{{ route('administrasi.manajemen-cluster.subcluster.status', [$module, $cluster->id, $subCluster->id]) }}">
+                                                                <form method="POST" action="{{ route('administrasi.manajemen-cluster.subcluster.status', [$cluster->id, $subCluster->id]) }}">
                                                                     @csrf @method('PATCH')
                                                                     <input type="hidden" name="status" value="{{ $subCluster->status === 'active' ? 'inactive' : 'active' }}" />
                                                                     <button class="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700">{{ $subCluster->status === 'active' ? 'Nonaktifkan' : 'Aktifkan' }}</button>
                                                                 </form>
-                                                                <form method="POST" action="{{ route('administrasi.manajemen-cluster.subcluster.destroy', [$module, $cluster->id, $subCluster->id]) }}" onsubmit="return confirm('Hapus subcluster ini? Subcluster yang sudah digunakan tidak dapat dihapus.')">
+                                                                <form method="POST" action="{{ route('administrasi.manajemen-cluster.subcluster.destroy', [$cluster->id, $subCluster->id]) }}" onsubmit="return confirm('Hapus subcluster ini dari semua modul? Subcluster yang sudah digunakan tidak dapat dihapus.')">
                                                                     @csrf @method('DELETE')
                                                                     <input type="hidden" name="cluster_id" value="{{ $cluster->id }}" />
                                                                     <button class="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700">Hapus</button>
@@ -156,7 +156,7 @@
             <x-modal :name="$formName" :show="$errors->any() && old('_form') === $formName" maxWidth="lg" focusable>
                 <form method="POST" class="p-6"
                     @if ($isEdit) :action="{{ $isSubCluster ? 'subClusterActions[editSubCluster.id]' : 'clusterActions[editCluster.id]' }}"
-                    @else action="{{ route('administrasi.manajemen-cluster.'.($isSubCluster ? 'subcluster' : 'cluster').'.store', $module) }}" @endif>
+                    @else action="{{ route('administrasi.manajemen-cluster.'.($isSubCluster ? 'subcluster' : 'cluster').'.store') }}" @endif>
                     @csrf
                     @if ($isEdit) @method('PATCH') @endif
                     <input type="hidden" name="_form" value="{{ $formName }}" />
@@ -164,7 +164,8 @@
                         <input type="hidden" name="cluster_id" :value="{{ $isSubCluster ? 'editSubCluster.cluster_id' : 'editCluster.id' }}" />
                         @if ($isSubCluster)<input type="hidden" name="sub_cluster_id" :value="editSubCluster.id" />@endif
                     @endif
-                    <h2 class="text-xl font-bold text-slate-800">{{ $formTitle }} {{ $moduleLabel }}</h2>
+                    <h2 class="text-xl font-bold text-slate-800">{{ $formTitle }}</h2>
+                    <p class="mt-2 text-sm text-slate-500">Perubahan berlaku untuk SNP, RAGAB, RAWAS, DJSN, dan Eksternal.</p>
                     @if ($isEdit)<x-master-name-notice />@endif
                     @if ($errors->any() && old('_form') === $formName)
                         <ul class="mt-3 list-inside list-disc text-sm text-red-700" role="alert">

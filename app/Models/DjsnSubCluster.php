@@ -10,7 +10,7 @@ class DjsnSubCluster extends Model
 
     protected $table = 'tb_sub_cluster';
 
-    protected $fillable = ['cluster_id', 'nama_sub_cluster', 'keterangan', 'status'];
+    protected $fillable = ['cluster_id', 'nama_sub_cluster', 'keterangan', 'status', 'shared_key'];
 
     public function cluster()
     {

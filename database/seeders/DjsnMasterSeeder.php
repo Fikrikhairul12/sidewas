@@ -2,14 +2,21 @@
 
 namespace Database\Seeders;
 
+use App\Services\SharedClusterCatalog;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DjsnMasterSeeder extends Seeder
 {
     public function run(): void
     {
         $db = DB::connection('mysql_djsn');
+        $shared = Schema::connection('mysql_djsn')->hasColumn('tb_cluster', 'shared_key');
+        if ($shared && ($db->table('tb_cluster')->exists()
+            || DB::connection('mysql')->table('tb_log_activity')->whereIn('table_name', ['tb_cluster', 'tb_sub_cluster'])->exists())) {
+            return;
+        }
         $now = now();
 
         $clusters = [
@@ -101,6 +108,9 @@ class DjsnMasterSeeder extends Seeder
                     'updated_at' => $now,
                 ]
             );
+        }
+        if ($shared) {
+            app(SharedClusterCatalog::class)->synchronize();
         }
     }
 }

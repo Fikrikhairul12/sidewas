@@ -14,6 +14,7 @@ class RawasCluster extends Model
         'nama_cluster',
         'keterangan',
         'status',
+        'shared_key',
     ];
 
     public function subClusters()

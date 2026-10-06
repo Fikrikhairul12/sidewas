@@ -14,11 +14,13 @@ use App\Models\RawasCluster;
 use App\Models\RawasSubCluster;
 use App\Models\SnpCluster;
 use App\Models\SnpSubCluster;
+use App\Services\SharedClusterCatalog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -34,179 +36,198 @@ class ManajemenClusterController extends Controller
         'eksternal' => ['label' => 'Eksternal', 'cluster' => EksternalCluster::class, 'sub_cluster' => EksternalSubCluster::class],
     ];
 
+    public function __construct(private SharedClusterCatalog $catalog) {}
+
     public function index(Request $request): View
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
-
-        return view('layouts.administrasi.pilih-modul-cluster', ['modules' => self::MODULES]);
-    }
-
-    public function show(Request $request, string $module): View
-    {
-        $config = $this->authorizeModule($request, $module);
+        $this->authorizeSuperAdmin($request);
         $filters = $request->validate(['keyword' => ['nullable', 'string', 'max:255']]);
-        $clusters = $config['cluster']::query()
+        $clusters = SnpCluster::query()
             ->with(['subClusters' => fn ($query) => $query->orderBy('nama_sub_cluster')])
             ->when($filters['keyword'] ?? null, fn ($query, $keyword) => $query
                 ->where(function ($query) use ($keyword) {
                     $query->where('nama_cluster', 'like', '%'.$keyword.'%')
-                        ->orWhereHas('subClusters', fn ($subClusters) => $subClusters->where('nama_sub_cluster', 'like', '%'.$keyword.'%'));
+                        ->orWhereHas('subClusters', fn ($subclusters) => $subclusters->where('nama_sub_cluster', 'like', '%'.$keyword.'%'));
                 }))
             ->orderBy('nama_cluster')->get();
-        $allClusters = $config['cluster']::query()->orderBy('nama_cluster')->get();
-        $moduleLabel = $config['label'];
+        $allClusters = SnpCluster::query()->orderBy('nama_cluster')->get();
 
-        return view('layouts.administrasi.manajemen-cluster', compact('module', 'moduleLabel', 'clusters', 'allClusters', 'filters'));
+        return view('layouts.administrasi.manajemen-cluster', compact('clusters', 'allClusters', 'filters'));
     }
 
-    public function storeCluster(Request $request, string $module): RedirectResponse
+    public function show(Request $request, string $module): RedirectResponse
     {
-        $config = $this->authorizeModule($request, $module);
-        $validated = $request->validate($this->clusterRules($module));
-        $cluster = DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $validated) {
-            $cluster = $config['cluster']::create($validated);
-            $this->log($request, $module, $cluster, 'create_cluster', null, $cluster->toArray());
-
-            return $cluster;
-        });
-
-        return $this->redirect($module, 'Cluster berhasil ditambahkan.', $cluster->id);
-    }
-
-    public function updateCluster(Request $request, string $module, int $cluster): RedirectResponse
-    {
-        $config = $this->authorizeModule($request, $module);
-        $record = $config['cluster']::findOrFail($cluster);
-        $validated = $request->validate($this->clusterRules($module, $record));
-        DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $cluster, $validated) {
-            $record = $config['cluster']::query()->lockForUpdate()->findOrFail($cluster);
-            $before = $record->toArray();
-            $record->update($validated);
-            $this->log($request, $module, $record, 'update_cluster', $before, $record->toArray());
-        });
-
-        return $this->redirect($module, 'Cluster berhasil diperbarui.', $cluster);
-    }
-
-    public function statusCluster(Request $request, string $module, int $cluster): RedirectResponse
-    {
-        $config = $this->authorizeModule($request, $module);
-        $validated = $request->validate(['status' => ['required', Rule::in(['active', 'inactive'])]]);
-        DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $cluster, $validated): void {
-            $record = $config['cluster']::query()->lockForUpdate()->findOrFail($cluster);
-            $before = $record->toArray();
-            $record->update($validated);
-            $this->log($request, $module, $record, 'change_cluster_status', $before, $record->toArray());
-        });
-
-        return $this->redirect($module, 'Status cluster berhasil diperbarui.', $cluster);
-    }
-
-    public function destroyCluster(Request $request, string $module, int $cluster): RedirectResponse
-    {
-        $config = $this->authorizeModule($request, $module);
-        DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $cluster) {
-            $record = $config['cluster']::query()->lockForUpdate()->findOrFail($cluster);
-            if ($record->subClusters()->exists()) {
-                throw ValidationException::withMessages(['cluster' => 'Cluster masih memiliki subcluster. Hapus subcluster yang belum digunakan terlebih dahulu.']);
-            }
-            if ($this->hasUsage($module, 'cluster_id', $cluster)) {
-                throw ValidationException::withMessages(['cluster' => 'Cluster yang sudah digunakan tidak dapat dihapus agar riwayat tetap terjaga.']);
-            }
-            $before = $record->toArray();
-            $record->delete();
-            $this->log($request, $module, $record, 'delete_cluster', $before, null);
-        });
-
-        return $this->redirect($module, 'Cluster berhasil dihapus.');
-    }
-
-    public function storeSubCluster(Request $request, string $module): RedirectResponse
-    {
-        $config = $this->authorizeModule($request, $module);
-        $validated = $request->validate([
-            'cluster_id' => ['required', 'integer', Rule::exists('mysql_'.$module.'.tb_cluster', 'id')->where('status', 'active')],
-            'nama_sub_cluster' => ['required', 'string', 'max:255', Rule::unique('mysql_'.$module.'.tb_sub_cluster', 'nama_sub_cluster')->where('cluster_id', $request->integer('cluster_id'))],
-            'keterangan' => ['nullable', 'string'],
-        ]);
-        DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $validated) {
-            $parent = $config['cluster']::query()->lockForUpdate()->findOrFail($validated['cluster_id']);
-            if ($parent->status !== 'active') {
-                throw ValidationException::withMessages(['cluster_id' => 'Pilih cluster aktif untuk menambah subcluster.']);
-            }
-            $record = $config['sub_cluster']::create($validated);
-            $this->log($request, $module, $record, 'create_sub_cluster', null, $record->toArray());
-        });
-
-        return $this->redirect($module, 'Subcluster berhasil ditambahkan.', (int) $validated['cluster_id']);
-    }
-
-    public function updateSubCluster(Request $request, string $module, int $cluster, int $subCluster): RedirectResponse
-    {
-        $config = $this->authorizeModule($request, $module);
-        $record = $config['sub_cluster']::where('cluster_id', $cluster)->findOrFail($subCluster);
-        $validated = $request->validate([
-            'nama_sub_cluster' => ['required', 'string', 'max:255', Rule::unique('mysql_'.$module.'.tb_sub_cluster', 'nama_sub_cluster')->where('cluster_id', $cluster)->ignore($record->id)],
-            'keterangan' => ['nullable', 'string'],
-        ]);
-        DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $cluster, $subCluster, $validated) {
-            $record = $config['sub_cluster']::where('cluster_id', $cluster)->lockForUpdate()->findOrFail($subCluster);
-            $before = $record->toArray();
-            $record->update($validated);
-            $this->log($request, $module, $record, 'update_sub_cluster', $before, $record->toArray());
-        });
-
-        return $this->redirect($module, 'Subcluster berhasil diperbarui.', $cluster);
-    }
-
-    public function statusSubCluster(Request $request, string $module, int $cluster, int $subCluster): RedirectResponse
-    {
-        $config = $this->authorizeModule($request, $module);
-        $validated = $request->validate(['status' => ['required', Rule::in(['active', 'inactive'])]]);
-        DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $cluster, $subCluster, $validated): void {
-            $parent = $config['cluster']::query()->lockForUpdate()->findOrFail($cluster);
-            $record = $config['sub_cluster']::where('cluster_id', $cluster)->lockForUpdate()->findOrFail($subCluster);
-            if ($validated['status'] === 'active' && $parent->status !== 'active') {
-                throw ValidationException::withMessages(['status' => 'Aktifkan cluster induknya terlebih dahulu.']);
-            }
-            $before = $record->toArray();
-            $record->update($validated);
-            $this->log($request, $module, $record, 'change_sub_cluster_status', $before, $record->toArray());
-        });
-
-        return $this->redirect($module, 'Status subcluster berhasil diperbarui.', $cluster);
-    }
-
-    public function destroySubCluster(Request $request, string $module, int $cluster, int $subCluster): RedirectResponse
-    {
-        $config = $this->authorizeModule($request, $module);
-        DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $cluster, $subCluster) {
-            $record = $config['sub_cluster']::where('cluster_id', $cluster)->lockForUpdate()->findOrFail($subCluster);
-            if ($this->hasUsage($module, 'sub_cluster_id', $subCluster)) {
-                throw ValidationException::withMessages(['sub_cluster' => 'Subcluster yang sudah digunakan tidak dapat dihapus agar riwayat tetap terjaga.']);
-            }
-            $before = $record->toArray();
-            $record->delete();
-            $this->log($request, $module, $record, 'delete_sub_cluster', $before, null);
-        });
-
-        return $this->redirect($module, 'Subcluster berhasil dihapus.', $cluster);
-    }
-
-    /** @return array{label: string, cluster: class-string<Model>, sub_cluster: class-string<Model>} */
-    private function authorizeModule(Request $request, string $module): array
-    {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        $this->authorizeSuperAdmin($request);
         abort_unless(isset(self::MODULES[$module]), 404);
 
-        return self::MODULES[$module];
+        return redirect()->route('administrasi.manajemen-cluster.index', $request->only('keyword'));
+    }
+
+    public function storeCluster(Request $request): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $validated = $request->validate($this->clusterRules());
+        $id = $this->catalog->transaction(function () use ($request, $validated): int {
+            $sharedKey = (string) Str::uuid();
+            $canonicalId = 0;
+            foreach (self::MODULES as $module => $config) {
+                $record = $config['cluster']::create($validated + ['status' => 'active', 'shared_key' => $sharedKey]);
+                $this->log($request, $module, $record, 'create_cluster', null, $record->toArray());
+                if ($module === 'snp') {
+                    $canonicalId = $record->id;
+                }
+            }
+
+            return $canonicalId;
+        });
+
+        return $this->redirect('Cluster berhasil ditambahkan untuk semua modul.', $id);
+    }
+
+    public function updateCluster(Request $request, int $cluster): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $record = SnpCluster::findOrFail($cluster);
+        $validated = $request->validate($this->clusterRules($record));
+        $this->mutate($request, 'cluster', $cluster, $validated, 'update_cluster');
+
+        return $this->redirect('Cluster berhasil diperbarui untuk semua modul.', $cluster);
+    }
+
+    public function statusCluster(Request $request, int $cluster): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $values = $request->validate(['status' => ['required', Rule::in(['active', 'inactive'])]]);
+        $this->mutate($request, 'cluster', $cluster, $values, 'change_cluster_status');
+
+        return $this->redirect('Status cluster berhasil diperbarui untuk semua modul.', $cluster);
+    }
+
+    public function destroyCluster(Request $request, int $cluster): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $this->mutate($request, 'cluster', $cluster, [], 'delete_cluster', true);
+
+        return $this->redirect('Cluster berhasil dihapus dari semua modul.');
+    }
+
+    public function storeSubCluster(Request $request): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $validated = $request->validate([
+            'cluster_id' => ['required', 'integer', Rule::exists('mysql_snp.tb_cluster', 'id')->where('status', 'active')],
+            'nama_sub_cluster' => ['required', 'string', 'max:255', Rule::unique('mysql_snp.tb_sub_cluster', 'nama_sub_cluster')->where('cluster_id', $request->integer('cluster_id'))],
+            'keterangan' => ['nullable', 'string'],
+        ]);
+        $this->catalog->transaction(function () use ($request, $validated): void {
+            $parent = SnpCluster::query()->lockForUpdate()->findOrFail($validated['cluster_id']);
+            $sharedKey = (string) Str::uuid();
+            foreach (self::MODULES as $module => $config) {
+                $localParent = $this->replica($config['cluster'], $parent->shared_key);
+                if ($localParent->status !== 'active') {
+                    throw ValidationException::withMessages(['cluster_id' => 'Pilih cluster aktif untuk menambah subcluster.']);
+                }
+                $record = $config['sub_cluster']::create(array_replace($validated, [
+                    'cluster_id' => $localParent->id, 'shared_key' => $sharedKey, 'status' => 'active',
+                ]));
+                $this->log($request, $module, $record, 'create_sub_cluster', null, $record->toArray());
+            }
+        });
+
+        return $this->redirect('Subcluster berhasil ditambahkan untuk semua modul.', (int) $validated['cluster_id']);
+    }
+
+    public function updateSubCluster(Request $request, int $cluster, int $subCluster): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $record = SnpSubCluster::where('cluster_id', $cluster)->findOrFail($subCluster);
+        $validated = $request->validate([
+            'nama_sub_cluster' => ['required', 'string', 'max:255', Rule::unique('mysql_snp.tb_sub_cluster', 'nama_sub_cluster')->where('cluster_id', $cluster)->ignore($record->id)],
+            'keterangan' => ['nullable', 'string'],
+        ]);
+        $this->mutate($request, 'sub_cluster', $subCluster, $validated, 'update_sub_cluster', false, $cluster);
+
+        return $this->redirect('Subcluster berhasil diperbarui untuk semua modul.', $cluster);
+    }
+
+    public function statusSubCluster(Request $request, int $cluster, int $subCluster): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $values = $request->validate(['status' => ['required', Rule::in(['active', 'inactive'])]]);
+        $this->mutate($request, 'sub_cluster', $subCluster, $values, 'change_sub_cluster_status', false, $cluster);
+
+        return $this->redirect('Status subcluster berhasil diperbarui untuk semua modul.', $cluster);
+    }
+
+    public function destroySubCluster(Request $request, int $cluster, int $subCluster): RedirectResponse
+    {
+        $this->authorizeSuperAdmin($request);
+        $this->mutate($request, 'sub_cluster', $subCluster, [], 'delete_sub_cluster', true, $cluster);
+
+        return $this->redirect('Subcluster berhasil dihapus dari semua modul.', $cluster);
+    }
+
+    /** @param array<string, mixed> $values */
+    private function mutate(Request $request, string $kind, int $id, array $values, string $action, bool $delete = false, ?int $cluster = null): void
+    {
+        $this->catalog->transaction(function () use ($request, $kind, $id, $values, $action, $delete, $cluster): void {
+            $canonical = self::MODULES['snp'][$kind]::query()->lockForUpdate()->findOrFail($id);
+            if ($kind === 'sub_cluster') {
+                abort_unless((int) $canonical->cluster_id === $cluster, 404);
+            }
+            $replicas = [];
+            foreach (self::MODULES as $module => $config) {
+                $record = $this->replica($config[$kind], $canonical->shared_key);
+                if ($delete) {
+                    if ($kind === 'cluster' && $record->subClusters()->exists()) {
+                        throw ValidationException::withMessages(['cluster' => 'Cluster masih memiliki subcluster. Hapus subcluster yang belum digunakan terlebih dahulu.']);
+                    }
+                    $field = $kind === 'cluster' ? 'cluster_id' : 'sub_cluster_id';
+                    if ($this->hasUsage($module, $field, $record->id)) {
+                        throw ValidationException::withMessages([$kind => 'Data sudah digunakan pada modul '.strtoupper($module).'. Nonaktifkan untuk mempertahankan riwayat.']);
+                    }
+                }
+                if ($kind === 'sub_cluster' && ($values['status'] ?? null) === 'active' && $record->cluster?->status !== 'active') {
+                    throw ValidationException::withMessages(['status' => 'Aktifkan cluster induknya terlebih dahulu.']);
+                }
+                $replicas[$module] = $record;
+            }
+            foreach ($replicas as $module => $record) {
+                $before = $record->toArray();
+                if ($delete) {
+                    $record->delete();
+                } else {
+                    $record->update($values);
+                }
+                $this->log($request, $module, $record, $action, $before, $delete ? null : $record->toArray());
+            }
+        });
+    }
+
+    /** @param class-string<Model> $model */
+    private function replica(string $model, ?string $sharedKey): Model
+    {
+        if (! $sharedKey) {
+            throw ValidationException::withMessages(['cluster' => 'Katalog belum disatukan. Jalankan migrasi terbaru terlebih dahulu.']);
+        }
+        $record = $model::query()->where('shared_key', $sharedKey)->lockForUpdate()->first();
+        if (! $record) {
+            throw ValidationException::withMessages(['cluster' => 'Katalog antar-modul belum lengkap. Periksa sinkronisasi data master.']);
+        }
+
+        return $record;
+    }
+
+    private function authorizeSuperAdmin(Request $request): void
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
     }
 
     /** @return array<string, array<int, mixed>> */
-    private function clusterRules(string $module, ?Model $cluster = null): array
+    private function clusterRules(?Model $cluster = null): array
     {
         return [
-            'nama_cluster' => ['required', 'string', 'max:255', Rule::unique('mysql_'.$module.'.tb_cluster', 'nama_cluster')->ignore($cluster?->id)],
+            'nama_cluster' => ['required', 'string', 'max:255', Rule::unique('mysql_snp.tb_cluster', 'nama_cluster')->ignore($cluster?->id)],
             'keterangan' => ['nullable', 'string'],
         ];
     }
@@ -278,9 +299,9 @@ class ManajemenClusterController extends Controller
         ]);
     }
 
-    private function redirect(string $module, string $message, ?int $cluster = null): RedirectResponse
+    private function redirect(string $message, ?int $cluster = null): RedirectResponse
     {
-        return redirect()->route('administrasi.manajemen-cluster.show', $module)
+        return redirect()->route('administrasi.manajemen-cluster.index')
             ->with('success', $message)->with('open_cluster', $cluster);
     }
 }
