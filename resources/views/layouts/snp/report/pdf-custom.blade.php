@@ -47,6 +47,7 @@
         .snp-butir-cell { white-space: normal; }
         .snp-content-line { white-space: normal; }
         .continuation { color: #666; margin-bottom: 4px; }
+        .snp-butir-label-hidden, [data-snp-continuation] { visibility: hidden; }
 
         .center {
             text-align: center;
@@ -259,6 +260,8 @@
                         }
 
                         $contentChunks = $hasButirContent ? app(\App\Services\SnpButirReportContent::class)->pdfChunks($butir->butir_snp, 1280 * $contentPercent / 100 - 12) : [''];
+                        $butirKey = $loop->parent->index . ':' . $loop->index;
+                        $hasButirId = in_array('id_butir', $selectedFields, true);
                         $status =
                             $reviewTerbaruButir?->status ??
                             ($reviewTl?->status ?? ($reviewTanggapan?->status ?? 'belum_ditanggapi'));
@@ -275,9 +278,14 @@
                                     ]) }}
                                 </td>
                             @elseif ($field === 'id_butir')
-                                <td>{{ $butir->id_butir_snp }}</td>
+                                <td>@include('layouts.snp.report.butir-label', ['isFirst' => true, 'showFirst' => true])</td>
                             @elseif ($field === 'isi_butir')
-                                <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">{!! $contentChunks[0] !!}</td>
+                                <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">
+                                    @if (!$hasButirId)
+                                        @include('layouts.snp.report.butir-label', ['isFirst' => true, 'showFirst' => false])
+                                    @endif
+                                    {!! $contentChunks[0] !!}
+                                </td>
                             @elseif ($field === 'pic_utama')
                                 <td>{{ $picUtama?->unitKerja?->kode_unit ?? '-' }}</td>
                             @elseif ($field === 'pic_pendukung')
@@ -396,11 +404,13 @@
                             @foreach ($selectedFields as $field)
                                 @if ($field === 'isi_butir')
                                     <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">
-                                        <div class="continuation">{{ $butir->id_butir_snp }} - Lanjutan</div>
+                                        @if (!$hasButirId)
+                                            @include('layouts.snp.report.butir-label', ['isFirst' => false, 'showFirst' => false])
+                                        @endif
                                         {!! $chunk !!}
                                     </td>
                                 @elseif ($field === 'id_butir')
-                                    <td>{{ $butir->id_butir_snp }}</td>
+                                    <td>@include('layouts.snp.report.butir-label', ['isFirst' => false, 'showFirst' => true])</td>
                                 @else
                                     <td></td>
                                 @endif

@@ -5,7 +5,10 @@ use App\Models\SnpButir;
 use App\Models\SnpRecord;
 use App\Services\SnpButirContent;
 use App\Services\SnpButirReportContent;
+use App\Services\SnpReportPdfLabels;
+use Dompdf\Canvas;
 use Dompdf\Dompdf;
+use Dompdf\Frame;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
@@ -81,6 +84,7 @@ test('PDF keeps long formatted text lists and wide or tall images in their origi
         ->and($lastCell->textContent)->toContain('AKHIR-BUTIR')
         ->and($records[0]->butirSnp[0]->butir_snp)->toBe($value);
     $pdf = new Dompdf;
+    $pdf->setCallbacks(app(SnpReportPdfLabels::class)->callbacks());
     $pdf->setPaper('legal', 'landscape');
     $pdf->loadHtml($html);
     $pdf->render();
@@ -108,6 +112,12 @@ test('Excel preserves interleaved text and images within the selected content co
         $archive->close();
         expect($worksheetXml)->toContain('showGridLines="false"');
         $sheet = IOFactory::load($path)->getActiveSheet();
+        $butirIdAtRow = function (int $row) use ($sheet): string {
+            $cell = $sheet->getCell('C'.$row);
+            $range = $cell->getMergeRange();
+
+            return $range ? $sheet->getCell(explode(':', $range)[0])->getValue() : $cell->getValue();
+        };
         $text = implode("\n", array_map(fn ($row) => $row[1] ?? '', $sheet->toArray()));
         expect(substr_count($text, 'ISI-LENGKAP'))->toBe(1200)
             ->and($sheet->getCell('B2')->getValue())->toContain('=AWAL-BUTIR')
@@ -138,15 +148,18 @@ test('Excel preserves interleaved text and images within the selected content co
             expect($drawing->getOffsetX() + $drawing->getWidth())->toBeLessThanOrEqual(DrawingDimensions::cellDimensionToPixels(90, $sheet->getParent()->getDefaultStyle()->getFont()));
             $areaHeight = array_sum(array_map(fn ($rowIndex) => $sheet->getRowDimension($rowIndex)->getRowHeight(), range($row, $imageEnd($row)))) / 0.75;
             expect($drawing->getOffsetY() + $drawing->getHeight())->toBeLessThanOrEqual($areaHeight);
-            expect($sheet->getCell('C'.$row)->getValue())->toBe(str_contains($drawing->getName(), 'SNP.02') ? 'SNP.02' : 'SNP.01');
+            expect($butirIdAtRow($row))->toBe(str_contains($drawing->getName(), 'SNP.02') ? 'SNP.02' : 'SNP.01');
         }
         foreach ($sheet->getRowDimensions() as $row) {
             expect($row->getRowHeight())->toBeLessThanOrEqual(409);
         }
         expect($sheet->getMergeCells())->not->toBeEmpty();
+        foreach (['SNP.01', 'SNP.02'] as $id) {
+            expect(count(array_filter($sheet->toArray(), fn ($row) => ($row[2] ?? null) === $id)))->toBe(1);
+        }
         $lastRow = $sheet->getHighestRow();
         for ($row = 2; $row < $lastRow; $row++) {
-            $sameButir = $sheet->getCell('C'.$row)->getValue() === $sheet->getCell('C'.($row + 1))->getValue();
+            $sameButir = $butirIdAtRow($row) === $butirIdAtRow($row + 1);
             expect($sheet->getStyle('B'.$row)->getBorders()->getBottom()->getBorderStyle())->toBe($sameButir ? Border::BORDER_NONE : Border::BORDER_THIN);
             expect($sheet->getStyle('B'.($row + 1))->getBorders()->getTop()->getBorderStyle())->toBe($sameButir ? Border::BORDER_NONE : Border::BORDER_THIN);
             expect($sheet->getStyle('C'.$row)->getBorders()->getBottom()->getBorderStyle())->toBe($sameButir ? Border::BORDER_NONE : Border::BORDER_THIN);
@@ -248,3 +261,56 @@ test('regular PDF does not create empty continuation rows for short butirs witho
         file_put_contents(storage_path('app/private/snp-layout-short.pdf'), $pdf->output());
     }
 });
+
+test('PDF labels appear once per butir per page and continuation labels only appear after a page break', function (string $template, array $fields, bool $long) {
+    $image = snpLayoutImage(200, 80);
+    $value = SnpButirContent::PREFIX.'<p>AWAL</p><p><img src="'.$image.'"></p><p>'.($long ? str_repeat('Isi lengkap butir SNP. ', 1200) : 'Isi sesudah gambar').'</p><ul><li>Penutup butir</li></ul>';
+    $records = snpLayoutRecords([$value, 'BUTIR-KEDUA']);
+    $html = view('layouts.snp.report.'.$template, ['records' => $records, 'selectedFields' => $fields, 'fieldLabels' => array_combine($fields, $fields)])->render();
+    $labels = [];
+    $continuations = [];
+    $contentPages = [];
+    $pdf = new Dompdf;
+    $pdf->setPaper('legal', 'landscape');
+    $pdf->setCallbacks([...app(SnpReportPdfLabels::class)->callbacks(), ['event' => 'end_frame', 'f' => function (Frame $frame, Canvas $canvas) use (&$labels, &$continuations, &$contentPages): void {
+        $node = $frame->get_node();
+        $page = $canvas->get_page_number();
+        if ($node instanceof DOMText) {
+            $text = trim($node->textContent);
+            if (in_array($text, ['SNP.01', 'SNP.02'], true)) {
+                $labels[$text][$page] = ($labels[$text][$page] ?? 0) + 1;
+            }
+            if ($text === 'Lanjutan') {
+                $continuations[$page] = ($continuations[$page] ?? 0) + 1;
+            }
+        }
+        if ($node instanceof DOMElement && $node->hasAttribute('data-snp-butir-content')) {
+            $contentPages[$node->getAttribute('data-snp-butir-content')][$page] = true;
+        }
+    }]]);
+    $pdf->loadHtml($html);
+    $pdf->render();
+    expect($pdf->getCanvas()->get_page_count() > 1)->toBe($long);
+    $showFirst = $template === 'pdf' || in_array('id_butir', $fields, true);
+    foreach ($contentPages as $id => $pages) {
+        $firstPage = array_key_first($pages);
+        foreach ($pages as $page => $present) {
+            expect($labels[$id][$page] ?? 0)->toBe($page !== $firstPage || $showFirst ? 1 : 0);
+        }
+    }
+    foreach ($contentPages['SNP.01'] as $page => $present) {
+        expect($continuations[$page] ?? 0)->toBe($page === array_key_first($contentPages['SNP.01']) ? 0 : 1);
+    }
+    if (getenv('SNP_EXPORT_ARTIFACTS')) {
+        $name = $template.'-labels-'.(in_array('id_butir', $fields, true) ? 'id' : 'content').'-'.($long ? 'long' : 'short');
+        file_put_contents(storage_path('app/private/'.$name.'.pdf'), $pdf->output());
+        file_put_contents(storage_path('app/private/'.$name.'.html'), $html);
+    }
+})->with([
+    ['pdf', ['id_butir', 'isi_butir'], false],
+    ['pdf', ['id_butir', 'isi_butir'], true],
+    ['pdf-custom', ['id_butir', 'isi_butir'], false],
+    ['pdf-custom', ['id_butir', 'isi_butir'], true],
+    ['pdf-custom', ['isi_butir'], false],
+    ['pdf-custom', ['isi_butir'], true],
+]);

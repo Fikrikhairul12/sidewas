@@ -57,6 +57,7 @@
         .snp-butir-cell { white-space: normal; }
         .snp-content-line { white-space: normal; }
         .continuation { color: #666; }
+        .snp-butir-label-hidden, [data-snp-continuation] { visibility: hidden; }
 
         .justify {
             text-align: justify;
@@ -230,6 +231,7 @@
                         }
 
                         $contentChunks = app(\App\Services\SnpButirReportContent::class)->pdfChunks($butir->butir_snp, 346);
+                        $butirKey = $loop->parent->index . ':' . $loop->index;
                         $rowCount = max(count($contentChunks), 1 + $kompilasiTindakLanjuts->count());
                     @endphp
                     @for ($rowIndex = 0; $rowIndex < $rowCount; $rowIndex++)
@@ -242,7 +244,7 @@
                         @endphp
                         <tr class="{{ $rowIndex === 0 ? 'butir-start' : '' }} {{ $rowIndex === $rowCount - 1 ? 'butir-end' : '' }}">
                             <td class="pre-line top">@if ($rowIndex === 0){{ implode("\n", [$record->nomor_surat, $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-', $record->perihal_surat]) }}@endif</td>
-                            <td class="center">{{ $butir->id_butir_snp }}@if ($rowIndex > 0 && isset($contentChunks[$rowIndex]))<br><span class="continuation">Lanjutan</span>@endif</td>
+                            <td class="center">@include('layouts.snp.report.butir-label', ['isFirst' => $rowIndex === 0, 'showFirst' => true])</td>
                             <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">{!! $contentChunks[$rowIndex] ?? '' !!}</td>
                             <td class="pre-line top">@if ($rowIndex === 0){{ implode("\n", ['PIC UNIT KERJA UTAMA:', $picUtama?->unitKerja?->kode_unit ?? '-', '', 'PIC UNIT KERJA PENDUKUNG:', $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') ?: '-']) }}@endif</td>
                             <td class="pre-line top">@if ($hasStage){{ $stage?->hasil_kompilasi ?? '-' }}@endif</td>

@@ -68,7 +68,6 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
             $sheet->setShowGridlines(false);
             $column = Coordinate::stringFromColumnIndex($index + 1);
             $sheet->getColumnDimension($column)->setWidth(90);
-            $idIndex = array_search('id_butir', $this->selectedFields, true);
             $content = app(SnpButirReportContent::class);
             $butirs = collect($this->records)->flatMap(fn ($record) => $record->butirSnp)->values();
             $rowCounts = [];
@@ -83,7 +82,7 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
                 if ($extraRows > 0) {
                     $sheet->insertNewRowBefore($row + 1, $extraRows);
                     foreach ($this->selectedFields as $fieldIndex => $field) {
-                        if ($field !== 'isi_butir' && $field !== 'id_butir') {
+                        if ($field !== 'isi_butir') {
                             $fieldColumn = Coordinate::stringFromColumnIndex($fieldIndex + 1);
                             $sheet->mergeCells($fieldColumn.$row.':'.$fieldColumn.($row + $extraRows));
                         }
@@ -111,12 +110,6 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
                         $sheet->getRowDimension($contentRow)->setRowHeight(max(36, ($chunk['height'] + 16) * 0.75));
                     }
                     $contentRow += $chunkRows[$offset];
-                }
-                if ($idIndex !== false) {
-                    $idColumn = Coordinate::stringFromColumnIndex($idIndex + 1);
-                    for ($offset = 1; $offset <= $extraRows; $offset++) {
-                        $sheet->setCellValueExplicit($idColumn.($row + $offset), $butir->id_butir_snp, DataType::TYPE_STRING);
-                    }
                 }
             }
             $sheet->getStyle($sheet->calculateWorksheetDimension())->getAlignment()->setWrapText(true)->setVertical('top');
