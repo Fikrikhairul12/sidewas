@@ -12,7 +12,10 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\StringValueBinder;
+use PhpOffice\PhpSpreadsheet\RichText\RichText;
+use PhpOffice\PhpSpreadsheet\Shared\Drawing as DrawingDimensions;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Font;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 
 class SnpReportExport extends StringValueBinder implements FromView, WithCustomValueBinder, WithEvents
@@ -68,6 +71,7 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
             $sheet->setShowGridlines(false);
             $column = Coordinate::stringFromColumnIndex($index + 1);
             $sheet->getColumnDimension($column)->setWidth(90);
+            $columnWidth = DrawingDimensions::cellDimensionToPixels(90, $sheet->getParent()->getDefaultStyle()->getFont());
             $content = app(SnpButirReportContent::class);
             $butirs = collect($this->records)->flatMap(fn ($record) => $record->butirSnp)->values();
             $rowCounts = [];
@@ -90,7 +94,23 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
                 }
                 $contentRow = $row;
                 foreach ($chunks as $offset => $chunk) {
-                    $sheet->setCellValueExplicit($column.$contentRow, $chunk['text'] ?? '', DataType::TYPE_STRING);
+                    $cell = $column.$contentRow;
+                    $value = $chunk['text'] ?? '';
+                    if (! empty($chunk['runs'])) {
+                        $value = new RichText;
+                        foreach ($chunk['runs'] as $run) {
+                            $value->createTextRun($run['text'])->getFont()
+                                ->setName($sheet->getParent()->getDefaultStyle()->getFont()->getName())
+                                ->setSize(round($run['size'] * 0.75, 2))
+                                ->setBold($run['bold'])
+                                ->setItalic($run['italic'])
+                                ->setUnderline($run['underline'] ? Font::UNDERLINE_SINGLE : Font::UNDERLINE_NONE);
+                        }
+                    }
+                    $sheet->setCellValueExplicit($cell, $value, DataType::TYPE_STRING);
+                    $sheet->getStyle($cell)->getAlignment()
+                        ->setHorizontal($chunk['alignment'] ?? 'left')
+                        ->setIndent((int) (($chunk['indent'] ?? 0) / 12));
                     if ($chunk['type'] === 'image') {
                         if ($chunkRows[$offset] > 1) {
                             $sheet->mergeCells($column.$contentRow.':'.$column.($contentRow + $chunkRows[$offset] - 1));
@@ -100,14 +120,19 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
                         $drawing->setPath(Storage::disk('local')->path($chunk['image']['path']));
                         $drawing->setWidth($chunk['width']);
                         $drawing->setCoordinates($column.$contentRow);
-                        $drawing->setOffsetX(8)->setOffsetY(8);
+                        $imageOffset = match ($chunk['alignment'] ?? 'left') {
+                            'center' => (int) round(($columnWidth - $drawing->getWidth()) / 2),
+                            'right' => $columnWidth - $drawing->getWidth() - 8,
+                            default => 8,
+                        };
+                        $drawing->setOffsetX(max(8, $imageOffset))->setOffsetY(8);
                         $drawing->setEditAs('oneCell');
                         $drawing->setWorksheet($sheet);
                         for ($imageRow = $contentRow; $imageRow < $contentRow + $chunkRows[$offset]; $imageRow++) {
                             $sheet->getRowDimension($imageRow)->setRowHeight(($drawing->getHeight() + 20) * 0.75 / $chunkRows[$offset]);
                         }
                     } else {
-                        $sheet->getRowDimension($contentRow)->setRowHeight(max(36, ($chunk['height'] + 16) * 0.75));
+                        $sheet->getRowDimension($contentRow)->setRowHeight(max(18, ($chunk['height'] + 8) * 0.75));
                     }
                     $contentRow += $chunkRows[$offset];
                 }

@@ -120,7 +120,7 @@ test('Excel preserves interleaved text and images within the selected content co
         };
         $text = implode("\n", array_map(fn ($row) => $row[1] ?? '', $sheet->toArray()));
         expect(substr_count($text, 'ISI-LENGKAP'))->toBe(1200)
-            ->and($sheet->getCell('B2')->getValue())->toContain('=AWAL-BUTIR')
+            ->and((string) $sheet->getCell('B2')->getValue())->toContain('=AWAL-BUTIR')
             ->and($sheet->getCell('B2')->getDataType())->toBe('s')
             ->and($sheet->getColumnDimension('B')->getWidth())->toBe(90.0)
             ->and($sheet->getParent()->getDefaultStyle()->getFont()->getSize())->toBe(11.0)
@@ -139,9 +139,9 @@ test('Excel preserves interleaved text and images within the selected content co
 
             return $row;
         };
-        expect($sheet->getCell('B'.($firstImageRow - 1))->getValue())->toContain('AWAL-BUTIR');
-        expect($sheet->getCell('B'.($secondImageRow - 1))->getValue())->toContain('AKHIR-BUTIR');
-        expect($sheet->getCell('B'.($imageEnd($secondImageRow) + 1))->getValue())->toContain('SETELAH-GAMBAR-KEDUA');
+        expect((string) $sheet->getCell('B'.($firstImageRow - 1))->getValue())->toContain('AWAL-BUTIR');
+        expect((string) $sheet->getCell('B'.($secondImageRow - 1))->getValue())->toContain('AKHIR-BUTIR');
+        expect((string) $sheet->getCell('B'.($imageEnd($secondImageRow) + 1))->getValue())->toContain('SETELAH-GAMBAR-KEDUA');
         foreach ($drawings as $drawing) {
             $row = (int) substr($drawing->getCoordinates(), 1);
             expect($drawing->getCoordinates()[0])->toBe('B');

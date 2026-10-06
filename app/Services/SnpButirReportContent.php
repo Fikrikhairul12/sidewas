@@ -75,43 +75,63 @@ class SnpButirReportContent
         return $chunks ?: ['<div>-</div>'];
     }
 
-    /** @return list<array{type: string, text?: string, height: float, image?: array<string, mixed>, width?: int}> */
+    /** @return list<array<string, mixed>> */
     public function excelChunks(?string $value, float $width): array
     {
         $chunks = [];
-        $text = [];
-        $height = 0;
         foreach ($this->contentBlocks($value) as $block) {
             if ($block['type'] === 'image') {
-                if ($text !== []) {
-                    $chunks[] = ['type' => 'text', 'text' => implode("\n", $text), 'height' => $height];
-                    $text = [];
-                    $height = 0;
-                }
                 $image = $this->imageSize($block, $width);
                 $chunks[] = $image === null
-                    ? ['type' => 'text', 'text' => '[Gambar tidak tersedia]', 'height' => 24.0]
-                    : ['type' => 'image', 'image' => $block['image'], 'width' => $image['width'], 'height' => (float) $image['height']];
+                    ? ['type' => 'text', 'text' => '[Gambar tidak tersedia]', 'height' => 24.0, 'alignment' => $block['alignment']]
+                    : ['type' => 'image', 'image' => $block['image'], 'width' => $image['width'], 'height' => (float) $image['height'], 'alignment' => $block['alignment']];
 
                 continue;
             }
-            foreach ($this->lines($block, $width, false) as $line) {
-                if ($height + $line['height'] > 360 && $text !== []) {
-                    $chunks[] = ['type' => 'text', 'text' => implode("\n", $text), 'height' => $height];
-                    $text = [];
+            $runs = [];
+            $height = 0;
+            foreach ($this->lines($block, max(32, $width - $block['indent']), false) as $line) {
+                if ($height + $line['height'] > 360 && $runs !== []) {
+                    $chunks[] = $this->excelTextChunk($runs, $height, $block);
+                    $runs = [];
                     $height = 0;
                 }
-                $text[] = $line['text'];
+                foreach ($line['runs'] as $run) {
+                    $this->appendStyledRun($runs, $run['text'], $run);
+                }
                 $height += $line['height'];
             }
-            $text[] = '';
-            $height += 20;
-        }
-        if ($text !== []) {
-            $chunks[] = ['type' => 'text', 'text' => implode("\n", $text), 'height' => $height];
+            if ($runs !== []) {
+                $chunks[] = $this->excelTextChunk($runs, $height, $block);
+            }
         }
 
         return $chunks ?: [['type' => 'text', 'text' => '', 'height' => 24.0]];
+    }
+
+    /**
+     * @param  list<array{text: string, bold: bool, italic: bool, underline: bool, size: float}>  $runs
+     * @param  array<string, mixed>  $block
+     * @return array<string, mixed>
+     */
+    private function excelTextChunk(array $runs, float $height, array $block): array
+    {
+        return ['type' => 'text', 'text' => implode('', array_column($runs, 'text')), 'runs' => $runs, 'height' => $height, 'alignment' => $block['alignment'], 'indent' => $block['indent']];
+    }
+
+    /**
+     * @param  list<array{text: string, bold: bool, italic: bool, underline: bool, size: float}>  $runs
+     * @param  array{text: string, bold: bool, italic: bool, underline: bool, size: float}  $style
+     */
+    private function appendStyledRun(array &$runs, string $text, array $style): void
+    {
+        $run = ['text' => $text, 'bold' => $style['bold'], 'italic' => $style['italic'], 'underline' => $style['underline'], 'size' => $style['size']];
+        $last = array_key_last($runs);
+        if ($last !== null && array_diff_assoc(array_diff_key($run, ['text' => true]), $runs[$last]) === []) {
+            $runs[$last]['text'] .= $text;
+        } else {
+            $runs[] = $run;
+        }
     }
 
     /** @return list<array<string, mixed>> */
@@ -219,27 +239,30 @@ class SnpButirReportContent
 
     /**
      * @param  array<string, mixed>  $block
-     * @return list<array{html: string, text: string, height: float}>
+     * @return list<array{html: string, text: string, height: float, runs: list<array{text: string, bold: bool, italic: bool, underline: bool, size: float}>}>
      */
     private function lines(array $block, float $width, bool $rich = true): array
     {
         $this->fonts ??= (new Dompdf)->getFontMetrics();
         $lines = [];
-        $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0];
+        $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0, 'runs' => []];
         $used = 0;
         foreach ($block['runs'] as $run) {
             if (! $rich) {
-                $run = array_replace($run, ['bold' => false, 'italic' => false, 'underline' => false, 'size' => 14.667]);
+                $run['size'] = $run['size'] === 8.0 ? 14.667 : $run['size'];
             }
             $font = $this->fonts->getFont('Helvetica', $run['bold'] ? ($run['italic'] ? 'bold_italic' : 'bold') : ($run['italic'] ? 'italic' : 'normal'));
             $measure = fn (string $text): float => $this->fonts->getTextWidth($text, $font, $run['size'] * 0.75) / 0.75;
             foreach (preg_split('/(\n|[^\S\n]+)/u', $run['text'], -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY) as $token) {
                 if ($token === "\n" || ($used + $measure($token) > $width && $line['text'] !== '')) {
+                    if (! $rich && $token === "\n") {
+                        $this->appendStyledRun($line['runs'], "\n", $run);
+                    }
                     $lines[] = $line;
-                    $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0];
+                    $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0, 'runs' => []];
                     $used = 0;
                 }
-                if ($token === "\n" || (trim($token) === '' && $used === 0)) {
+                if ($token === "\n" || ($rich && trim($token) === '' && $used === 0)) {
                     continue;
                 }
                 while ($token !== '') {
@@ -260,12 +283,13 @@ class SnpButirReportContent
                     $part = mb_substr($token, 0, $length);
                     $token = mb_substr($token, $length);
                     $line['text'] .= $part;
+                    $this->appendStyledRun($line['runs'], $part, $run);
                     $line['html'] .= '<span style="font-size:'.$run['size'].'px;font-weight:'.($run['bold'] ? 'bold' : 'normal').';font-style:'.($run['italic'] ? 'italic' : 'normal').';text-decoration:'.($run['underline'] ? 'underline' : 'none').';">'.e($part).'</span>';
                     $line['height'] = max($line['height'], $run['size'] * 1.35);
                     $used += $measure($part);
                     if ($token !== '') {
                         $lines[] = $line;
-                        $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0];
+                        $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0, 'runs' => []];
                         $used = 0;
                     }
                 }
