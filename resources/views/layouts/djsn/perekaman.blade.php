@@ -918,6 +918,7 @@
                     </button>
                 </div>
 
+                <template x-if="editRecord">
                 <form method="POST" :action="editRecord?.update_url" enctype="multipart/form-data" class="px-6 py-6">
                     @csrf
                     @method('PATCH')
@@ -1099,6 +1100,7 @@
                             style="background-color: #2377b9;">Simpan Perubahan</button>
                     </div>
                 </form>
+                </template>
             </div>
         </div>
 

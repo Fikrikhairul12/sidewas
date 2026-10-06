@@ -39,6 +39,7 @@ try {
     for (const [module, data] of Object.entries(fixture.fixtures)) {
         await page.setViewport({ width: 1366, height: 900 });
         await page.goto(`http://127.0.0.1:${server.address().port}/?module=${module}`, { waitUntil: 'networkidle0' });
+        assert.deepEqual(errors, [], `${module} must initialize its actual edit modal without Alpine errors`);
         await page.$eval('#workflowForm', form => {
             window.submissions = 0;
             form.addEventListener('submit', event => { event.preventDefault(); window.submissions++; });
@@ -91,6 +92,25 @@ try {
         assert.deepEqual(await page.$$eval('.custom-butir-checkbox', elements => elements.map(element => element.checked)), selections);
         assert.deepEqual(await page.$$eval('.custom-field-checkbox', elements => elements.map(element => element.checked)), fields);
         assert.equal(await page.$eval('#customReportModal', element => element.classList.contains('hidden')), false);
+        await page.click('#closeCustomReportModalBtn');
+        await page.click('#openActualEdit');
+        await page.waitForSelector('#actualEdit form', { visible: true });
+        assert.equal(await page.$eval('#actualEdit input[name="nomor_surat"]', element => element.value), 'Surat asli');
+        assert.equal(await page.$eval('#actualEdit textarea[name="perihal_surat"]', element => element.value), 'Perihal asli');
+        assert.equal(await page.$eval('#actualEdit select[name="status"]', element => element.value), 'dalam_proses');
+        assert.equal(await page.$eval('#actualEdit form', element => new URL(element.action).pathname), '/existing-workflow/1');
+        assert.equal(await page.$eval('#actualEdit input[name="_method"]', element => element.value), 'PATCH');
+        await page.$eval('#actualEdit textarea[name="perihal_surat"]', element => {
+            element.value = 'Draf edit belum disimpan.';
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await page.evaluate(() => {
+            window.dispatchEvent(new CustomEvent('snp-read-butir', { detail: { id: 'EDIT.01', content: 'Isi rujukan edit.', format: 'plain' } }));
+        });
+        await open();
+        await close();
+        assert.equal(await page.$eval('#actualEdit textarea[name="perihal_surat"]', element => element.value), 'Draf edit belum disimpan.');
+        assert.equal(await page.$eval('#actualEdit form', element => element.getClientRects().length > 0), true);
     }
     assert.deepEqual(errors, []);
     console.log('Passed: 17 page previews, full text, draft preservation, navigation, responsive reader and unchanged report selection.');

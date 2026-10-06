@@ -154,7 +154,7 @@
         </div>
     </div>
     @stack('modals')
-    @if (request()->routeIs('snp.*', 'administrasi.pengajuan.*'))
+    @if (request()->routeIs('snp.*', 'ragab.*', 'rawas.*', 'djsn.*', 'eksternal.*', 'administrasi.pengajuan.*'))
         <x-snp-butir-reader />
     @endif
 </body>

@@ -1,11 +1,37 @@
 <?php
 
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 uses(TestCase::class);
+
+beforeEach(function () {
+    config(['database.connections.mysql' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
+    DB::purge('mysql');
+    Schema::connection('mysql')->create('users', function (Blueprint $table): void {
+        $table->id();
+    });
+});
+
+test('actual application layout includes exactly one reader on each butir preview route', function (string $routeName) {
+    request()->setRouteResolver(fn () => Route::getRoutes()->getByName($routeName));
+    $html = Blade::render('<x-app-layout><x-butir-preview content="Isi lengkap." butir-id="BUTIR.01" /></x-app-layout>');
+
+    expect(substr_count($html, 'id="snpButirReader"'))->toBe(1);
+})->with([
+    'ragab.perekaman', 'ragab.tindak-lanjut.index', 'ragab.reviu.index', 'ragab.report.index',
+    'rawas.perekaman', 'rawas.tindak-lanjut.index', 'rawas.reviu.index', 'rawas.report.index',
+    'djsn.perekaman', 'djsn.tanggapan.index', 'djsn.tindak-lanjut.index', 'djsn.reviu.index', 'djsn.report.index',
+    'eksternal.perekaman', 'eksternal.tindak-lanjut.index', 'eksternal.reviu.index', 'eksternal.report.index',
+    'snp.perekaman', 'snp.report.index',
+]);
 
 test('shared butir previews retain complete plain text and escape markup', function () {
     $content = "Keputusan O'Brien & peserta.\n\n".str_repeat('Isi lengkap ', 150).'<img src=x onerror=alert(1)>';
@@ -56,6 +82,19 @@ test('all seventeen module pages provide full reading without disturbing drafts 
             $pagesChecked++;
         }
         $html .= '</form></div></div>';
+        $perekamanSource = file_get_contents(resource_path('views/layouts/'.$module.'/perekaman.blade.php'));
+        preg_match('/x-data="(perekaman\w+Modal)\(/', $perekamanSource, $factory);
+        $editModal = Str::between($perekamanSource, '{{-- Modal Edit Perekaman --}}', '{{-- Modal Tambah Perekaman --}}');
+        $editPayload = [
+            'id' => 1, 'id_'.$module => strtoupper($module), 'update_url' => '/existing-workflow/1',
+            'nomor_surat' => 'Surat asli', 'tanggal_surat' => '2026-10-06', 'perihal_surat' => 'Perihal asli',
+            'nama_instansi_pengundang' => 'Instansi contoh', 'status' => 'dalam_proses',
+            'butirs' => [$items[0] + ['status' => 'terbit', 'komite_id' => '', 'tanggal_'.$module => '2026-10-06', 'agenda_'.$module => 'Agenda contoh']],
+        ];
+        $html .= Blade::render(
+            '<section id="actualEdit" x-data="'.$factory[1].'()"><button type="button" id="openActualEdit" @click="openEditModalFor(@js($editPayload))">Edit</button>'.$editModal.'</section>',
+            ['editPayload' => $editPayload, 'direktorats' => [], 'komites' => []],
+        );
         $reportSource = file_get_contents(resource_path('views/layouts/'.$module.'/report/index.blade.php'));
         preg_match('/\$butirsForReport\s*=\s*\$record->butir\w+.*?->values\(\);/s', $reportSource, $mapping);
         expect($mapping)->not->toBeEmpty();
@@ -72,7 +111,9 @@ test('all seventeen module pages provide full reading without disturbing drafts 
             ? Str::before($reportModal, '<div id="reportFormatModal"')
             : Str::beforeLast(Str::before($reportModal, '</x-app-layout>'), '</div>');
         $html .= Blade::render('<div id="customReportModal"'.$reportModal, ['reportFields' => ['id_butir' => 'ID Butir', 'isi_butir' => 'Isi Butir']]);
-        $html .= view('components.snp-butir-reader')->render();
+        request()->setRouteResolver(fn () => Route::getRoutes()->getByName($module.'.perekaman'));
+        $layout = view('layouts.app', ['slot' => new HtmlString($html)])->render();
+        $html = Str::beforeLast(Str::after(Str::after($layout, '<body'), '>'), '</body>');
         $fixtures[$module] = ['html' => $html, 'sections' => $sections, 'id' => $items[0][$idField]];
         $pagesChecked++;
     }
