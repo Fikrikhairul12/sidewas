@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Drawing as DrawingDimensions;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Writer\Html;
 use Tests\TestCase;
 
@@ -62,6 +63,13 @@ test('PDF keeps long formatted text lists and wide or tall images in their origi
     expect($xpath->query('//img')->length)->toBeGreaterThanOrEqual(1);
     expect($xpath->query('//img[not(ancestor::td[@data-snp-butir-content="SNP.01"])]'))->toHaveCount(0);
     $cells = $xpath->query('//td[@data-snp-butir-content="SNP.01"]');
+    foreach (['SNP.01', 'SNP.02'] as $id) {
+        $rows = $xpath->query('//td[@data-snp-butir-content="'.$id.'"]/parent::tr');
+        foreach ($rows as $index => $row) {
+            expect(str_contains($row->getAttribute('class'), 'butir-start'))->toBe($index === 0);
+            expect(str_contains($row->getAttribute('class'), 'butir-end'))->toBe($index === $rows->length - 1);
+        }
+    }
     $text = implode('', array_map(fn ($cell) => $cell->textContent, iterator_to_array($cells)));
     expect($text)->toContain('AWAL-BUTIR', '3. Daftar pertama', '4. Daftar kedua', 'AKHIR-BUTIR')
         ->and(substr_count(preg_replace('/\s+/u', ' ', $text), 'Teks ukuran besar.'))->toBe(160)
@@ -94,6 +102,11 @@ test('Excel preserves interleaved text and images within the selected content co
     $path = tempnam(sys_get_temp_dir(), 'snp-layout-');
     file_put_contents($path, $bytes);
     try {
+        $archive = new ZipArchive;
+        $archive->open($path);
+        $worksheetXml = $archive->getFromName('xl/worksheets/sheet1.xml');
+        $archive->close();
+        expect($worksheetXml)->toContain('showGridLines="false"');
         $sheet = IOFactory::load($path)->getActiveSheet();
         $text = implode("\n", array_map(fn ($row) => $row[1] ?? '', $sheet->toArray()));
         expect(substr_count($text, 'ISI-LENGKAP'))->toBe(1200)
@@ -131,9 +144,18 @@ test('Excel preserves interleaved text and images within the selected content co
             expect($row->getRowHeight())->toBeLessThanOrEqual(409);
         }
         expect($sheet->getMergeCells())->not->toBeEmpty();
+        $lastRow = $sheet->getHighestRow();
+        for ($row = 2; $row < $lastRow; $row++) {
+            $sameButir = $sheet->getCell('C'.$row)->getValue() === $sheet->getCell('C'.($row + 1))->getValue();
+            expect($sheet->getStyle('B'.$row)->getBorders()->getBottom()->getBorderStyle())->toBe($sameButir ? Border::BORDER_NONE : Border::BORDER_THIN);
+            expect($sheet->getStyle('B'.($row + 1))->getBorders()->getTop()->getBorderStyle())->toBe($sameButir ? Border::BORDER_NONE : Border::BORDER_THIN);
+            expect($sheet->getStyle('C'.$row)->getBorders()->getBottom()->getBorderStyle())->toBe($sameButir ? Border::BORDER_NONE : Border::BORDER_THIN);
+        }
+        expect($sheet->getStyle('B'.$lastRow)->getBorders()->getBottom()->getBorderStyle())->toBe(Border::BORDER_THIN);
         expect(count(array_filter($sheet->toArray(), fn ($row) => str_contains($row[0] ?? '', 'SURAT-UJI'))))->toBe(2);
         if (getenv('SNP_EXPORT_ARTIFACTS')) {
             file_put_contents(storage_path('app/private/snp-layout.xlsx'), $bytes);
+            $sheet->setShowGridlines(false);
             (new Html($sheet->getParent()))->setEmbedImages(true)->save(storage_path('app/private/snp-layout-excel.html'));
         }
     } finally {
@@ -202,4 +224,27 @@ test('regular PDF retains each compilation round its review dates and the latest
         ->and(substr_count($html, 'Selesai Tuntas'))->toBe(1)
         ->and(substr_count($html, 'TL-PERTAMA'))->toBe(1)
         ->and(substr_count($html, 'TL-KEDUA'))->toBe(1);
+});
+
+test('regular PDF does not create empty continuation rows for short butirs without follow ups', function () {
+    $records = snpLayoutRecords(['TES', 'INI ISI BUTIR SNP']);
+    $html = view('layouts.snp.report.pdf', compact('records'))->render();
+    $document = new DOMDocument;
+    @$document->loadHTML($html);
+    $xpath = new DOMXPath($document);
+    expect($xpath->query('//tbody/tr'))->toHaveCount(2);
+    foreach (['SNP.01' => 'TES', 'SNP.02' => 'INI ISI BUTIR SNP'] as $id => $text) {
+        $cells = $xpath->query('//td[@data-snp-butir-content="'.$id.'"]');
+        expect($cells)->toHaveCount(1)->and($cells->item(0)->textContent)->toContain($text);
+        expect($cells->item(0)->parentNode->getAttribute('class'))->toContain('butir-start', 'butir-end');
+    }
+    expect($xpath->query('//tbody//span[@class="continuation"]'))->toHaveCount(0);
+    if (getenv('SNP_EXPORT_ARTIFACTS')) {
+        file_put_contents(storage_path('app/private/snp-layout-short.html'), $html);
+        $pdf = new Dompdf;
+        $pdf->setPaper('legal', 'landscape');
+        $pdf->loadHtml($html);
+        $pdf->render();
+        file_put_contents(storage_path('app/private/snp-layout-short.pdf'), $pdf->output());
+    }
 });

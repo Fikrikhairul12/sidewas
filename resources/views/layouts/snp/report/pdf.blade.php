@@ -50,6 +50,10 @@
             display: table-header-group;
         }
 
+        tbody td { border-top: 0; border-bottom: 0; }
+        .butir-start td { border-top: 1px solid #000; }
+        .butir-end td { border-bottom: 1px solid #000; }
+
         .snp-butir-cell { white-space: normal; }
         .snp-content-line { white-space: normal; }
         .continuation { color: #666; }
@@ -187,10 +191,6 @@
                                 ->values();
                         }
 
-                        if ($kompilasiTindakLanjuts->count() === 0) {
-                            $kompilasiTindakLanjuts = collect([null]);
-                        }
-
                         $reviewTanggapan = $butir->reviews
                             ->where('tahap_review', 'tanggapan')
                             ->sortByDesc('id')
@@ -240,7 +240,7 @@
                                 ? $butir->reviews->where('tahap_review', 'tindak_lanjut')->where('putaran_tl', $stage->putaran_tl)->sortByDesc('id')->first()
                                 : null);
                         @endphp
-                        <tr>
+                        <tr class="{{ $rowIndex === 0 ? 'butir-start' : '' }} {{ $rowIndex === $rowCount - 1 ? 'butir-end' : '' }}">
                             <td class="pre-line top">@if ($rowIndex === 0){{ implode("\n", [$record->nomor_surat, $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-', $record->perihal_surat]) }}@endif</td>
                             <td class="center">{{ $butir->id_butir_snp }}@if ($rowIndex > 0 && isset($contentChunks[$rowIndex]))<br><span class="continuation">Lanjutan</span>@endif</td>
                             <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">{!! $contentChunks[$rowIndex] ?? '' !!}</td>

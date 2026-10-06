@@ -41,6 +41,9 @@
         }
 
         thead { display: table-header-group; }
+        tbody td { border-top: 0; border-bottom: 0; }
+        .butir-start td { border-top: 1px solid #000; }
+        .butir-end td { border-bottom: 1px solid #000; }
         .snp-butir-cell { white-space: normal; }
         .snp-content-line { white-space: normal; }
         .continuation { color: #666; margin-bottom: 4px; }
@@ -261,7 +264,7 @@
                             ($reviewTl?->status ?? ($reviewTanggapan?->status ?? 'belum_ditanggapi'));
                     @endphp
 
-                    <tr>
+                    <tr class="butir-start {{ count($contentChunks) === 1 ? 'butir-end' : '' }}">
                         @foreach ($selectedFields as $field)
                             @if ($field === 'surat')
                                 <td class="pre-line">
@@ -389,7 +392,7 @@
                         @endforeach
                     </tr>
                     @foreach (array_slice($contentChunks, 1) as $chunk)
-                        <tr>
+                        <tr class="{{ $loop->last ? 'butir-end' : '' }}">
                             @foreach ($selectedFields as $field)
                                 @if ($field === 'isi_butir')
                                     <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">

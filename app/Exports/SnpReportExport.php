@@ -65,11 +65,13 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
             if ($index === false) {
                 return;
             }
+            $sheet->setShowGridlines(false);
             $column = Coordinate::stringFromColumnIndex($index + 1);
             $sheet->getColumnDimension($column)->setWidth(90);
             $idIndex = array_search('id_butir', $this->selectedFields, true);
             $content = app(SnpButirReportContent::class);
             $butirs = collect($this->records)->flatMap(fn ($record) => $record->butirSnp)->values();
+            $rowCounts = [];
 
             for ($index = $butirs->count() - 1; $index >= 0; $index--) {
                 $butir = $butirs[$index];
@@ -77,6 +79,7 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
                 $chunks = $content->excelChunks($butir->butir_snp, 600);
                 $chunkRows = array_map(fn (array $chunk): int => $chunk['type'] === 'image' ? max(1, (int) ceil(($chunk['height'] + 20) / 500)) : 1, $chunks);
                 $extraRows = array_sum($chunkRows) - 1;
+                $rowCounts[$index] = $extraRows + 1;
                 if ($extraRows > 0) {
                     $sheet->insertNewRowBefore($row + 1, $extraRows);
                     foreach ($this->selectedFields as $fieldIndex => $field) {
@@ -118,6 +121,17 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
             }
             $sheet->getStyle($sheet->calculateWorksheetDimension())->getAlignment()->setWrapText(true)->setVertical('top');
             $sheet->getStyle($sheet->calculateWorksheetDimension())->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $firstRow = 2;
+            $lastColumn = Coordinate::stringFromColumnIndex(count($this->selectedFields));
+            foreach ($butirs as $index => $butir) {
+                $lastRow = $firstRow + $rowCounts[$index] - 1;
+                if ($lastRow > $firstRow) {
+                    $sheet->getStyle('A'.$firstRow.':'.$lastColumn.$lastRow)->applyFromArray([
+                        'borders' => ['horizontal' => ['borderStyle' => Border::BORDER_NONE]],
+                    ]);
+                }
+                $firstRow = $lastRow + 1;
+            }
         }];
     }
 }
