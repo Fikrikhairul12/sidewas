@@ -196,9 +196,7 @@
                                         Rapat EKSTERNAL
                                     </p>
 
-                                    <p class="mt-1 max-w-md whitespace-pre-line text-xs text-slate-800">
-                                        {{ $butir?->keputusan_eksternal ?? '-' }}
-                                    </p>
+                                    <x-butir-preview class="mt-3" :content="$butir?->keputusan_eksternal ?? ''" :butir-id="$butir?->id_butir_eksternal ?? ''" label="Keputusan Rapat Eksternal" context="Tindak-Lanjut Rapat Eksternal" />
 
                                     <p class="mt-3 text-xs text-slate-500">
                                         Cluster:
@@ -485,8 +483,7 @@
                                                     <p class="mt-2 text-sm font-semibold uppercase leading-relaxed text-slate-800"
                                                         x-text="butir.agenda_eksternal ?? '-'"></p>
 
-                                                    <p class="mt-1 line-clamp-2 text-xs text-slate-500"
-                                                        x-text="butir.keputusan_eksternal ?? '-'"></p>
+                                                    <p class="snp-butir-preview__text mt-2" x-text="butir.keputusan_eksternal ?? '-'"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
                                                         Jatuh Tempo:
@@ -513,6 +510,7 @@
 
                                     <p class="mt-1 text-sm font-bold" style="color: #2377b9;"
                                         x-text="selectedButir.id_butir_eksternal"></p>
+                                    <x-butir-preview class="mt-3" content-expression="selectedButir.keputusan_eksternal" id-expression="selectedButir.id_butir_eksternal" :expanded="true" label="Keputusan Rapat Eksternal" context="Rujukan tindak lanjut Rapat Eksternal" />
 
                                     <p class="mt-2 text-sm text-slate-700">
                                         Tanggal & Agenda:

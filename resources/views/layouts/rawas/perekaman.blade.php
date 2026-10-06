@@ -364,9 +364,7 @@
                                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                                                 Keputusan RAWAS
                                                             </p>
-                                                            <p class="mt-1 max-w-xl whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                                                {{ $butir->keputusan_rawas ?? '-' }}
-                                                            </p>
+                                                            <x-butir-preview class="mt-3" :content="$butir->keputusan_rawas ?? ''" :butir-id="$butir->id_butir_rawas ?? ''" label="Keputusan RAWAS" context="Perekaman RAWAS" />
                                                         </div>
                                                     </div>
 
@@ -448,9 +446,7 @@
                                                 {{ $firstButir?->id_butir_rawas ?? '-' }}
                                             </p>
 
-                                            <p class="mt-2 text-xs text-slate-700">
-                                                {{ \Illuminate\Support\Str::limit($firstButir?->keputusan_rawas ?? $firstButir?->agenda_rawas ?? '-', 120) }}
-                                            </p>
+                                            <x-butir-preview class="mt-3" :content="$firstButir?->keputusan_rawas ?? ''" :butir-id="$firstButir?->id_butir_rawas ?? ''" label="Keputusan RAWAS" context="Perekaman RAWAS" />
 
                                             <p class="mt-3 text-xs text-slate-500">
                                                 Menampilkan ringkasan 1 dari {{ $butirCount }} butir.
@@ -693,8 +689,7 @@
                                     <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                         Keputusan RAWAS
                                     </p>
-                                    <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700"
-                                        x-text="selectedDetailButir.keputusan_rawas"></p>
+                                    <x-butir-preview content-expression="selectedDetailButir.keputusan_rawas" id-expression="selectedDetailButir.id_butir_rawas" items-expression="detailRecord?.butirs ?? []" :expanded="true" label="Keputusan RAWAS" context="Perekaman RAWAS" />
                                 </div>
 
                                 <div class="grid gap-4 md:grid-cols-2">

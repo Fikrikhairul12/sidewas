@@ -96,10 +96,7 @@
                                         Butir: {{ $review->id_butir_djsn }}
                                     </p>
 
-                                    <p
-                                        class="mt-3 max-w-md text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $review->butir?->butir_djsn ?? '-' }}
-                                    </p>
+                                    <x-butir-preview class="mt-3" :content="$review->butir?->butir_djsn ?? ''" :butir-id="$review->id_butir_djsn" label="Isi Butir Rekomendasi DJSN" context="Reviu DJSN" />
 
                                     <p class="mt-3 text-xs text-slate-500">
                                         Komite: {{ $review->komite?->kode_komite ?? '-' }}
@@ -220,6 +217,7 @@
                                                 @click="selectedReview = {
                                                     id: {{ $review->id }},
                                                     id_butir_djsn: @js($review->id_butir_djsn),
+                                                    butir_djsn: @js($review->butir?->butir_djsn ?? ''),
                                                     tahap_review: @js($review->tahap_review),
                                                     status: @js($review->status),
                                                     status_pengajuan_tgl: @js($tanggapan?->status_pengajuan_tgl ?? 'pending'),
@@ -296,6 +294,7 @@
                     class="px-6 py-6">
                     @csrf
                     @method('PATCH')
+                    <x-butir-preview class="mb-5" content-expression="selectedReview?.butir_djsn" id-expression="selectedReview?.id_butir_djsn" label="Isi Butir Rekomendasi DJSN" context="Rujukan reviu DJSN" />
 
                     <div class="grid gap-5">
                         <div>

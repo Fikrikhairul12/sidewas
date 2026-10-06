@@ -278,9 +278,7 @@
                                         <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
                                             Keputusan
                                         </p>
-                                        <p class="mt-1 whitespace-pre-line text-xs text-slate-800">
-                                            {{ $butir?->keputusan_ragab ?? '-' }}
-                                        </p>
+                                        <x-butir-preview class="mt-3" :content="$butir?->keputusan_ragab ?? ''" :butir-id="$butir?->id_butir_ragab ?? ''" label="Keputusan RAGAB" context="Reviu RAGAB" />
                                     </div>
 
                                     <div class="mt-4">
@@ -436,6 +434,7 @@
                                                 @click="selectedReview = {
                                                     id: {{ $review->id }},
                                                     id_butir_ragab: @js($review->id_butir_ragab),
+                                                    keputusan_ragab: @js($butir?->keputusan_ragab ?? ''),
                                                     status: @js($review->status),
                                                     hasil_review: @js($review->hasil_review ?? ''),
                                                     deliverables: @js($review->deliverables ?? '')
@@ -561,8 +560,8 @@
                                     <p class="font-bold text-slate-600">Butir RAGAB</p>
                                     <p class="text-slate-700" x-text="selectedDetailTl.id_butir_ragab"></p>
 
-                                    <p class="font-bold text-slate-600">Isi Butir Singkat</p>
-                                    <p class="text-slate-700" x-text="selectedDetailTl.isi_butir_singkat"></p>
+
+                                    <x-butir-preview class="md:col-span-2" content-expression="detailButir?.keputusan_ragab" id-expression="detailButir?.id_butir_ragab" :expanded="true" label="Keputusan RAGAB" context="Reviu RAGAB" />
 
                                     <p class="font-bold text-slate-600">Direktorat</p>
                                     <p class="text-slate-700" x-text="selectedDetailTl.direktorat"></p>
@@ -662,6 +661,7 @@
                     class="px-6 py-6">
                     @csrf
                     @method('PATCH')
+                    <x-butir-preview class="mb-5" content-expression="selectedReview?.keputusan_ragab" id-expression="selectedReview?.id_butir_ragab" label="Keputusan RAGAB" context="Rujukan reviu RAGAB" />
 
                     <div class="grid gap-5">
                         <div>

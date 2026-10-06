@@ -186,6 +186,7 @@
                                             return [
                                                 'id' => $butir->id,
                                                 'id_butir_ragab' => $butir->id_butir_ragab,
+                                                'keputusan_ragab' => $butir->keputusan_ragab ?? '',
                                                 'butir_ragab' => trim(
                                                     ($butir->tanggal_ragab
                                                         ? \Carbon\Carbon::parse($butir->tanggal_ragab)->format('d/m/Y')

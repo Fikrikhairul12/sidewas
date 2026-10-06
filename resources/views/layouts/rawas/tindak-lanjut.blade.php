@@ -200,9 +200,7 @@
                                         Keputusan RAWAS
                                     </p>
 
-                                    <p class="mt-1 max-w-md whitespace-pre-line text-xs text-slate-800">
-                                        {{ $butir?->keputusan_rawas ?? '-' }}
-                                    </p>
+                                    <x-butir-preview class="mt-3" :content="$butir?->keputusan_rawas ?? ''" :butir-id="$butir?->id_butir_rawas ?? ''" label="Keputusan RAWAS" context="Tindak-Lanjut RAWAS" />
 
                                     <p class="mt-3 text-xs text-slate-500">
                                         Direktorat:
@@ -508,8 +506,7 @@
                                                     <p class="mt-2 text-sm font-semibold uppercase leading-relaxed text-slate-800"
                                                         x-text="butir.agenda_rawas ?? '-'"></p>
 
-                                                    <p class="mt-1 line-clamp-2 text-xs text-slate-500"
-                                                        x-text="butir.keputusan_rawas ?? '-'"></p>
+                                                    <p class="snp-butir-preview__text mt-2" x-text="butir.keputusan_rawas ?? '-'"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
                                                         Jatuh Tempo:
@@ -536,6 +533,7 @@
 
                                     <p class="mt-1 text-sm font-bold" style="color: #2377b9;"
                                         x-text="selectedButir.id_butir_rawas"></p>
+                                    <x-butir-preview class="mt-3" content-expression="selectedButir.keputusan_rawas" id-expression="selectedButir.id_butir_rawas" :expanded="true" label="Keputusan RAWAS" context="Rujukan tindak lanjut RAWAS" />
 
                                     <p class="mt-2 text-sm text-slate-700">
                                         Tanggal & Agenda:

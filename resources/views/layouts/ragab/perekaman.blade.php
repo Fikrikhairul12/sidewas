@@ -403,9 +403,7 @@
                                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                                                 Keputusan RAGAB
                                                             </p>
-                                                            <p class="mt-1 max-w-xl whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                                                {{ $butir->keputusan_ragab ?? '-' }}
-                                                            </p>
+                                                            <x-butir-preview class="mt-3" :content="$butir->keputusan_ragab ?? ''" :butir-id="$butir->id_butir_ragab ?? ''" label="Keputusan RAGAB" context="Perekaman RAGAB" />
                                                         </div>
                                                     </div>
 
@@ -496,9 +494,7 @@
                                             <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
                                                 Ringkasan Butir
                                             </p>
-                                            <p class="mt-1 max-w-xl whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                                {{ \Illuminate\Support\Str::limit($firstButir?->keputusan_ragab ?? '-', 180) }}
-                                            </p>
+                                            <x-butir-preview class="mt-3" :content="$firstButir?->keputusan_ragab ?? ''" :butir-id="$firstButir?->id_butir_ragab ?? ''" label="Keputusan RAGAB" context="Perekaman RAGAB" />
 
                                             <div class="mt-4 rounded-lg bg-slate-50 px-3 py-2">
                                                 <p class="text-xs font-semibold text-slate-500">
@@ -774,7 +770,7 @@
                                     <p class="mb-2 text-sm font-bold text-slate-700">Keputusan RAGAB</p>
                                     <div
                                         class="min-h-28 rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium leading-relaxed text-slate-700">
-                                        <p x-text="selectedDetailButir.keputusan_ragab"></p>
+                                        <x-butir-preview content-expression="selectedDetailButir.keputusan_ragab" id-expression="selectedDetailButir.id_butir_ragab" items-expression="detailRecord?.butirs ?? []" :expanded="true" label="Keputusan RAGAB" context="Perekaman RAGAB" />
                                     </div>
                                 </div>
 

@@ -251,9 +251,7 @@
                                         <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
                                             Keputusan
                                         </p>
-                                        <p class="mt-1 whitespace-pre-line text-xs text-slate-800">
-                                            {{ $butir?->keputusan_rawas ?? '-' }}
-                                        </p>
+                                        <x-butir-preview class="mt-3" :content="$butir?->keputusan_rawas ?? ''" :butir-id="$butir?->id_butir_rawas ?? ''" label="Keputusan RAWAS" context="Reviu RAWAS" />
 
                                         <p class="mt-3 text-xs text-slate-500">
                                             Direktorat:
@@ -413,6 +411,7 @@
                                                 @click="selectedReview = {
                                                     id: {{ $review->id }},
                                                     id_butir_rawas: @js($review->id_butir_rawas),
+                                                    keputusan_rawas: @js($butir?->keputusan_rawas ?? ''),
                                                     status: @js($review->status),
                                                     hasil_review: @js($review->hasil_review ?? ''),
                                                     deliverables: @js($review->deliverables ?? '')
@@ -538,8 +537,8 @@
                                     <p class="font-bold text-slate-600">Butir RAWAS</p>
                                     <p class="text-slate-700" x-text="selectedDetailTl.id_butir_rawas"></p>
 
-                                    <p class="font-bold text-slate-600">Isi Butir Singkat</p>
-                                    <p class="text-slate-700" x-text="selectedDetailTl.isi_butir_singkat"></p>
+
+                                    <x-butir-preview class="md:col-span-2" content-expression="detailButir?.keputusan_rawas" id-expression="detailButir?.id_butir_rawas" :expanded="true" label="Keputusan RAWAS" context="Reviu RAWAS" />
 
                                     <p class="font-bold text-slate-600">Direktorat</p>
                                     <p class="text-slate-700" x-text="selectedDetailTl.direktorat"></p>
@@ -638,6 +637,7 @@
                     class="px-6 py-6">
                     @csrf
                     @method('PATCH')
+                    <x-butir-preview class="mb-5" content-expression="selectedReview?.keputusan_rawas" id-expression="selectedReview?.id_butir_rawas" label="Keputusan RAWAS" context="Rujukan reviu RAWAS" />
 
                     <div class="grid gap-5">
                         <div>

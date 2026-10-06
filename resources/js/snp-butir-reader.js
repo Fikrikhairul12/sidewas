@@ -25,11 +25,18 @@ export function initializeSnpButirReader() {
     let selectedIndex = 0;
     let trigger = null;
     let previousOverflow = '';
+    let label = 'Isi Butir SNP';
+    let format = 'rich';
 
     const render = () => {
         const item = items[selectedIndex];
-        title.textContent = item.id || 'Isi Butir SNP';
-        renderSnpButir(content, item.content);
+        title.textContent = item.id || label;
+        if (format === 'plain') {
+            content.classList.remove('snp-rich-content');
+            content.textContent = item.content || 'Belum ada isi butir.';
+        } else {
+            renderSnpButir(content, item.content);
+        }
         select.value = String(selectedIndex);
         previous.disabled = selectedIndex === 0;
         next.disabled = selectedIndex === items.length - 1;
@@ -40,13 +47,15 @@ export function initializeSnpButirReader() {
 
     window.addEventListener('snp-read-butir', (event) => {
         const detail = event.detail ?? {};
+        label = detail.label || 'Isi Butir SNP';
+        format = detail.format || 'rich';
         const candidates = Array.isArray(detail.items) && detail.items.length ? detail.items : [detail];
         items = candidates.map((item) => ({
-            id: String(item.id_butir_snp ?? item.id ?? ''),
-            content: String(item.butir_snp ?? item.content ?? ''),
+            id: String(item.id_butir_snp ?? item.id_butir_ragab ?? item.id_butir_rawas ?? item.id_butir_djsn ?? item.id_butir_eksternal ?? item.id ?? ''),
+            content: String(item.butir_snp ?? item.keputusan_ragab ?? item.keputusan_rawas ?? item.butir_djsn ?? item.keputusan_eksternal ?? item.butir_ragab ?? item.butir_rawas ?? item.butir_eksternal ?? item.content ?? ''),
         }));
         selectedIndex = Math.max(0, items.findIndex((item) => item.id === String(detail.id ?? '')));
-        context.textContent = detail.context || 'Isi Butir SNP';
+        context.textContent = detail.context || label;
         select.replaceChildren(...items.map((item, index) => new Option(item.id || `Butir ${index + 1}`, index)));
         render();
 

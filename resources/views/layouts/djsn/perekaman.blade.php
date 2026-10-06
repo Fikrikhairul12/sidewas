@@ -494,10 +494,7 @@
                                                         {{ $butir->id_butir_djsn }}
                                                     </p>
 
-                                                    <p
-                                                        class="mt-3 max-w-xl text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                                        {{ $butir->butir_djsn }}
-                                                    </p>
+                                                    <x-butir-preview class="mt-3" :content="$butir->butir_djsn ?? ''" :butir-id="$butir->id_butir_djsn ?? ''" label="Isi Butir Rekomendasi DJSN" context="Perekaman DJSN" />
 
                                                     @php
                                                         $picUtama = $butir->butirPics
@@ -598,9 +595,7 @@
                                                 Ringkasan Butir
                                             </p>
 
-                                            <p class="mt-1 max-w-xl whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                                {{ \Illuminate\Support\Str::limit($firstButir?->butir_djsn ?? '-', 180) }}
-                                            </p>
+                                            <x-butir-preview class="mt-3" :content="$firstButir?->butir_djsn ?? ''" :butir-id="$firstButir?->id_butir_djsn ?? ''" label="Isi Butir Rekomendasi DJSN" context="Perekaman DJSN" />
 
                                             <div class="mt-4 rounded-lg bg-slate-50 px-3 py-2">
                                                 <p class="text-xs font-semibold text-slate-500">
@@ -843,8 +838,7 @@
                                     <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                         Isi Butir Rekomendasi DJSN
                                     </p>
-                                    <p class="mt-3 whitespace-pre-line text-sm font-medium leading-relaxed text-slate-800"
-                                        x-text="selectedDetailButir.butir_djsn"></p>
+                                    <x-butir-preview content-expression="selectedDetailButir.butir_djsn" id-expression="selectedDetailButir.id_butir_djsn" items-expression="detailRecord?.butirs ?? []" :expanded="true" label="Isi Butir Rekomendasi DJSN" context="Perekaman DJSN" />
                                 </div>
 
                                 <div class="grid gap-4 md:grid-cols-2">

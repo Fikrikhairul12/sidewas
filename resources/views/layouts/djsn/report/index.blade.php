@@ -203,10 +203,7 @@
                                                     return [
                                                         'id' => $butir->id,
                                                         'id_butir_djsn' => $butir->id_butir_djsn,
-                                                        'butir_djsn' => \Illuminate\Support\Str::limit(
-                                                            $butir->butir_djsn,
-                                                            120,
-                                                        ),
+                                                        'butir_djsn' => $butir->butir_djsn ?? '',
                                                     ];
                                                 })
                                                 ->values();
@@ -337,7 +334,7 @@
                                 $reportFields = [
                                     'surat' => 'Nomor, Tanggal & Perihal Surat',
                                     'id_butir' => 'ID Butir DJSN',
-                                    'isi_butir' => 'Isi Butir DJSN',
+                                    'isi_butir' => 'Isi Butir Rekomendasi DJSN',
                                     'pic_utama' => 'PIC Unit Kerja Utama',
                                     'pic_pendukung' => 'PIC Unit Kerja Pendukung',
                                     'tanggapan' => 'Tanggapan Direksi',

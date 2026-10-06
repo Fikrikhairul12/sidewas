@@ -132,10 +132,7 @@
                                         {{ $butir->id_butir_djsn }}
                                     </p>
 
-                                    <p
-                                        class="mt-3 max-w-lg text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $butir->butir_djsn }}
-                                    </p>
+                                    <x-butir-preview class="mt-3" :content="$butir->butir_djsn ?? ''" :butir-id="$butir->id_butir_djsn ?? ''" label="Isi Butir Rekomendasi DJSN" context="Tanggapan DJSN" />
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
@@ -209,6 +206,7 @@
                                                 @click="selectedButir = {
                                                         id: {{ $butir->id }},
                                                         id_butir_djsn: @js($butir->id_butir_djsn),
+                                                        butir_djsn: @js($butir->butir_djsn ?? ''),
                                                         id_djsn: @js($butir->record?->id_djsn)
                                                     }; openModal = true"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
@@ -298,6 +296,8 @@
                             </ul>
                         </div>
                     @endif
+
+                    <x-butir-preview class="mb-5" content-expression="selectedButir?.butir_djsn" id-expression="selectedButir?.id_butir_djsn" label="Isi Butir Rekomendasi DJSN" context="Rujukan tanggapan DJSN" />
 
                     <div class="grid gap-5">
                         <div>

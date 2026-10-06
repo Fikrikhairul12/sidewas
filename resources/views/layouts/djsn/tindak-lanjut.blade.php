@@ -161,10 +161,7 @@
                                         Butir: {{ $butir?->id_butir_djsn ?? '-' }}
                                     </p>
 
-                                    <p
-                                        class="mt-3 max-w-md whitespace-pre-line text-xs font-medium uppercase leading-relaxed text-slate-800">
-                                        {{ $butir?->butir_djsn ?? '-' }}
-                                    </p>
+                                    <x-butir-preview class="mt-3" :content="$butir?->butir_djsn ?? ''" :butir-id="$butir?->id_butir_djsn ?? ''" label="Isi Butir Rekomendasi DJSN" context="Tindak-Lanjut DJSN" />
 
                                     <div class="mt-4">
                                         <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -436,8 +433,7 @@
                                                         <span x-text="butir.nomor_surat ?? '-'"></span>
                                                     </p>
 
-                                                    <p class="mt-2 text-sm font-semibold uppercase leading-relaxed text-slate-800"
-                                                        x-text="butir.butir_djsn"></p>
+                                                    <p class="snp-butir-preview__text mt-2" x-text="butir.butir_djsn"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
                                                         Jatuh Tempo:
@@ -464,6 +460,7 @@
 
                                     <p class="mt-1 text-sm font-bold" style="color: #2377b9;"
                                         x-text="selectedButir.id_butir_djsn"></p>
+                                    <x-butir-preview class="mt-3" content-expression="selectedButir.butir_djsn" id-expression="selectedButir.id_butir_djsn" :expanded="true" label="Isi Butir Rekomendasi DJSN" context="Rujukan tindak lanjut DJSN" />
 
                                     <p class="mt-2 text-sm text-slate-700">
                                         Jatuh tempo tindak lanjut:

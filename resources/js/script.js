@@ -641,38 +641,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 const span = document.createElement('span');
                 span.className = 'text-slate-700';
 
-                const idButir = butir.id_butir_snp ?? butir.id_butir_ragab ?? butir.id_butir_rawas ?? butir.id_butir_djsn ?? '-';
-                const isiButir = butir.butir_snp ?? butir.butir_ragab ?? butir.id_butir_rawas ?? butir.id_butir_djsn ?? '-';
+                const idButir = butir.id_butir_snp ?? butir.id_butir_ragab ?? butir.id_butir_rawas ?? butir.id_butir_djsn ?? butir.id_butir_eksternal ?? '-';
+                const isiButir = butir.butir_snp ?? butir.keputusan_ragab ?? butir.keputusan_rawas ?? butir.butir_djsn ?? butir.keputusan_eksternal ?? butir.butir_ragab ?? butir.butir_rawas ?? butir.butir_eksternal ?? '-';
                 const isSnp = Object.hasOwn(butir, 'butir_snp');
+                const moduleLabels = { snp: 'SNP', ragab: 'RAGAB', rawas: 'RAWAS', djsn: 'DJSN', eksternal: 'Rapat Eksternal' };
+                const moduleCode = Object.keys(moduleLabels).find((module) => Object.hasOwn(butir, `id_butir_${module}`)) || 'snp';
+                const moduleLabel = moduleLabels[moduleCode];
+                const contentLabel = moduleCode === 'djsn' ? 'Isi Butir Rekomendasi DJSN' : isSnp ? 'Isi Butir SNP' : `Keputusan ${moduleLabel}`;
 
                 span.innerHTML = `
                     <span class="font-bold" style="color:#2377b9;">${escapeHtml(idButir)}</span>
                     <br>
-                    <span class="${isSnp ? 'snp-butir-preview__text' : 'text-xs'}">${escapeHtml(isSnp ? snpButirPlain(isiButir) : isiButir)}</span>
+                    <span class="snp-butir-preview__text">${escapeHtml(isSnp ? snpButirPlain(isiButir) : isiButir)}</span>
                 `;
 
                 label.appendChild(input);
                 label.appendChild(span);
 
-                if (isSnp) {
-                    span.classList.add('min-w-0');
-                    const option = document.createElement('div');
-                    option.className = 'snp-report-butir-option';
-                    label.className = 'flex cursor-pointer items-start gap-3 text-sm';
-                    const readButton = document.createElement('button');
-                    readButton.type = 'button';
-                    readButton.className = 'snp-butir-read-button';
-                    readButton.textContent = 'Baca isi lengkap';
-                    readButton.setAttribute('aria-label', `Baca isi lengkap ${idButir}`);
-                    readButton.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        readSnpButir({ id: idButir, content: isiButir, items: butirs, context: `Laporan SNP · ${recordLabel}` });
-                    });
-                    option.append(label, readButton);
-                    group.appendChild(option);
-                } else {
-                    group.appendChild(label);
-                }
+                span.classList.add('min-w-0');
+                const option = document.createElement('div');
+                option.className = 'snp-report-butir-option';
+                label.className = 'flex cursor-pointer items-start gap-3 text-sm';
+                const readButton = document.createElement('button');
+                readButton.type = 'button';
+                readButton.className = 'snp-butir-read-button';
+                readButton.textContent = 'Baca isi lengkap';
+                readButton.setAttribute('aria-label', `Baca isi lengkap ${idButir}`);
+                readButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    readSnpButir({ id: idButir, content: isiButir, items: butirs, context: `Laporan ${moduleLabel} · ${recordLabel}`, label: contentLabel, format: isSnp ? 'rich' : 'plain' });
+                });
+                option.append(label, readButton);
+                group.appendChild(option);
             });
 
             customReportButirList.appendChild(group);

@@ -10,7 +10,7 @@
                 Tutup
             </button>
         </header>
-        <nav class="snp-butir-reader__navigation" data-snp-reader-navigation aria-label="Navigasi butir SNP" hidden>
+        <nav class="snp-butir-reader__navigation" data-snp-reader-navigation aria-label="Navigasi butir" hidden>
             <label for="snpButirReaderSelect" class="text-sm font-semibold text-slate-600">Pilih butir</label>
             <select id="snpButirReaderSelect" class="min-w-0 rounded-lg border-slate-300 text-sm"></select>
             <div class="flex gap-2">
