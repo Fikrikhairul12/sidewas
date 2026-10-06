@@ -473,3 +473,16 @@ test('master seeder retains komite edits and does not recreate a deleted komite'
     expect($first->fresh()->keterangan)->toBe('Tetap tersimpan');
     expect(Komite::whereKey(2)->exists())->toBeFalse();
 });
+
+test('unit management filters unit status separately from directorate status and explains name changes', function () {
+    $direktorat = Direktorat::create(['nama_direktorat' => 'Direktorat Aktif', 'status' => 'active']);
+    UnitKerja::create(['direktorat_id' => $direktorat->id, 'nama_unit' => 'Unit Masih Aktif', 'status' => 'active']);
+    UnitKerja::create(['direktorat_id' => $direktorat->id, 'nama_unit' => 'Unit Sudah Nonaktif', 'status' => 'inactive']);
+    $this->get(route('administrasi.manajemen-direktorat.index', ['unit_status' => 'inactive']))
+        ->assertOk()->assertSee('Manajemen Unit Kerja')->assertSee('Status unit kerja')
+        ->assertSee('Direktorat Aktif')->assertSee('Unit Sudah Nonaktif')->assertDontSee('Unit Masih Aktif')
+        ->assertSee('Perubahan nama dapat mengubah label pada data lama dan laporan');
+    $this->get(route('administrasi.manajemen-direktorat.index', ['unit_status' => 'active']))
+        ->assertOk()->assertSee('Unit Masih Aktif')->assertDontSee('Unit Sudah Nonaktif');
+    $this->get(route('administrasi.manajemen-direktorat.index', ['unit_status' => 'invalid']))->assertSessionHasErrors('unit_status');
+});

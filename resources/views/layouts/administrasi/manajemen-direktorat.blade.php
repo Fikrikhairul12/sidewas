@@ -25,7 +25,7 @@
             <p class="text-sm font-semibold uppercase tracking-wide text-sky-700">Administrasi</p>
             <div class="mt-2 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-slate-800">Manajemen Direktorat</h1>
+                    <h1 class="text-3xl font-bold text-slate-800">Manajemen Unit Kerja</h1>
                     <p class="mt-2 text-sm text-slate-500">Kelola direktorat, unit kerja, dan komite di Dewan Pengawas. Penugasan user dilakukan melalui Manajemen User.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -60,6 +60,13 @@
                     <option value="">Semua</option>
                     <option value="active" @selected(($filters['status'] ?? '') === 'active')>Aktif</option>
                     <option value="inactive" @selected(($filters['status'] ?? '') === 'inactive')>Nonaktif</option>
+                </select>
+            </label>
+            <label class="text-sm font-medium text-slate-700">Status unit kerja
+                <select name="unit_status" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
+                    <option value="">Semua status unit kerja</option>
+                    <option value="active" @selected(($filters['unit_status'] ?? '') === 'active')>Aktif</option>
+                    <option value="inactive" @selected(($filters['unit_status'] ?? '') === 'inactive')>Nonaktif</option>
                 </select>
             </label>
             <button class="rounded-xl px-5 py-3 text-sm font-semibold shadow-sm transition hover:opacity-90"
@@ -352,6 +359,7 @@
                 <input type="hidden" name="_form" value="edit-direktorat" />
                 <input type="hidden" name="_edit_action" :value="editDirektorat.action" />
                 <h2 class="text-xl font-bold text-slate-800">Edit Direktorat</h2>
+                <x-master-name-notice />
                 @if ($errors->any() && old('_form') === 'edit-direktorat')
                     <p class="mt-3 text-sm text-red-700" role="alert">{{ $errors->first() }}</p>
                 @endif
@@ -375,6 +383,7 @@
                 <input type="hidden" name="_form" value="edit-unit" />
                 <input type="hidden" name="_edit_action" :value="editUnit.action" />
                 <h2 class="text-xl font-bold text-slate-800">Edit Unit Kerja</h2>
+                <x-master-name-notice />
                 @if ($errors->any() && old('_form') === 'edit-unit')
                     <p class="mt-3 text-sm text-red-700" role="alert">{{ $errors->first() }}</p>
                 @endif

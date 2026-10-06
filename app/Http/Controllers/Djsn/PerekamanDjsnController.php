@@ -14,6 +14,7 @@ use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ClusterSelection;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -261,8 +262,8 @@ class PerekamanDjsnController extends Controller
 
         $validated = $request->validate([
             'butir_djsn' => ['required', 'string'],
-            'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id'],
-            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id', new ClusterSelection('djsn')],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id', new ClusterSelection('djsn')],
 
             'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
 
@@ -459,6 +460,8 @@ class PerekamanDjsnController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman DJSN.');
         }
 
+        $existingButir = $record->butirDjsn()->whereKey($request->integer('butir_id'))->first();
+
         $validated = $request->validate([
             'nomor_surat' => ['required', 'string'],
             'tanggal_surat' => ['required', 'date'],
@@ -469,8 +472,8 @@ class PerekamanDjsnController extends Controller
             'butir_id' => ['required', 'integer', 'exists:mysql_djsn.tb_butir_djsn,id'],
             'butir_djsn' => ['required', 'string'],
             'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
-            'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id'],
-            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id', new ClusterSelection('djsn', $existingButir)],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id', new ClusterSelection('djsn', $existingButir)],
             'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'unit_kerja_pendukung_id' => ['nullable', 'array'],
             'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
@@ -591,6 +594,14 @@ class PerekamanDjsnController extends Controller
             $oldValues = $record->load(['butirDjsn.butirPics'])->toArray();
             $recordPayload = $payload['record'] ?? [];
             $butirPayload = $payload['butir'] ?? [];
+            if (! empty($butirPayload['id'])) {
+                $existingButir = $record->butirDjsn()->whereKey((int) $butirPayload['id'])->firstOrFail();
+                validator($butirPayload, [
+                    'cluster_id' => ['required', 'integer', new ClusterSelection('djsn', $existingButir)],
+                    'sub_cluster_id' => ['required', 'integer', new ClusterSelection('djsn', $existingButir)],
+                ])->validate();
+            }
+
             $filePayload = $payload['files'] ?? [];
 
             $recordUpdates = [

@@ -14,6 +14,7 @@ use App\Models\RawasRecord;
 use App\Models\RawasSubCluster;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ClusterSelection;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -208,8 +209,8 @@ class PerekamanRawasController extends Controller
         }
 
         $validated = $request->validate([
-            'cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_cluster,id'],
-            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_sub_cluster,id'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_cluster,id', new ClusterSelection('rawas')],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_sub_cluster,id', new ClusterSelection('rawas')],
             'tanggal_rawas' => ['required', 'date'],
             'agenda_rawas' => ['required', 'string'],
             'keputusan_rawas' => ['required', 'string'],
@@ -295,6 +296,8 @@ class PerekamanRawasController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman RAWAS.');
         }
 
+        $existingButir = $record->butirRawas()->whereKey($request->integer('butir_id'))->first();
+
         $validated = $request->validate([
             'nomor_surat' => ['required', 'string'],
             'tanggal_surat' => ['required', 'date'],
@@ -304,8 +307,8 @@ class PerekamanRawasController extends Controller
 
             'butir_id' => ['required', 'integer', 'exists:mysql_rawas.tb_butir_rawas,id'],
             'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
-            'cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_cluster,id'],
-            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_sub_cluster,id'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_cluster,id', new ClusterSelection('rawas', $existingButir)],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_sub_cluster,id', new ClusterSelection('rawas', $existingButir)],
             'tanggal_rawas' => ['required', 'date'],
             'agenda_rawas' => ['required', 'string'],
             'keputusan_rawas' => ['required', 'string'],
@@ -424,6 +427,14 @@ class PerekamanRawasController extends Controller
             $oldValues = $record->load(['butirRawas.butirPics'])->toArray();
             $recordPayload = $payload['record'] ?? [];
             $butirPayload = $payload['butir'] ?? [];
+            if (! empty($butirPayload['id'])) {
+                $existingButir = $record->butirRawas()->whereKey((int) $butirPayload['id'])->firstOrFail();
+                validator($butirPayload, [
+                    'cluster_id' => ['required', 'integer', new ClusterSelection('rawas', $existingButir)],
+                    'sub_cluster_id' => ['required', 'integer', new ClusterSelection('rawas', $existingButir)],
+                ])->validate();
+            }
+
             $filePayload = $payload['files'] ?? [];
 
             $recordUpdates = [

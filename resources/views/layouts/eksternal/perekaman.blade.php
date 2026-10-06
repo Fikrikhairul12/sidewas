@@ -1003,9 +1003,9 @@
                                     <select name="cluster_id" x-model="selectedClusterId" @change="selectedEditButir.sub_cluster_id = ''" required
                                         class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                         <option value="">Pilih Cluster</option>
-                                        @foreach ($clusters as $cluster)
-                                            <option value="{{ $cluster->id }}">{{ $cluster->nama_cluster }}</option>
-                                        @endforeach
+                                        <template x-for="cluster in inputClusters" :key="cluster.id">
+                                            <option :value="String(cluster.id)" x-text="cluster.nama_cluster + (cluster.status === 'active' ? '' : ' (Nonaktif)')"></option>
+                                        </template>
                                     </select>
                                 </div>
 
@@ -1341,11 +1341,9 @@
                             <select name="cluster_id" x-model="selectedClusterId" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">Pilih Cluster</option>
-                                @foreach ($clusters as $cluster)
-                                    <option value="{{ $cluster->id }}">
-                                        {{ $cluster->nama_cluster }}
-                                    </option>
-                                @endforeach
+                                <template x-for="cluster in inputClusters" :key="cluster.id">
+                                            <option :value="String(cluster.id)" x-text="cluster.nama_cluster + (cluster.status === 'active' ? '' : ' (Nonaktif)')"></option>
+                                        </template>
                             </select>
                         </div>
 

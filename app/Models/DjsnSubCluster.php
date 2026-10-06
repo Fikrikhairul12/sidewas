@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class DjsnSubCluster extends Model
 {
     protected $connection = 'mysql_djsn';
+
     protected $table = 'tb_sub_cluster';
 
-    protected $fillable = ['cluster_id', 'nama_sub_cluster', 'keterangan'];
+    protected $fillable = ['cluster_id', 'nama_sub_cluster', 'keterangan', 'status'];
 
     public function cluster()
     {

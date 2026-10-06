@@ -30,12 +30,12 @@
             <div class="mt-3 flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-bold text-slate-800">Manajemen Cluster {{ $moduleLabel }}</h1>
-                    <p class="mt-2 text-sm text-slate-500">Kelola cluster dan subcluster untuk fitur {{ $moduleLabel }}.</p>
+                    <p class="mt-2 text-sm text-slate-500">Kelola cluster dan subcluster untuk fitur {{ $moduleLabel }}. Cluster nonaktif beserta subclusternya tidak tersedia untuk input baru; data lama tetap tersimpan.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <button type="button" @click="$dispatch('open-modal', 'create-cluster')" class="rounded-xl px-4 py-3 text-sm font-semibold shadow-sm transition hover:opacity-90"
                         style="background-color: #2377b9; border: 1px solid #2377b9; color: #fff;">Tambah Cluster</button>
-                    <button type="button" @click="createClusterId = ''; $dispatch('open-modal', 'create-subcluster')" @disabled($allClusters->isEmpty())
+                    <button type="button" @click="createClusterId = ''; $dispatch('open-modal', 'create-subcluster')" @disabled($allClusters->where('status', 'active')->isEmpty())
                         class="rounded-xl border border-sky-700 bg-white px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-50">Tambah Subcluster</button>
                 </div>
             </div>
@@ -60,7 +60,7 @@
                         <tr>
                             <th scope="col" class="px-5 py-4">Nama Cluster</th>
                             <th scope="col" class="px-5 py-4">Keterangan</th>
-                            <th scope="col" class="px-5 py-4">Total Subcluster</th>
+                            <th scope="col" class="px-5 py-4">Total Subcluster</th><th scope="col" class="px-5 py-4">Status</th>
                             <th scope="col" class="px-5 py-4 text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -72,11 +72,16 @@
                             <tr class="hover:bg-slate-50/70">
                                 <td class="px-5 py-4 font-semibold text-slate-800">{{ $cluster->nama_cluster }}</td>
                                 <td class="px-5 py-4 text-slate-700">{{ $cluster->keterangan ?: '-' }}</td>
-                                <td class="px-5 py-4 text-slate-700">{{ $cluster->subClusters->count() }}</td>
+                                <td class="px-5 py-4 text-slate-700">{{ $cluster->subClusters->count() }}</td><td class="px-5 py-4 text-slate-700">{{ $cluster->status === 'active' ? 'Aktif' : 'Nonaktif' }}</td>
                                 <td class="px-5 py-4">
                                     <div class="flex flex-wrap items-center justify-end gap-2">
                                         <button type="button" @click="editCluster = @js($editClusterPayload); $dispatch('open-modal', 'edit-cluster')" aria-label="Edit cluster {{ $cluster->nama_cluster }}"
                                             class="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50">Edit</button>
+                                        <form method="POST" action="{{ route('administrasi.manajemen-cluster.cluster.status', [$module, $cluster->id]) }}">
+                                            @csrf @method('PATCH')
+                                            <input type="hidden" name="status" value="{{ $cluster->status === 'active' ? 'inactive' : 'active' }}" />
+                                            <button class="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700">{{ $cluster->status === 'active' ? 'Nonaktifkan' : 'Aktifkan' }}</button>
+                                        </form>
                                         <form method="POST" action="{{ route('administrasi.manajemen-cluster.cluster.destroy', [$module, $cluster->id]) }}" onsubmit="return confirm('Hapus cluster ini? Cluster yang memiliki subcluster atau sudah digunakan tidak dapat dihapus.')">
                                             @csrf @method('DELETE')
                                             <button class="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 hover:bg-red-50">Hapus</button>
@@ -91,15 +96,15 @@
                                 </td>
                             </tr>
                             <tr id="subcluster-{{ $cluster->id }}" x-show="openClusters[{{ $cluster->id }}]" style="display: none;">
-                                <td colspan="4" class="bg-slate-50 px-5 py-5">
+                                <td colspan="5" class="bg-slate-50 px-5 py-5">
                                     <div class="rounded-xl border border-slate-200 bg-white">
                                         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
                                             <h2 class="font-semibold text-slate-800">Subcluster {{ $cluster->nama_cluster }}</h2>
-                                            <button type="button" @click="createClusterId = '{{ $cluster->id }}'; $dispatch('open-modal', 'create-subcluster')" class="rounded-lg border border-sky-200 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-50">Tambah Subcluster</button>
+                                            <button type="button" @click="createClusterId = '{{ $cluster->id }}'; $dispatch('open-modal', 'create-subcluster')" @disabled($cluster->status !== 'active') class="rounded-lg border border-sky-200 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-50">Tambah Subcluster</button>
                                         </div>
                                         <table class="min-w-full divide-y divide-slate-100 text-sm">
                                             <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                                <tr><th scope="col" class="px-4 py-3">Nama Subcluster</th><th scope="col" class="px-4 py-3">Keterangan</th><th scope="col" class="px-4 py-3 text-right">Aksi</th></tr>
+                                                <tr><th scope="col" class="px-4 py-3">Nama Subcluster</th><th scope="col" class="px-4 py-3">Keterangan</th><th scope="col" class="px-4 py-3">Status</th><th scope="col" class="px-4 py-3 text-right">Aksi</th></tr>
                                             </thead>
                                             <tbody class="divide-y divide-slate-100">
                                                 @forelse ($cluster->subClusters as $subCluster)
@@ -108,10 +113,15 @@
                                                     @endphp
                                                     <tr style="background-color: {{ $loop->even ? '#f6f9fc' : '#ffffff' }};">
                                                         <td class="px-4 py-3 font-medium text-slate-800">{{ $subCluster->nama_sub_cluster }}</td>
-                                                        <td class="px-4 py-3 text-slate-700">{{ $subCluster->keterangan ?: '-' }}</td>
+                                                        <td class="px-4 py-3 text-slate-700">{{ $subCluster->keterangan ?: '-' }}</td><td class="px-4 py-3 text-slate-700">{{ $subCluster->status === 'active' ? 'Aktif' : 'Nonaktif' }}{{ $cluster->status !== 'active' ? ' (cluster nonaktif)' : '' }}</td>
                                                         <td class="px-4 py-3">
                                                             <div class="flex justify-end gap-2">
                                                                 <button type="button" @click="editSubCluster = @js($editSubClusterPayload); $dispatch('open-modal', 'edit-subcluster')" aria-label="Edit subcluster {{ $subCluster->nama_sub_cluster }}" class="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700">Edit</button>
+                                                                <form method="POST" action="{{ route('administrasi.manajemen-cluster.subcluster.status', [$module, $cluster->id, $subCluster->id]) }}">
+                                                                    @csrf @method('PATCH')
+                                                                    <input type="hidden" name="status" value="{{ $subCluster->status === 'active' ? 'inactive' : 'active' }}" />
+                                                                    <button class="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700">{{ $subCluster->status === 'active' ? 'Nonaktifkan' : 'Aktifkan' }}</button>
+                                                                </form>
                                                                 <form method="POST" action="{{ route('administrasi.manajemen-cluster.subcluster.destroy', [$module, $cluster->id, $subCluster->id]) }}" onsubmit="return confirm('Hapus subcluster ini? Subcluster yang sudah digunakan tidak dapat dihapus.')">
                                                                     @csrf @method('DELETE')
                                                                     <input type="hidden" name="cluster_id" value="{{ $cluster->id }}" />
@@ -121,7 +131,7 @@
                                                         </td>
                                                     </tr>
                                                 @empty
-                                                    <tr><td colspan="3" class="px-4 py-5 text-center text-slate-500">Belum ada subcluster.</td></tr>
+                                                    <tr><td colspan="4" class="px-4 py-5 text-center text-slate-500">Belum ada subcluster.</td></tr>
                                                 @endforelse
                                             </tbody>
                                         </table>
@@ -130,7 +140,7 @@
                             </tr>
                         </tbody>
                     @empty
-                        <tbody><tr><td colspan="4" class="px-5 py-8 text-center text-slate-500">{{ empty($filters['keyword']) ? 'Belum ada cluster. Tambahkan cluster untuk mulai mengelola subcluster.' : 'Tidak ada cluster atau subcluster yang sesuai.' }}</td></tr></tbody>
+                        <tbody><tr><td colspan="5" class="px-5 py-8 text-center text-slate-500">{{ empty($filters['keyword']) ? 'Belum ada cluster. Tambahkan cluster untuk mulai mengelola subcluster.' : 'Tidak ada cluster atau subcluster yang sesuai.' }}</td></tr></tbody>
                     @endforelse
                 </table>
             </div>
@@ -155,6 +165,7 @@
                         @if ($isSubCluster)<input type="hidden" name="sub_cluster_id" :value="editSubCluster.id" />@endif
                     @endif
                     <h2 class="text-xl font-bold text-slate-800">{{ $formTitle }} {{ $moduleLabel }}</h2>
+                    @if ($isEdit)<x-master-name-notice />@endif
                     @if ($errors->any() && old('_form') === $formName)
                         <ul class="mt-3 list-inside list-disc text-sm text-red-700" role="alert">
                             @foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach
@@ -164,7 +175,7 @@
                         <label class="mt-5 block text-sm font-medium text-slate-700">Cluster
                             <select name="cluster_id" x-model="createClusterId" required class="mt-1 w-full rounded-xl border-slate-300 text-sm">
                                 <option value="">Pilih cluster</option>
-                                @foreach ($allClusters as $option)<option value="{{ $option->id }}">{{ $option->nama_cluster }}</option>@endforeach
+                                @foreach ($allClusters->where('status', 'active') as $option)<option value="{{ $option->id }}">{{ $option->nama_cluster }}</option>@endforeach
                             </select>
                         </label>
                     @endif

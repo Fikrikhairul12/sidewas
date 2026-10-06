@@ -88,6 +88,20 @@ class ManajemenClusterController extends Controller
         return $this->redirect($module, 'Cluster berhasil diperbarui.', $cluster);
     }
 
+    public function statusCluster(Request $request, string $module, int $cluster): RedirectResponse
+    {
+        $config = $this->authorizeModule($request, $module);
+        $validated = $request->validate(['status' => ['required', Rule::in(['active', 'inactive'])]]);
+        DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $cluster, $validated): void {
+            $record = $config['cluster']::query()->lockForUpdate()->findOrFail($cluster);
+            $before = $record->toArray();
+            $record->update($validated);
+            $this->log($request, $module, $record, 'change_cluster_status', $before, $record->toArray());
+        });
+
+        return $this->redirect($module, 'Status cluster berhasil diperbarui.', $cluster);
+    }
+
     public function destroyCluster(Request $request, string $module, int $cluster): RedirectResponse
     {
         $config = $this->authorizeModule($request, $module);
@@ -111,12 +125,15 @@ class ManajemenClusterController extends Controller
     {
         $config = $this->authorizeModule($request, $module);
         $validated = $request->validate([
-            'cluster_id' => ['required', 'integer', Rule::exists('mysql_'.$module.'.tb_cluster', 'id')],
+            'cluster_id' => ['required', 'integer', Rule::exists('mysql_'.$module.'.tb_cluster', 'id')->where('status', 'active')],
             'nama_sub_cluster' => ['required', 'string', 'max:255', Rule::unique('mysql_'.$module.'.tb_sub_cluster', 'nama_sub_cluster')->where('cluster_id', $request->integer('cluster_id'))],
             'keterangan' => ['nullable', 'string'],
         ]);
         DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $validated) {
-            $config['cluster']::query()->lockForUpdate()->findOrFail($validated['cluster_id']);
+            $parent = $config['cluster']::query()->lockForUpdate()->findOrFail($validated['cluster_id']);
+            if ($parent->status !== 'active') {
+                throw ValidationException::withMessages(['cluster_id' => 'Pilih cluster aktif untuk menambah subcluster.']);
+            }
             $record = $config['sub_cluster']::create($validated);
             $this->log($request, $module, $record, 'create_sub_cluster', null, $record->toArray());
         });
@@ -140,6 +157,24 @@ class ManajemenClusterController extends Controller
         });
 
         return $this->redirect($module, 'Subcluster berhasil diperbarui.', $cluster);
+    }
+
+    public function statusSubCluster(Request $request, string $module, int $cluster, int $subCluster): RedirectResponse
+    {
+        $config = $this->authorizeModule($request, $module);
+        $validated = $request->validate(['status' => ['required', Rule::in(['active', 'inactive'])]]);
+        DB::connection('mysql_'.$module)->transaction(function () use ($request, $module, $config, $cluster, $subCluster, $validated): void {
+            $parent = $config['cluster']::query()->lockForUpdate()->findOrFail($cluster);
+            $record = $config['sub_cluster']::where('cluster_id', $cluster)->lockForUpdate()->findOrFail($subCluster);
+            if ($validated['status'] === 'active' && $parent->status !== 'active') {
+                throw ValidationException::withMessages(['status' => 'Aktifkan cluster induknya terlebih dahulu.']);
+            }
+            $before = $record->toArray();
+            $record->update($validated);
+            $this->log($request, $module, $record, 'change_sub_cluster_status', $before, $record->toArray());
+        });
+
+        return $this->redirect($module, 'Status subcluster berhasil diperbarui.', $cluster);
     }
 
     public function destroySubCluster(Request $request, string $module, int $cluster, int $subCluster): RedirectResponse

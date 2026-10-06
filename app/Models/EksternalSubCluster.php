@@ -14,6 +14,7 @@ class EksternalSubCluster extends Model
         'cluster_id',
         'nama_sub_cluster',
         'keterangan',
+        'status',
     ];
 
     public function cluster()

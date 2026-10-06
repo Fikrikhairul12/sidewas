@@ -3,9 +3,9 @@
 test('djsn cluster and sub cluster belong to butir instead of record', function () {
     $basePath = dirname(__DIR__, 2);
 
-    $recordModel = file_get_contents($basePath . '/app/Models/DjsnRecord.php');
-    $butirModel = file_get_contents($basePath . '/app/Models/DjsnButir.php');
-    $migration = file_get_contents($basePath . '/database/migrations/2026_06_03_093422_create_djsn_tables.php');
+    $recordModel = file_get_contents($basePath.'/app/Models/DjsnRecord.php');
+    $butirModel = file_get_contents($basePath.'/app/Models/DjsnButir.php');
+    $migration = file_get_contents($basePath.'/database/migrations/2026_06_03_093422_create_djsn_tables.php');
 
     expect($recordModel)
         ->not->toContain("'cluster_id'")
@@ -38,9 +38,9 @@ test('djsn cluster and sub cluster belong to butir instead of record', function 
 test('djsn perekaman validates cluster on butir form only', function () {
     $basePath = dirname(__DIR__, 2);
 
-    $controller = file_get_contents($basePath . '/app/Http/Controllers/Djsn/PerekamanDjsnController.php');
-    $view = file_get_contents($basePath . '/resources/views/layouts/djsn/perekaman.blade.php');
-    $script = file_get_contents($basePath . '/resources/js/script.js');
+    $controller = file_get_contents($basePath.'/app/Http/Controllers/Djsn/PerekamanDjsnController.php');
+    $view = file_get_contents($basePath.'/resources/views/layouts/djsn/perekaman.blade.php');
+    $script = file_get_contents($basePath.'/resources/js/script.js');
 
     $storeRecordStart = strpos($controller, 'public function storeRecord');
     $storeButirStart = strpos($controller, 'public function storeButir');
@@ -53,8 +53,8 @@ test('djsn perekaman validates cluster on butir form only', function () {
         ->not->toContain("'sub_cluster_id'");
 
     expect($storeButir)
-        ->toContain("'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id']")
-        ->toContain("'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id']")
+        ->toContain("'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id', new ClusterSelection('djsn')]")
+        ->toContain("'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id', new ClusterSelection('djsn')]")
         ->toContain("'cluster_id' => \$validated['cluster_id']")
         ->toContain("'sub_cluster_id' => \$validated['sub_cluster_id']");
 
@@ -72,10 +72,10 @@ test('djsn perekaman validates cluster on butir form only', function () {
 test('djsn downstream pages load and filter cluster through butir', function () {
     $basePath = dirname(__DIR__, 2);
 
-    $tanggapan = file_get_contents($basePath . '/app/Http/Controllers/Djsn/TanggapanDjsnController.php');
-    $tindakLanjut = file_get_contents($basePath . '/app/Http/Controllers/Djsn/TindakLanjutDjsnController.php');
-    $reviu = file_get_contents($basePath . '/app/Http/Controllers/Djsn/ReviuDjsnController.php');
-    $report = file_get_contents($basePath . '/app/Http/Controllers/Djsn/ReportDjsnController.php');
+    $tanggapan = file_get_contents($basePath.'/app/Http/Controllers/Djsn/TanggapanDjsnController.php');
+    $tindakLanjut = file_get_contents($basePath.'/app/Http/Controllers/Djsn/TindakLanjutDjsnController.php');
+    $reviu = file_get_contents($basePath.'/app/Http/Controllers/Djsn/ReviuDjsnController.php');
+    $report = file_get_contents($basePath.'/app/Http/Controllers/Djsn/ReportDjsnController.php');
 
     foreach ([$tanggapan, $tindakLanjut, $reviu, $report] as $source) {
         expect($source)

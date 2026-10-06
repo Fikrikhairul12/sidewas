@@ -16,6 +16,7 @@ use App\Models\RagabRecord;
 use App\Models\RagabSubCluster;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ClusterSelection;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -225,9 +226,9 @@ class PerekamanRagabController extends Controller
         }
 
         $validated = $request->validate([
-            'cluster_id' => ['required', 'integer', 'exists:mysql_ragab.tb_cluster,id'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_ragab.tb_cluster,id', new ClusterSelection('ragab')],
             'sub_cluster_ids' => ['required', 'array', 'min:1'],
-            'sub_cluster_ids.*' => ['integer', 'exists:mysql_ragab.tb_sub_cluster,id'],
+            'sub_cluster_ids.*' => ['integer', 'exists:mysql_ragab.tb_sub_cluster,id', new ClusterSelection('ragab')],
 
             'tanggal_ragab' => ['required', 'date'],
             'agenda_ragab' => ['required', 'string'],
@@ -395,6 +396,8 @@ class PerekamanRagabController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman RAGAB.');
         }
 
+        $existingButir = $record->butirRagab()->whereKey($request->integer('butir_id'))->first();
+
         $validated = $request->validate([
             'nomor_surat' => ['required', 'string'],
             'tanggal_surat' => ['required', 'date'],
@@ -405,9 +408,9 @@ class PerekamanRagabController extends Controller
 
             'butir_id' => ['required', 'integer', 'exists:mysql_ragab.tb_butir_ragab,id'],
             'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
-            'cluster_id' => ['required', 'integer', 'exists:mysql_ragab.tb_cluster,id'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_ragab.tb_cluster,id', new ClusterSelection('ragab', $existingButir)],
             'sub_cluster_ids' => ['required', 'array', 'min:1'],
-            'sub_cluster_ids.*' => ['required', 'integer', 'exists:mysql_ragab.tb_sub_cluster,id'],
+            'sub_cluster_ids.*' => ['required', 'integer', 'exists:mysql_ragab.tb_sub_cluster,id', new ClusterSelection('ragab', $existingButir)],
             'tanggal_ragab' => ['required', 'date'],
             'agenda_ragab' => ['required', 'string'],
             'keputusan_ragab' => ['required', 'string'],
@@ -557,6 +560,14 @@ class PerekamanRagabController extends Controller
             $oldValues = $record->load(['butirRagab.butirPics', 'butirRagab.butirDirektorats', 'butirRagab.subClusters'])->toArray();
             $recordPayload = $payload['record'] ?? [];
             $butirPayload = $payload['butir'] ?? [];
+            if (! empty($butirPayload['id'])) {
+                $existingButir = $record->butirRagab()->whereKey((int) $butirPayload['id'])->firstOrFail();
+                validator($butirPayload, [
+                    'cluster_id' => ['required', 'integer', new ClusterSelection('ragab', $existingButir)],
+                    'sub_cluster_ids.*' => ['required', 'integer', new ClusterSelection('ragab', $existingButir)],
+                ])->validate();
+            }
+
             $filePayload = $payload['files'] ?? [];
 
             $recordUpdates = [
@@ -585,6 +596,7 @@ class PerekamanRagabController extends Controller
 
             if (! empty($butirPayload['id'])) {
                 $butir = $record->butirRagab()->where('id', (int) $butirPayload['id'])->firstOrFail();
+
                 $subClusterIds = collect($butirPayload['sub_cluster_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
 
                 $butir->update([

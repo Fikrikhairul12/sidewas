@@ -135,6 +135,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [ManajemenClusterController::class, 'index'])->name('index');
         Route::get('/{module}', [ManajemenClusterController::class, 'show'])->name('show');
         Route::post('/{module}/cluster', [ManajemenClusterController::class, 'storeCluster'])->name('cluster.store');
+        Route::patch('/{module}/cluster/{cluster}/status', [ManajemenClusterController::class, 'statusCluster'])->whereNumber('cluster')->name('cluster.status');
+        Route::patch('/{module}/cluster/{cluster}/subcluster/{subCluster}/status', [ManajemenClusterController::class, 'statusSubCluster'])->whereNumber(['cluster', 'subCluster'])->name('subcluster.status');
         Route::patch('/{module}/cluster/{cluster}', [ManajemenClusterController::class, 'updateCluster'])->whereNumber('cluster')->name('cluster.update');
         Route::delete('/{module}/cluster/{cluster}', [ManajemenClusterController::class, 'destroyCluster'])->whereNumber('cluster')->name('cluster.destroy');
         Route::post('/{module}/subcluster', [ManajemenClusterController::class, 'storeSubCluster'])->name('subcluster.store');

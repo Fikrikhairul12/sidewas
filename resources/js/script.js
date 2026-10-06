@@ -1,6 +1,20 @@
 import { renderSnpButir, snpButirPlain } from './snp-butir-content';
 import { readSnpButir } from './snp-butir-reader';
 
+function inputClusters(clusters, existing = null) {
+    return clusters.filter(cluster => cluster.status === 'active' || String(cluster.id) === String(existing?.cluster_id));
+}
+
+function inputSubClusters(cluster, existing = null) {
+    if (!cluster) return [];
+    const sameCluster = String(cluster.id) === String(existing?.cluster_id);
+    const previous = existing?.sub_cluster_ids || [existing?.sub_cluster_id];
+    return (cluster.sub_clusters || []).filter(subCluster =>
+        (cluster.status === 'active' && subCluster.status === 'active')
+        || (sameCluster && previous.some(id => String(id) === String(subCluster.id)))
+    );
+}
+
 /**
  * ============================================================
  * PEREKAMAN SNP
@@ -114,12 +128,16 @@ window.perekamanSnpModal = function (clusters = [], direktorats = [], oldEditor 
 
         get filteredSubClusters() {
             const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
-            return cluster ? cluster.sub_clusters : [];
+            return inputSubClusters(cluster);
+        },
+
+        get editClusters() {
+            return inputClusters(this.clusters, this.editRecord);
         },
 
         get filteredEditSubClusters() {
             const cluster = this.clusters.find(item => String(item.id) === String(this.editClusterId));
-            return cluster ? cluster.sub_clusters : [];
+            return inputSubClusters(cluster, this.editRecord);
         },
 
         get filteredUnitKerjaUtama() {
@@ -414,9 +432,13 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
             this.selectedDetailButir = butir;
         },
 
+        get inputClusters() {
+            return inputClusters(this.clusters, this.openEditModal ? this.selectedEditButir : null);
+        },
+
         get filteredSubClusters() {
             const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
-            return cluster ? cluster.sub_clusters : [];
+            return inputSubClusters(cluster, this.openEditModal ? this.selectedEditButir : null);
         },
 
         get selectedSubClusterDetail() {
@@ -995,9 +1017,13 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
             this.selectedDetailButir = butir;
         },
 
+        get inputClusters() {
+            return inputClusters(this.clusters, this.openEditModal ? this.selectedEditButir : null);
+        },
+
         get filteredSubClusters() {
             const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
-            return cluster ? cluster.sub_clusters : [];
+            return inputSubClusters(cluster, this.openEditModal ? this.selectedEditButir : null);
         },
 
         get filteredDetailButirs() {
@@ -1127,9 +1153,13 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
             this.selectedDetailButir = butir;
         },
 
+        get inputClusters() {
+            return inputClusters(this.clusters, this.openEditModal ? this.selectedEditButir : null);
+        },
+
         get filteredSubClusters() {
             const cluster = this.clusters.find(item => String(item.id) === String(this.selectedClusterId));
-            return cluster ? cluster.sub_clusters : [];
+            return inputSubClusters(cluster, this.openEditModal ? this.selectedEditButir : null);
         },
 
         get filteredDetailButirs() {

@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class SnpCluster extends Model
 {
     protected $connection = 'mysql_snp';
+
     protected $table = 'tb_cluster';
 
-    protected $fillable = ['nama_cluster', 'keterangan'];
+    protected $fillable = ['nama_cluster', 'keterangan', 'status'];
 
     public function subClusters()
     {

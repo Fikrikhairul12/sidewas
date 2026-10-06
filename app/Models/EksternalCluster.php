@@ -13,6 +13,7 @@ class EksternalCluster extends Model
     protected $fillable = [
         'nama_cluster',
         'keterangan',
+        'status',
     ];
 
     public function subClusters()

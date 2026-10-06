@@ -18,6 +18,7 @@ use App\Models\SnpTanggapan;
 use App\Models\SnpTindakLanjut;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ClusterSelection;
 use App\Services\SnpButirContent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -205,8 +206,8 @@ class PerekamanSnpController extends Controller
             'nomor_surat' => ['required', 'string', 'max:255'],
             'tanggal_surat' => ['required', 'date'],
             'perihal_surat' => ['required', 'string'],
-            'cluster_id' => ['required', 'integer'],
-            'sub_cluster_id' => ['required', 'integer'],
+            'cluster_id' => ['required', 'integer', new ClusterSelection('snp')],
+            'sub_cluster_id' => ['required', 'integer', new ClusterSelection('snp')],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
             'dokumen_memo' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
         ]);
@@ -352,8 +353,8 @@ class PerekamanSnpController extends Controller
         $validated = $request->validate([
             'tanggal_surat' => ['required', 'date'],
             'perihal_surat' => ['required', 'string'],
-            'cluster_id' => ['required', 'integer', 'exists:mysql_snp.tb_cluster,id'],
-            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_snp.tb_sub_cluster,id'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_snp.tb_cluster,id', new ClusterSelection('snp', $record)],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_snp.tb_sub_cluster,id', new ClusterSelection('snp', $record)],
             'status' => ['required', 'string', 'in:draft,dalam_proses,tuntas'],
 
             'butir_id' => ['required', 'integer', 'exists:mysql_snp.tb_butir_snp,id'],
@@ -500,6 +501,12 @@ class PerekamanSnpController extends Controller
 
     public function applySnpPerekamanUpdate(SnpRecord $record, array $payload, User $user, Request $request): void
     {
+        $selection = array_merge($record->only(['cluster_id', 'sub_cluster_id']), $payload['record'] ?? []);
+        validator($selection, [
+            'cluster_id' => ['required', 'integer', new ClusterSelection('snp', $record)],
+            'sub_cluster_id' => ['required', 'integer', new ClusterSelection('snp', $record)],
+        ])->validate();
+
         if (! empty($payload['butir']['id'])) {
             $payload['butir']['butir_snp'] = app(SnpButirContent::class)->normalize($payload['butir']['butir_snp'], (int) $record->id);
         }

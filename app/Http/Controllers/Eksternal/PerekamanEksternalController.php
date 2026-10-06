@@ -15,6 +15,7 @@ use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ClusterSelection;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -222,8 +223,8 @@ class PerekamanEksternalController extends Controller
         }
 
         $validated = $request->validate([
-            'cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_cluster,id'],
-            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_sub_cluster,id'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_cluster,id', new ClusterSelection('eksternal')],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_sub_cluster,id', new ClusterSelection('eksternal')],
 
             'tanggal_eksternal' => ['required', 'date'],
             'agenda_eksternal' => ['required', 'string'],
@@ -366,6 +367,8 @@ class PerekamanEksternalController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman Eksternal.');
         }
 
+        $existingButir = $record->butirEksternal()->whereKey($request->integer('butir_id'))->first();
+
         $validated = $request->validate([
             'nomor_surat' => ['required', 'string'],
             'tanggal_surat' => ['required', 'date'],
@@ -377,8 +380,8 @@ class PerekamanEksternalController extends Controller
 
             'butir_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_butir_eksternal,id'],
             'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
-            'cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_cluster,id'],
-            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_sub_cluster,id'],
+            'cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_cluster,id', new ClusterSelection('eksternal', $existingButir)],
+            'sub_cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_sub_cluster,id', new ClusterSelection('eksternal', $existingButir)],
             'tanggal_eksternal' => ['required', 'date'],
             'agenda_eksternal' => ['required', 'string'],
             'keputusan_eksternal' => ['required', 'string'],
@@ -524,6 +527,14 @@ class PerekamanEksternalController extends Controller
             $oldValues = $record->load(['butirEksternal.butirPics', 'butirEksternal.butirDirektorats'])->toArray();
             $recordPayload = $payload['record'] ?? [];
             $butirPayload = $payload['butir'] ?? [];
+            if (! empty($butirPayload['id'])) {
+                $existingButir = $record->butirEksternal()->whereKey((int) $butirPayload['id'])->firstOrFail();
+                validator($butirPayload, [
+                    'cluster_id' => ['required', 'integer', new ClusterSelection('eksternal', $existingButir)],
+                    'sub_cluster_id' => ['required', 'integer', new ClusterSelection('eksternal', $existingButir)],
+                ])->validate();
+            }
+
             $filePayload = $payload['files'] ?? [];
 
             $recordUpdates = [

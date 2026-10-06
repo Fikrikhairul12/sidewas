@@ -1,21 +1,25 @@
 <?php
 
 use App\Http\Controllers\Administrasi\PengajuanController;
+use App\Http\Controllers\Snp\PerekamanSnpController;
 use App\Models\DeleteRequest;
 use App\Models\SnpButir;
 use App\Models\SnpRecord;
 use App\Models\User;
 use App\Services\SnpButirContent;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 uses(TestCase::class);
 
 beforeEach(function () {
+    $this->withoutVite();
     config(['app.key' => 'base64:'.base64_encode(str_repeat('s', 32)), 'database.default' => 'mysql']);
     foreach (['mysql', 'mysql_snp'] as $connection) {
         config(['database.connections.'.$connection => ['driver' => 'sqlite', 'database' => ':memory:', 'foreign_key_constraints' => true]]);
@@ -28,11 +32,13 @@ beforeEach(function () {
     $snp->create('tb_cluster', function (Blueprint $table) {
         $table->id();
         $table->string('nama_cluster');
+        $table->string('status')->default('active');
     });
     $snp->create('tb_sub_cluster', function (Blueprint $table) {
         $table->id();
         $table->integer('cluster_id');
         $table->string('nama_sub_cluster');
+        $table->string('status')->default('active');
     });
     $snp->create('tb_record', function (Blueprint $table) {
         $table->id();
@@ -68,6 +74,44 @@ beforeEach(function () {
     DB::connection('mysql_snp')->table('tb_cluster')->insert(['id' => 1, 'nama_cluster' => 'Cluster']);
     DB::connection('mysql_snp')->table('tb_sub_cluster')->insert(['id' => 1, 'cluster_id' => 1, 'nama_sub_cluster' => 'Sub Cluster']);
     Storage::fake('local');
+});
+
+test('creating SNP records rejects mismatched missing and inactive master selections at the server', function () {
+    $this->actingAs(snpWriter(true));
+    $db = DB::connection('mysql_snp');
+    $db->table('tb_cluster')->insert(['id' => 2, 'nama_cluster' => 'Cluster lain']);
+    $data = ['nomor_surat' => 'UJI', 'tanggal_surat' => '2026-10-06', 'perihal_surat' => 'Uji hubungan', 'cluster_id' => 2, 'sub_cluster_id' => 1];
+    $this->post(route('snp.perekaman.store'), $data)->assertSessionHasErrors('sub_cluster_id');
+    $this->post(route('snp.perekaman.store'), array_replace($data, ['cluster_id' => 999]))->assertSessionHasErrors('cluster_id');
+    $db->table('tb_sub_cluster')->where('id', 1)->update(['status' => 'inactive']);
+    $this->post(route('snp.perekaman.store'), array_replace($data, ['cluster_id' => 1]))->assertSessionHasErrors('sub_cluster_id');
+    $db->table('tb_sub_cluster')->where('id', 1)->update(['status' => 'active']);
+    $db->table('tb_cluster')->where('id', 1)->update(['status' => 'inactive']);
+    $this->post(route('snp.perekaman.store'), array_replace($data, ['cluster_id' => 1]))->assertSessionHasErrors('cluster_id');
+    expect(SnpRecord::count())->toBe(0);
+    $db->table('tb_cluster')->where('id', 1)->update(['status' => 'active']);
+    $this->post(route('snp.perekaman.store'), array_replace($data, ['cluster_id' => 1]))->assertSessionHasNoErrors();
+    expect(SnpRecord::count())->toBe(1);
+});
+
+test('approval rechecks inactive master selections while allowing edits that retain historical selections', function () {
+    $user = snpWriter(true);
+    $this->actingAs($user);
+    $record = SnpRecord::create(['nomor_surat' => 'UJI', 'tanggal_surat' => '2026-10-01', 'cluster_id' => 1, 'sub_cluster_id' => 1]);
+    $db = DB::connection('mysql_snp');
+    $db->table('tb_cluster')->insert(['id' => 2, 'nama_cluster' => 'Cluster tujuan', 'status' => 'inactive']);
+    $db->table('tb_sub_cluster')->insert(['id' => 2, 'cluster_id' => 2, 'nama_sub_cluster' => 'Subcluster tujuan', 'status' => 'active']);
+    $controller = app(PerekamanSnpController::class);
+    $request = Request::create('/approval', 'POST');
+    expect(fn () => $controller->applySnpPerekamanUpdate($record, ['record' => ['cluster_id' => 2, 'sub_cluster_id' => 2]], $user, $request))
+        ->toThrow(ValidationException::class)
+        ->and($record->fresh()->cluster_id)->toBe(1);
+    $db->table('tb_cluster')->where('id', 1)->update(['status' => 'inactive']);
+    $db->table('tb_sub_cluster')->where('id', 1)->update(['status' => 'inactive']);
+    $controller->applySnpPerekamanUpdate($record, ['record' => ['perihal_surat' => 'Riwayat tetap dapat diedit']], $user, $request);
+    expect($record->fresh()->perihal_surat)->toBe('Riwayat tetap dapat diedit')
+        ->and($record->fresh()->cluster_id)->toBe(1)
+        ->and($record->fresh()->sub_cluster_id)->toBe(1);
 });
 
 function snpWriter(bool $super = false): User

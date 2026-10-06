@@ -855,7 +855,7 @@
             <a href="{{ route('administrasi.manajemen-direktorat.index') }}"
                 class="group flex w-full items-center gap-3 border-b border-slate-300/70 px-6 py-4 text-sm font-medium transition hover:bg-white hover:text-sidewas-blue {{ request()->routeIs('administrasi.manajemen-direktorat.*') ? 'bg-white text-sidewas-blue font-semibold is-active' : 'text-slate-600' }}">
                 <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl text-sky-500 shadow-sm ring-1 ring-slate-200">▦</span>
-                <span>Manajemen Direktorat</span>
+                <span>Manajemen Unit Kerja</span>
             </a>
             <a href="{{ route('administrasi.manajemen-cluster.index') }}"
                 class="group flex w-full items-center gap-3 border-b border-slate-300/70 px-6 py-4 text-sm font-medium transition hover:bg-white hover:text-sidewas-blue {{ request()->routeIs('administrasi.manajemen-cluster.*') ? 'bg-white text-sidewas-blue font-semibold is-active' : 'text-slate-600' }}">

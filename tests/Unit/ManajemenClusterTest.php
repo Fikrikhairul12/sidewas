@@ -69,6 +69,7 @@ beforeEach(function () {
         $schema->create('tb_cluster', function (Blueprint $table) {
             $table->id();
             $table->string('nama_cluster');
+            $table->string('status')->default('active');
             $table->text('keterangan')->nullable();
             $table->timestamps();
         });
@@ -76,6 +77,7 @@ beforeEach(function () {
             $table->id();
             $table->foreignId('cluster_id')->constrained('tb_cluster')->cascadeOnDelete();
             $table->string('nama_sub_cluster');
+            $table->string('status')->default('active');
             $table->text('keterangan')->nullable();
             $table->timestamps();
         });
@@ -101,7 +103,7 @@ beforeEach(function () {
 
 test('module chooser is placed after directorate management and links to all five modules', function () {
     $response = $this->get(route('administrasi.manajemen-cluster.index'))->assertOk()
-        ->assertSeeInOrder(['Manajemen Direktorat', 'Manajemen Cluster']);
+        ->assertSeeInOrder(['Manajemen Unit Kerja', 'Manajemen Cluster']);
     foreach (['snp', 'ragab', 'rawas', 'djsn', 'eksternal'] as $module) {
         $response->assertSee(route('administrasi.manajemen-cluster.show', $module));
     }
@@ -152,9 +154,11 @@ test('all management endpoints reject users without super admin access', functio
     $this->get(route('administrasi.manajemen-cluster.show', $module))->assertForbidden();
     $this->post(route('administrasi.manajemen-cluster.cluster.store', $module))->assertForbidden();
     $this->patch(route('administrasi.manajemen-cluster.cluster.update', [$module, 1]))->assertForbidden();
+    $this->patch(route('administrasi.manajemen-cluster.cluster.status', [$module, 1]), ['status' => 'inactive'])->assertForbidden();
     $this->delete(route('administrasi.manajemen-cluster.cluster.destroy', [$module, 1]))->assertForbidden();
     $this->post(route('administrasi.manajemen-cluster.subcluster.store', $module))->assertForbidden();
     $this->patch(route('administrasi.manajemen-cluster.subcluster.update', [$module, 1, 1]))->assertForbidden();
+    $this->patch(route('administrasi.manajemen-cluster.subcluster.status', [$module, 1, 1]), ['status' => 'inactive'])->assertForbidden();
     $this->delete(route('administrasi.manajemen-cluster.subcluster.destroy', [$module, 1, 1]))->assertForbidden();
     expect(LogActivity::count())->toBe(0);
 })->with('cluster modules');
@@ -233,4 +237,31 @@ test('rerunning module seeders preserves edits and deliberate deletions', functi
 test('guest must log in before managing clusters', function () {
     auth()->logout();
     $this->get(route('administrasi.manajemen-cluster.index'))->assertRedirect(route('login'));
+});
+
+test('used cluster and subcluster can be deactivated without losing history and every status change is audited', function (string $module) {
+    $db = DB::connection('mysql_'.$module);
+    $table = $module === 'snp' ? 'tb_record' : 'tb_butir_'.$module;
+    $db->table($table)->insert(['cluster_id' => 1, 'sub_cluster_id' => 1]);
+    $this->patch(route('administrasi.manajemen-cluster.subcluster.status', [$module, 1, 1]), ['status' => 'inactive'])->assertSessionHasNoErrors();
+    $this->patch(route('administrasi.manajemen-cluster.cluster.status', [$module, 1]), ['status' => 'inactive'])->assertSessionHasNoErrors();
+    expect($db->table('tb_cluster')->value('status'))->toBe('inactive')
+        ->and($db->table('tb_sub_cluster')->value('status'))->toBe('inactive')
+        ->and($db->table($table)->first()->sub_cluster_id)->toBe(1);
+    $this->get(route('administrasi.manajemen-cluster.show', $module))->assertOk()->assertSee('Cluster Awal')->assertSee('Subcluster Awal')->assertSee('Nonaktif');
+    $this->post(route('administrasi.manajemen-cluster.subcluster.store', $module), ['cluster_id' => 1, 'nama_sub_cluster' => 'Tidak boleh'])->assertSessionHasErrors('cluster_id');
+    $this->patch(route('administrasi.manajemen-cluster.subcluster.status', [$module, 1, 1]), ['status' => 'active'])->assertSessionHasErrors('status');
+    $this->patch(route('administrasi.manajemen-cluster.cluster.status', [$module, 1]), ['status' => 'active'])->assertSessionHasNoErrors();
+    $this->patch(route('administrasi.manajemen-cluster.subcluster.status', [$module, 1, 1]), ['status' => 'active'])->assertSessionHasNoErrors();
+    $logs = LogActivity::where('type_code', $module)->where('action', 'like', 'change_%_status')->get();
+    expect($logs)->toHaveCount(4)
+        ->and($logs[0]->old_values['status'])->toBe('active')
+        ->and($logs[0]->new_values['status'])->toBe('inactive');
+    $this->patch(route('administrasi.manajemen-cluster.cluster.status', [$module, 1]), ['status' => 'invalid'])->assertSessionHasErrors('status');
+    $this->patch(route('administrasi.manajemen-cluster.subcluster.status', [$module, 999, 1]), ['status' => 'inactive'])->assertNotFound();
+})->with('cluster modules');
+
+test('cluster and subcluster edit forms explain the effect of name changes', function () {
+    $this->get(route('administrasi.manajemen-cluster.show', 'snp'))->assertOk()
+        ->assertSee('Perubahan nama dapat mengubah label pada data lama dan laporan');
 });

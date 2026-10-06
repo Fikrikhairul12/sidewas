@@ -24,6 +24,7 @@ class ManajemenDirektoratController extends Controller
         $filters = $request->validate([
             'keyword' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
+            'unit_status' => ['nullable', Rule::in(['active', 'inactive'])],
         ]);
 
         $allDirektorats = Direktorat::query()->orderBy('nama_direktorat')->get();
@@ -36,6 +37,7 @@ class ManajemenDirektoratController extends Controller
 
         $direktorats = Direktorat::query()
             ->with(['unitKerja' => fn ($query) => $query
+                ->when($filters['unit_status'] ?? null, fn ($query, $status) => $query->where('status', $status))
                 ->withCount(['users as active_users_count' => fn ($users) => $users->where('tb_user_unit_kerja.status', 'active')])
                 ->orderBy('nama_unit')])
             ->when($filters['keyword'] ?? null, fn ($query, $keyword) => $query
@@ -48,6 +50,8 @@ class ManajemenDirektoratController extends Controller
                         ->when($matchesKomite && $dewanPengawas, fn ($query) => $query->orWhere('id', $dewanPengawas->id));
                 }))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['unit_status'] ?? null, fn ($query, $status) => $query
+                ->whereHas('unitKerja', fn ($units) => $units->where('status', $status)))
             ->orderBy('nama_direktorat')
             ->get();
 
