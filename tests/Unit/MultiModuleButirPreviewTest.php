@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\SnpButirContent;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
@@ -7,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
+use Illuminate\Support\ViewErrorBag;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -18,6 +20,33 @@ beforeEach(function () {
     Schema::connection('mysql')->create('users', function (Blueprint $table): void {
         $table->id();
     });
+});
+
+test('actual tindak lanjut pickers display rich summaries without markup and preserve selection and drafts', function () {
+    $fixtures = [];
+    foreach (['ragab' => 'keputusan_ragab', 'rawas' => 'keputusan_rawas', 'djsn' => 'butir_djsn', 'eksternal' => 'keputusan_eksternal'] as $module => $field) {
+        $content = SnpButirContent::PREFIX.'<p style="text-align:right"><strong>Isi berformat</strong></p><p><u>Baris kedua</u></p><img src="/'.$module.'/perekaman/1/gambar/12345678-1234-1234-1234-123456789abc.png" data-width="25">';
+        $record = (object) ['id_'.$module => strtoupper($module), 'nomor_surat' => 'SURAT-01', 'perihal_surat' => 'Perihal contoh', 'jth_tempo' => '2026-10-07', 'nama_instansi_pengundang' => 'Instansi contoh'];
+        $butirSiapTindakLanjut = collect([
+            (object) ['id' => 1, 'id_butir_'.$module => strtoupper($module).'.01', $field => $content, 'record' => $record, 'tanggal_'.$module => null, 'agenda_'.$module => 'Agenda contoh', 'cluster' => null, 'subCluster' => null, 'butirPics' => collect()],
+            (object) ['id' => 2, 'id_butir_'.$module => strtoupper($module).'.02', $field => 'Teks lama <literal>', 'record' => $record, 'tanggal_'.$module => null, 'agenda_'.$module => 'Agenda kedua', 'cluster' => null, 'subCluster' => null, 'butirPics' => collect()],
+        ]);
+        $source = file_get_contents(resource_path('views/layouts/'.$module.'/tindak-lanjut.blade.php'));
+        preg_match('/<div x-data="\{.*?\}" class="space-y-6">/s', $source, $root);
+        expect($root)->not->toBeEmpty();
+        $trigger = $module === 'djsn' ? 'openModal = true' : 'openCreate()';
+        $modal = Str::between($source, '{{-- Modal Tambah Tindak Lanjut --}}', '</x-app-layout>');
+        expect($modal)->toContain('selectButir(butir)');
+        request()->setRouteResolver(fn () => Route::getRoutes()->getByName($module.'.tindak-lanjut.index'));
+        $layout = Blade::render('<x-app-layout>'.$root[0].'<button type="button" id="openPicker" @click="'.$trigger.'">Tambah Tindak Lanjut</button>'.$modal.'</x-app-layout>', ['butirSiapTindakLanjut' => $butirSiapTindakLanjut, 'errors' => new ViewErrorBag]);
+        $fixtures[$module] = ['html' => Str::beforeLast(Str::after(Str::after($layout, '<body'), '>'), '</body>')];
+    }
+    $manifest = json_decode(file_get_contents(public_path('build/manifest.json')), true, flags: JSON_THROW_ON_ERROR);
+    $process = new Process(['node', base_path('tests/Unit/MultiModuleButirPreview.browser.mjs')], base_path());
+    $process->setInput(json_encode(['fixtures' => $fixtures, 'picker' => true, 'css' => $manifest['resources/css/app.css']['file'], 'js' => $manifest['resources/js/app.js']['file']], JSON_THROW_ON_ERROR));
+    $process->setTimeout(90);
+    $process->run();
+    expect($process->isSuccessful())->toBeTrue($process->getOutput().$process->getErrorOutput());
 });
 
 test('actual application layout includes exactly one reader on each butir preview route', function (string $routeName) {

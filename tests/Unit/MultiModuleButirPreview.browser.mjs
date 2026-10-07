@@ -15,6 +15,11 @@ const server = createServer((request, response) => {
         response.end(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/build/${fixture.css}"><script type="module" src="/build/${fixture.js}"></script></head><body>${fixture.fixtures[module].html}</body></html>`);
         return;
     }
+    if (/^\/(ragab|rawas|djsn|eksternal)\/perekaman\/1\/gambar\//.test(request.url)) {
+        response.setHeader('Content-Type', 'image/png');
+        response.end(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jJ1kAAAAASUVORK5CYII=', 'base64'));
+        return;
+    }
     const file = resolve(buildRoot, decodeURIComponent(request.url).replace(/^\/build\//, ''));
     if (!file.startsWith(buildRoot + sep) || !existsSync(file)) {
         response.writeHead(404).end();
@@ -39,6 +44,42 @@ try {
     for (const [module, data] of Object.entries(fixture.fixtures)) {
         await page.setViewport({ width: 1366, height: 900 });
         await page.goto(`http://127.0.0.1:${server.address().port}/?module=${module}`, { waitUntil: 'networkidle0' });
+        if (fixture.picker) {
+            const modal = 'div[x-show="openModal"]';
+            const search = `${modal} input[x-model="butirSearch"]`;
+            const choices = `${modal} button[\\@click="selectButir(butir)"]`;
+            await page.click('#openPicker');
+            await page.waitForSelector(modal, { visible: true });
+            await page.waitForFunction(selector => document.querySelectorAll(selector).length === 2, {}, choices);
+            const summaries = await page.$$eval(`${choices} .snp-butir-preview__text`, nodes => nodes.map(node => node.textContent));
+            assert.ok(summaries[0].includes('Isi berformat') && summaries[0].includes('Baris kedua') && summaries[0].includes('[Gambar]'), `${module}: ${summaries[0]}`);
+            assert.ok(!summaries[0].includes('snp-rich') && !summaries[0].includes('<p') && !summaries[0].includes('font-'));
+            assert.equal(summaries[1], 'Teks lama <literal>');
+            await page.type(search, 'Baris kedua');
+            await page.waitForFunction(selector => document.querySelectorAll(selector).length === 1, {}, choices);
+            await page.click(choices);
+            await page.waitForFunction(selector => document.querySelector(`${selector} input[name="butir_id"]`).value === '1', {}, modal);
+            assert.equal(await page.$eval(`${modal} .snp-rich-content strong`, node => node.textContent), 'Isi berformat');
+            assert.equal(await page.$eval(`${modal} .snp-rich-content img`, node => node.dataset.width), '25');
+            await page.$eval(`${modal} textarea[name="tindak_lanjut"]`, node => { node.value = 'Draf tindak lanjut'; node.dispatchEvent(new Event('input', { bubbles: true })); });
+            const before = await page.$eval(`${modal} form`, form => [...new FormData(form).entries()].filter(([name]) => name !== 'dokumen'));
+            assert.equal(await page.$eval(`${modal} form`, form => new URL(form.action).pathname), `/${module}/tindak-lanjut`);
+            await page.$eval(`${modal} .snp-butir-read-button`, node => node.click());
+            await open();
+            assert.equal(await page.$eval('[data-snp-reader-content] strong', node => node.textContent), 'Isi berformat');
+            await close();
+            assert.deepEqual(await page.$eval(`${modal} form`, form => [...new FormData(form).entries()].filter(([name]) => name !== 'dokumen')), before);
+            assert.equal(await page.$eval(modal, node => getComputedStyle(node).display !== 'none'), true);
+            await page.$eval(modal, root => [...root.querySelectorAll('button')].find(node => node.getAttribute('@click') === 'resetButir()').click());
+            await page.waitForFunction(selector => document.querySelectorAll(selector).length === 2, {}, choices);
+            await page.click(`${choices}:last-of-type`);
+            await page.waitForFunction(selector => document.querySelector(`${selector} input[name="butir_id"]`).value === '2', {}, modal);
+            assert.equal(await page.$eval(`${modal} .snp-butir-preview--expanded .snp-butir-preview__text`, node => node.textContent), 'Teks lama <literal>');
+            assert.equal(await page.$(`${modal} .snp-butir-preview--expanded literal`), null);
+            assert.equal(await page.$eval(`${modal} textarea[name="tindak_lanjut"]`, node => node.value), 'Draf tindak lanjut');
+            assert.deepEqual(errors, []);
+            continue;
+        }
         assert.deepEqual(errors, [], `${module} must initialize its actual edit modal without Alpine errors`);
         await page.$eval('#workflowForm', form => {
             window.submissions = 0;
@@ -113,7 +154,7 @@ try {
         assert.equal(await page.$eval('#actualEdit form', element => element.getClientRects().length > 0), true);
     }
     assert.deepEqual(errors, []);
-    console.log('Passed: 17 page previews, full text, draft preservation, navigation, responsive reader and unchanged report selection.');
+    console.log(fixture.picker ? 'Passed: actual rich and legacy tindak lanjut pickers, content search, selection, formatted reader and draft preservation in four modules.' : 'Passed: 17 page previews, full text, draft preservation, navigation, responsive reader and unchanged report selection.');
 } finally {
     if (browser) await browser.close();
     server.close();
