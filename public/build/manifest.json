@@ -16,7 +16,7 @@
     "src": "node_modules/leaflet/dist/images/marker-icon.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-IkK5STqt.css",
+    "file": "assets/app-BXf2ABuV.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -34,7 +34,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BBrylKAh.js",
+    "file": "assets/app-uXL8uWfP.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -55,7 +55,7 @@
     ]
   },
   "resources/js/snp-butir-editor.js": {
-    "file": "assets/snp-butir-editor-DG261JFQ.js",
+    "file": "assets/snp-butir-editor-DvfYJd4V.js",
     "name": "snp-butir-editor",
     "src": "resources/js/snp-butir-editor.js",
     "isDynamicEntry": true,

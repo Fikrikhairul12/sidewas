@@ -26,6 +26,7 @@
 
             <div class="flex flex-wrap items-center gap-3">
                 <a href="{{ $backRoute ?? route('snp.report.index') }}"
+                    @isset($snpReportIndexUrl) data-snp-report-return="{{ $snpReportIndexUrl }}" @endisset
                     class="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
                     Kembali
                 </a>
