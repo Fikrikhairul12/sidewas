@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\ButirReportPdfAlignment;
 use App\Services\SnpButirContent;
 use App\Services\SnpReportPdfLabels;
 use Dompdf\Canvas;
@@ -101,7 +102,7 @@ test('PDF and Excel preserve complete rich content images and every related foll
         $pdf = new Dompdf;
         $pdf->setPaper('legal', 'landscape');
         $pdf->getOptions()->setIsJavascriptEnabled(false);
-        $pdf->setCallbacks([...app(SnpReportPdfLabels::class)->callbacks(), ['event' => 'end_frame', 'f' => function (Frame $frame, Canvas $canvas) use (&$renderedText, &$labels, &$continuations, &$contentPages, &$images, $module): void {
+        $pdf->setCallbacks([...app(ButirReportPdfAlignment::class)->callbacks(), ...app(SnpReportPdfLabels::class)->callbacks(), ['event' => 'end_frame', 'f' => function (Frame $frame, Canvas $canvas) use (&$renderedText, &$labels, &$continuations, &$contentPages, &$images, $module): void {
             $node = $frame->get_node();
             $page = $canvas->get_page_number();
             if ($node instanceof DOMText) {

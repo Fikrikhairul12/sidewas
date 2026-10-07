@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\RawasRecord;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ButirReportPdfAlignment;
 use App\Services\SnpReportPdfLabels;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -200,7 +201,7 @@ class ReportRawasController extends Controller
         return Pdf::loadView($view, $data)
             ->setPaper('legal', 'landscape')
             ->setOption('isJavascriptEnabled', false)
-            ->setCallbacks(app(SnpReportPdfLabels::class)->callbacks())
+            ->setCallbacks([...app(ButirReportPdfAlignment::class)->callbacks(), ...app(SnpReportPdfLabels::class)->callbacks()])
             ->download($filename);
     }
 

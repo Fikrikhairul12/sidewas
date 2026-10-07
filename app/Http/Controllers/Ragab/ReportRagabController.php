@@ -8,6 +8,7 @@ use App\Models\Direktorat;
 use App\Models\RagabRecord;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ButirReportPdfAlignment;
 use App\Services\SnpReportPdfLabels;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -204,7 +205,7 @@ class ReportRagabController extends Controller
         return Pdf::loadView($view, $data)
             ->setPaper('legal', 'landscape')
             ->setOption('isJavascriptEnabled', false)
-            ->setCallbacks(app(SnpReportPdfLabels::class)->callbacks())
+            ->setCallbacks([...app(ButirReportPdfAlignment::class)->callbacks(), ...app(SnpReportPdfLabels::class)->callbacks()])
             ->download($filename);
     }
 

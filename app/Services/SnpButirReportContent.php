@@ -62,7 +62,8 @@ class SnpButirReportContent
                     $html = '';
                     $height = 0;
                 }
-                $html .= '<div class="snp-content-line" style="text-align:'.$block['alignment'].';padding-left:'.$block['indent'].'px;line-height:'.$line['height'].'px;">'.($line['html'] ?: '&nbsp;').'</div>'."\n";
+                $justify = $block['alignment'] === 'justify' && $line['softWrapped'];
+                $html .= '<div class="snp-content-line"'.($justify ? ' data-report-justify="1"' : '').' style="text-align:'.$block['alignment'].';'.($justify ? 'text-align-last:justify;' : '').'padding-left:'.$block['indent'].'px;line-height:'.$line['height'].'px;">'.($line['html'] ?: '&nbsp;').'</div>'."\n";
                 $height += $line['height'];
             }
             $html .= '<div style="height:4px;"></div>';
@@ -239,13 +240,13 @@ class SnpButirReportContent
 
     /**
      * @param  array<string, mixed>  $block
-     * @return list<array{html: string, text: string, height: float, runs: list<array{text: string, bold: bool, italic: bool, underline: bool, size: float}>}>
+     * @return list<array{html: string, text: string, height: float, softWrapped: bool, runs: list<array{text: string, bold: bool, italic: bool, underline: bool, size: float}>}>
      */
     private function lines(array $block, float $width, bool $rich = true): array
     {
         $this->fonts ??= (new Dompdf)->getFontMetrics();
         $lines = [];
-        $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0, 'runs' => []];
+        $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0, 'softWrapped' => false, 'runs' => []];
         $used = 0;
         foreach ($block['runs'] as $run) {
             if (! $rich) {
@@ -258,8 +259,9 @@ class SnpButirReportContent
                     if (! $rich && $token === "\n") {
                         $this->appendStyledRun($line['runs'], "\n", $run);
                     }
+                    $line['softWrapped'] = $token !== "\n";
                     $lines[] = $line;
-                    $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0, 'runs' => []];
+                    $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0, 'softWrapped' => false, 'runs' => []];
                     $used = 0;
                 }
                 if ($token === "\n" || ($rich && trim($token) === '' && $used === 0)) {
@@ -288,8 +290,9 @@ class SnpButirReportContent
                     $line['height'] = max($line['height'], $run['size'] * 1.35);
                     $used += $measure($part);
                     if ($token !== '') {
+                        $line['softWrapped'] = true;
                         $lines[] = $line;
-                        $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0, 'runs' => []];
+                        $line = ['html' => '', 'text' => '', 'height' => $rich ? 10.8 : 20.0, 'softWrapped' => false, 'runs' => []];
                         $used = 0;
                     }
                 }
@@ -298,6 +301,7 @@ class SnpButirReportContent
         if ($line['text'] !== '' || $lines === []) {
             $lines[] = $line;
         }
+        $lines[array_key_last($lines)]['softWrapped'] = false;
 
         return $lines;
     }
