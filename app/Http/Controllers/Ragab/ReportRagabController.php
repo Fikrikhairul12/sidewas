@@ -197,6 +197,7 @@ class ReportRagabController extends Controller
             'downloadRoute' => route(str_contains($filename, 'custom') ? 'ragab.report.cetak-custom' : 'ragab.report.cetak'),
             'downloadParameters' => $parameters,
             'backRoute' => route('ragab.report.index'),
+            'reportModule' => 'ragab',
         ]);
     }
 

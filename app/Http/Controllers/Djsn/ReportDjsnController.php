@@ -264,6 +264,7 @@ class ReportDjsnController extends Controller
             'downloadRoute' => route(str_contains($filename, 'custom') ? 'djsn.report.cetak-custom' : 'djsn.report.cetak'),
             'downloadParameters' => $parameters,
             'backRoute' => route('djsn.report.index'),
+            'reportModule' => 'djsn',
         ]);
     }
 

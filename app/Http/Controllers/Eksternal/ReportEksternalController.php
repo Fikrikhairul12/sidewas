@@ -198,6 +198,7 @@ class ReportEksternalController extends Controller
             'downloadRoute' => route(str_contains($filename, 'custom') ? 'eksternal.report.cetak-custom' : 'eksternal.report.cetak'),
             'downloadParameters' => $parameters,
             'backRoute' => route('eksternal.report.index'),
+            'reportModule' => 'eksternal',
         ]);
     }
 

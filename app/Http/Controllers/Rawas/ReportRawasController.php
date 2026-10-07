@@ -193,6 +193,7 @@ class ReportRawasController extends Controller
             'downloadRoute' => route(str_contains($filename, 'custom') ? 'rawas.report.cetak-custom' : 'rawas.report.cetak'),
             'downloadParameters' => $parameters,
             'backRoute' => route('rawas.report.index'),
+            'reportModule' => 'rawas',
         ]);
     }
 

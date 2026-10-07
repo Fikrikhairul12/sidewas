@@ -1,6 +1,6 @@
 import './bootstrap';
 import './script';
-import './snp-report-navigation';
+import './report-navigation';
 import './dashboard-chart';
 
 import Alpine from 'alpinejs';

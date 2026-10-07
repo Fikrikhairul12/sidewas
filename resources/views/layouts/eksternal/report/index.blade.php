@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div class="space-y-6">
+    <div class="space-y-6" data-report-index data-report-module="eksternal">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
                 Rapat EKSTERNAL
@@ -335,10 +335,10 @@
 
                 <div class="mt-6 grid gap-4 md:grid-cols-2">
                     <button type="submit" form="reportForm" formaction="{{ route('eksternal.report.cetak') }}"
-                        formmethod="POST" formtarget="_blank"
+                        formmethod="POST" formtarget="_self" data-report-pdf-preview
                         class="rounded-xl px-5 py-4 text-sm font-bold text-white shadow-sm hover:opacity-90"
                         style="background-color: #2377b9;">
-                        Cetak PDF
+                        Pratinjau PDF
                     </button>
 
                     <button type="submit" form="reportForm" formaction="{{ route('eksternal.report.cetak-excel') }}"
@@ -429,10 +429,10 @@
                         </button>
 
                         <button type="submit" formaction="{{ route('eksternal.report.cetak-custom') }}"
-                            formmethod="POST" formtarget="_blank"
+                            formmethod="POST" formtarget="_self" data-report-pdf-preview
                             class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
                             style="background-color: #2377b9;">
-                            Cetak PDF Custom
+                            Pratinjau PDF Custom
                         </button>
 
                         <button type="submit" formaction="{{ route('eksternal.report.cetak-excel-custom') }}"

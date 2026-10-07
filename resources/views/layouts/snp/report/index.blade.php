@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div class="space-y-6" data-snp-report-index>
+    <div class="space-y-6" data-report-index data-report-module="snp">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
                 SNP Dewas
@@ -438,7 +438,7 @@
                         </button>
 
                         <button type="submit" formaction="{{ route('snp.report.cetak-custom') }}" formmethod="POST"
-                            formtarget="_self" data-snp-pdf-preview
+                            formtarget="_self" data-report-pdf-preview
                             class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
                             style="background-color: #2377b9;">
                             Pratinjau PDF Custom
@@ -477,7 +477,7 @@
 
                 <div class="grid gap-3 px-6 py-5">
                     <button type="submit" form="reportForm" formaction="{{ route('snp.report.cetak') }}"
-                        formmethod="POST" formtarget="_self" data-snp-pdf-preview
+                        formmethod="POST" formtarget="_self" data-report-pdf-preview
                         class="rounded-xl px-5 py-4 text-sm font-bold text-white shadow-sm hover:opacity-90"
                         style="background-color: #2377b9;">
                         Pratinjau PDF

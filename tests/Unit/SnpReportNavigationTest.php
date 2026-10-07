@@ -48,23 +48,25 @@ test('SNP regular and custom previews reuse the current tab and restore report s
     $fixtures = ['index' => $index];
     foreach (['regular' => ['pdf', $parameters, 'snp.report.download'], 'custom' => ['pdf-custom', $customParameters, 'snp.report.download-custom']] as $name => [$template, $selection, $downloadRoute]) {
         $preview = (new ReflectionMethod($controller, 'previewPdf'))->invoke($controller, 'layouts.snp.report.'.$template, $data, route($downloadRoute), $selection, 'Pratinjau Report SNP', 'report-snp.pdf');
-        expect($preview->getData()['snpReportIndexUrl'])->toBe(route('snp.report.index'));
+        expect($preview->getData()['reportModule'])->toBe('snp');
         $fixtures[$name] = $renderPage('layouts/snp/report/preview.blade.php', $preview->getData());
     }
     $otherPreview = [
         'title' => 'Pratinjau Report RAGAB', 'filename' => 'report-ragab.pdf', 'reportHtml' => '<p>Laporan RAGAB</p>',
         'downloadRoute' => route('ragab.report.cetak'), 'downloadParameters' => $parameters, 'backRoute' => route('ragab.report.index'),
+        'reportModule' => 'ragab',
     ];
     $fixtures['other'] = $renderPage('layouts/snp/report/preview.blade.php', $otherPreview);
-    expect($fixtures['other'])->not->toContain('data-snp-report-return')
+    expect($fixtures['other'])->toContain('data-report-module="ragab"')
         ->and($index)->not->toContain('target="_blank"')
-        ->and(substr_count($index, 'data-snp-pdf-preview'))->toBe(2);
+        ->and(substr_count($index, 'data-report-pdf-preview'))->toBe(2);
     $pdf = (new ReflectionMethod($controller, 'downloadPdf'))->invoke($controller, 'layouts.snp.report.pdf', $data, 'report-snp.pdf')->getContent();
     $excel = Excel::raw(new SnpReportExport($data['records'], $fields, $labels), Maatwebsite\Excel\Excel::XLSX);
     $manifest = json_decode(file_get_contents(public_path('build/manifest.json')), true, flags: JSON_THROW_ON_ERROR);
-    $process = new Process(['node', base_path('tests/Unit/SnpReportNavigation.browser.mjs')], base_path());
+    $process = new Process(['node', base_path('tests/Unit/ReportNavigation.browser.mjs')], base_path());
     $process->setInput(json_encode([
         'fixtures' => $fixtures, 'pdf' => base64_encode($pdf), 'excel' => base64_encode($excel),
+        'module' => 'snp', 'otherModule' => 'ragab', 'fields' => $fields,
         'css' => $manifest['resources/css/app.css']['file'], 'js' => $manifest['resources/js/app.js']['file'],
     ], JSON_THROW_ON_ERROR));
     $process->setTimeout(90);

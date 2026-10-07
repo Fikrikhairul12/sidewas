@@ -1,7 +1,6 @@
-const storageKey = 'sidewas:snp-report-navigation';
 const customFields = ['butir_ids[]', 'fields[]', 'tanggapan_unit_kerja_ids[]', 'tindak_lanjut_unit_kerja_ids[]'];
 
-const savedSelection = () => {
+const savedSelection = storageKey => {
     try {
         const saved = JSON.parse(sessionStorage.getItem(storageKey));
         return saved && typeof saved.url === 'string' && Array.isArray(saved.recordIds) ? saved : null;
@@ -19,12 +18,16 @@ const restoreCheckboxes = (form, name, values) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    const returnLink = document.querySelector('[data-snp-report-return]');
+    const reportPage = document.querySelector('[data-report-index]');
+    const returnLink = document.querySelector('[data-report-return]');
+    const module = reportPage?.dataset.reportModule ?? returnLink?.dataset.reportModule;
+    if (!['snp', 'ragab', 'rawas', 'djsn', 'eksternal'].includes(module)) return;
+    const storageKey = `sidewas:${module}-report-navigation`;
     if (returnLink) {
-        const saved = savedSelection();
+        const saved = savedSelection(storageKey);
         if (saved) {
             try {
-                const index = new URL(returnLink.dataset.snpReportReturn, location.href);
+                const index = new URL(returnLink.dataset.reportReturn, location.href);
                 const destination = new URL(saved.url, location.href);
                 if (destination.origin === location.origin && destination.pathname === index.pathname) {
                     returnLink.href = destination.href;
@@ -35,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    const reportPage = document.querySelector('[data-snp-report-index]');
     if (!reportPage) return;
     const reportForm = reportPage.querySelector('#reportForm');
     const customForm = reportPage.querySelector('#customReportForm');
@@ -47,9 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     const restoreSelection = () => {
-        const saved = savedSelection();
+        const saved = savedSelection(storageKey);
         if (saved?.url === location.pathname + location.search) {
             restoreCheckboxes(reportForm, 'record_ids[]', saved.recordIds);
+            reportForm.querySelector('.record-report-checkbox')?.dispatchEvent(new Event('change'));
             customSelection = saved.custom;
         }
         closeReportModals();
@@ -59,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('openCustomReportModalBtn')?.addEventListener('click', () => {
         queueMicrotask(() => {
-            const saved = savedSelection();
+            const saved = savedSelection(storageKey);
             const currentIds = selectedValues(reportForm, 'record_ids[]').sort();
             if (!customSelection || JSON.stringify(currentIds) !== JSON.stringify(saved?.recordIds.map(String).sort())) return;
             restoreCheckboxes(customForm, 'butir_ids[]', customSelection['butir_ids[]']);
@@ -70,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('submit', event => {
-        if (event.defaultPrevented || !event.submitter?.matches('[data-snp-pdf-preview]')) return;
+        if (event.defaultPrevented || !event.submitter?.matches('[data-report-pdf-preview]')) return;
         if (event.target !== reportForm && event.target !== customForm) return;
         const saved = {
             url: location.pathname + location.search,

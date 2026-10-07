@@ -316,7 +316,7 @@ class ReportSnpController extends Controller
             'reportHtml' => view($reportView, $data)->render(),
             'downloadRoute' => $downloadRoute,
             'downloadParameters' => $downloadParameters,
-            'snpReportIndexUrl' => route('snp.report.index'),
+            'reportModule' => 'snp',
         ]);
     }
 
