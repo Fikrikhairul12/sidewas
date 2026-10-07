@@ -5,6 +5,7 @@ use App\Http\Controllers\Administrasi\ManajemenDirektoratController;
 use App\Http\Controllers\Administrasi\ManajemenUserController;
 use App\Http\Controllers\Administrasi\PengajuanController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\ButirImageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Djsn\PerekamanDjsnController;
 use App\Http\Controllers\Djsn\ReportDjsnController;
@@ -291,6 +292,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/ragab/perekaman/{record}/butir', [PerekamanRagabController::class, 'storeButir'])
         ->name('ragab.perekaman.butir.store');
 
+    Route::post('/ragab/perekaman/{record}/gambar', [ButirImageController::class, 'store'])
+        ->defaults('module', 'ragab')
+        ->whereNumber('record')
+        ->middleware('throttle:30,1')->name('ragab.butir-images.store');
+    Route::get('/ragab/perekaman/{record}/gambar/{filename}', [ButirImageController::class, 'show'])
+        ->defaults('module', 'ragab')
+        ->whereNumber('record')
+        ->name('ragab.butir-images.show');
+
     Route::patch('/ragab/perekaman/{record}', [PerekamanRagabController::class, 'update'])
         ->name('ragab.perekaman.update');
 
@@ -350,6 +360,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/eksternal/perekaman/{record}/butir', [PerekamanEksternalController::class, 'storeButir'])
         ->name('eksternal.perekaman.butir.store');
+
+    Route::post('/eksternal/perekaman/{record}/gambar', [ButirImageController::class, 'store'])
+        ->defaults('module', 'eksternal')
+        ->whereNumber('record')
+        ->middleware('throttle:30,1')->name('eksternal.butir-images.store');
+    Route::get('/eksternal/perekaman/{record}/gambar/{filename}', [ButirImageController::class, 'show'])
+        ->defaults('module', 'eksternal')
+        ->whereNumber('record')
+        ->name('eksternal.butir-images.show');
 
     Route::patch('/eksternal/perekaman/{record}', [PerekamanEksternalController::class, 'update'])
         ->name('eksternal.perekaman.update');
@@ -411,6 +430,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/rawas/perekaman/{record}/butir', [PerekamanRawasController::class, 'storeButir'])
         ->name('rawas.perekaman.butir.store');
 
+    Route::post('/rawas/perekaman/{record}/gambar', [ButirImageController::class, 'store'])
+        ->defaults('module', 'rawas')
+        ->whereNumber('record')
+        ->middleware('throttle:30,1')->name('rawas.butir-images.store');
+    Route::get('/rawas/perekaman/{record}/gambar/{filename}', [ButirImageController::class, 'show'])
+        ->defaults('module', 'rawas')
+        ->whereNumber('record')
+        ->name('rawas.butir-images.show');
+
     Route::patch('/rawas/perekaman/{record}', [PerekamanRawasController::class, 'update'])
         ->name('rawas.perekaman.update');
 
@@ -470,6 +498,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/djsn/perekaman/{record}/butir', [PerekamanDjsnController::class, 'storeButir'])
         ->name('djsn.perekaman.butir.store');
+
+    Route::post('/djsn/perekaman/{record}/gambar', [ButirImageController::class, 'store'])
+        ->defaults('module', 'djsn')
+        ->whereNumber('record')
+        ->middleware('throttle:30,1')->name('djsn.butir-images.store');
+    Route::get('/djsn/perekaman/{record}/gambar/{filename}', [ButirImageController::class, 'show'])
+        ->defaults('module', 'djsn')
+        ->whereNumber('record')
+        ->name('djsn.butir-images.show');
 
     Route::patch('/djsn/perekaman/{record}', [PerekamanDjsnController::class, 'update'])
         ->name('djsn.perekaman.update');

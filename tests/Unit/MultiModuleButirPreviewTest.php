@@ -35,7 +35,7 @@ test('actual application layout includes exactly one reader on each butir previe
 
 test('shared butir previews retain complete plain text and escape markup', function () {
     $content = "Keputusan O'Brien & peserta.\n\n".str_repeat('Isi lengkap ', 150).'<img src=x onerror=alert(1)>';
-    $html = Blade::render('<x-butir-preview :content="$content" butir-id="RAGAB.01" label="Keputusan RAGAB" :expanded="true" />', compact('content'));
+    $html = Blade::render('<x-butir-preview :content="$content" butir-id="RAGAB.01" label="Keputusan RAGAB" />', compact('content'));
     $document = new DOMDocument;
     $previousErrors = libxml_use_internal_errors(true);
     $document->loadHTML('<?xml encoding="UTF-8">'.$html);
@@ -45,7 +45,7 @@ test('shared butir previews retain complete plain text and escape markup', funct
     expect($xpath->query('//p[@class="snp-butir-preview__text"]')->item(0)->textContent)->toBe($content)
         ->and($xpath->query('//img')->length)->toBe(0)
         ->and($xpath->query('//button')->item(0)->getAttribute('type'))->toBe('button')
-        ->and($html)->toContain('Keputusan RAGAB', 'Perbesar bacaan', "format: 'plain'");
+        ->and($html)->toContain('Keputusan RAGAB', 'Baca isi lengkap', "format: 'rich'");
 });
 
 test('all seventeen module pages provide full reading without disturbing drafts navigation or report selection', function () {

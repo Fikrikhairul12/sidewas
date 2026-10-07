@@ -15,6 +15,7 @@ use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ClusterSelection;
+use App\Services\SnpButirContent;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -261,7 +262,7 @@ class PerekamanDjsnController extends Controller
         }
 
         $validated = $request->validate([
-            'butir_djsn' => ['required', 'string'],
+            'butir_djsn' => ['required', 'string', 'max:500000'],
             'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id', new ClusterSelection('djsn')],
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id', new ClusterSelection('djsn')],
 
@@ -272,6 +273,8 @@ class PerekamanDjsnController extends Controller
 
             'komite_id' => ['required', 'integer'],
         ]);
+
+        $validated['butir_djsn'] = app(SnpButirContent::class)->normalize($validated['butir_djsn'], (int) $record->id, 'djsn');
 
         DB::connection('mysql_djsn')->transaction(function () use ($request, $validated, $record) {
             $butir = DjsnButir::create([
@@ -470,7 +473,7 @@ class PerekamanDjsnController extends Controller
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
 
             'butir_id' => ['required', 'integer', 'exists:mysql_djsn.tb_butir_djsn,id'],
-            'butir_djsn' => ['required', 'string'],
+            'butir_djsn' => ['required', 'string', 'max:500000'],
             'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
             'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id', new ClusterSelection('djsn', $existingButir)],
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id', new ClusterSelection('djsn', $existingButir)],
@@ -479,6 +482,8 @@ class PerekamanDjsnController extends Controller
             'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'komite_id' => ['required', 'integer', 'exists:mysql.tb_komite,id'],
         ]);
+
+        $validated['butir_djsn'] = app(SnpButirContent::class)->normalize($validated['butir_djsn'], (int) $record->id, 'djsn');
 
         $subClusterBelongsToCluster = DjsnSubCluster::where('id', $validated['sub_cluster_id'])
             ->where('cluster_id', $validated['cluster_id'])
@@ -590,6 +595,9 @@ class PerekamanDjsnController extends Controller
 
     public function applyDjsnPerekamanUpdate(DjsnRecord $record, array $payload, User $user, Request $request): void
     {
+        if (! empty($payload['butir']['id'])) {
+            $payload['butir']['butir_djsn'] = app(SnpButirContent::class)->normalize($payload['butir']['butir_djsn'], (int) $record->id, 'djsn');
+        }
         DB::connection('mysql_djsn')->transaction(function () use ($record, $payload, $user, $request) {
             $oldValues = $record->load(['butirDjsn.butirPics'])->toArray();
             $recordPayload = $payload['record'] ?? [];

@@ -18,7 +18,7 @@ const ButirImage = Image.extend({
     },
 }).configure({ inline: true, allowBase64: false });
 
-window.snpButirEditor = function () {
+window.snpButirEditor = function (module = 'snp', label = 'Isi Butir SNP') {
     let editor;
     let canvas;
     let currentKey;
@@ -40,7 +40,7 @@ window.snpButirEditor = function () {
                 submitHandler = (event) => {
                     if (this.busy || !editor || (!editor.getText().trim() && !editor.getHTML().includes('<img'))) {
                         event.preventDefault();
-                        this.error = this.busy ? 'Tunggu sampai gambar selesai diunggah.' : 'Isi Butir SNP wajib diisi.';
+                        this.error = this.busy ? 'Tunggu sampai gambar selesai diunggah.' : `${label} wajib diisi.`;
                         editor?.commands.focus();
                     }
                 };
@@ -68,7 +68,7 @@ window.snpButirEditor = function () {
                 ],
                 content: snpButirHtml(originalValue) || '<p></p>',
                 editorProps: {
-                    attributes: { class: 'snp-rich-content', role: 'textbox', 'aria-label': 'Isi Butir SNP', 'aria-multiline': 'true' },
+                    attributes: { class: 'snp-rich-content', role: 'textbox', 'aria-label': label, 'aria-multiline': 'true' },
                     transformPastedHTML: (html) => snpButirHtml(SNP_RICH_PREFIX + html, true),
                     handlePaste: (_view, event) => {
                         if (event.clipboardData?.files.length) {
@@ -131,7 +131,7 @@ window.snpButirEditor = function () {
             try {
                 const data = new FormData();
                 data.append('image', file);
-                const response = await fetch(`/snp/perekaman/${currentRecord}/gambar`, {
+                const response = await fetch(`/${module}/perekaman/${currentRecord}/gambar`, {
                     method: 'POST', body: data, credentials: 'same-origin',
                     headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
                 });

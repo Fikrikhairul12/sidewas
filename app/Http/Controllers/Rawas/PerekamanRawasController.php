@@ -15,6 +15,7 @@ use App\Models\RawasSubCluster;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ClusterSelection;
+use App\Services\SnpButirContent;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -213,10 +214,12 @@ class PerekamanRawasController extends Controller
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_sub_cluster,id', new ClusterSelection('rawas')],
             'tanggal_rawas' => ['required', 'date'],
             'agenda_rawas' => ['required', 'string'],
-            'keputusan_rawas' => ['required', 'string'],
+            'keputusan_rawas' => ['required', 'string', 'max:500000'],
             'pic_ids' => ['required', 'array', 'min:1'],
             'pic_ids.*' => ['required', 'string'],
         ]);
+
+        $validated['keputusan_rawas'] = app(SnpButirContent::class)->normalize($validated['keputusan_rawas'], (int) $record->id, 'rawas');
 
         $this->validatePicUnits($validated['pic_ids']);
 
@@ -311,10 +314,12 @@ class PerekamanRawasController extends Controller
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_rawas.tb_sub_cluster,id', new ClusterSelection('rawas', $existingButir)],
             'tanggal_rawas' => ['required', 'date'],
             'agenda_rawas' => ['required', 'string'],
-            'keputusan_rawas' => ['required', 'string'],
+            'keputusan_rawas' => ['required', 'string', 'max:500000'],
             'pic_ids' => ['required', 'array', 'min:1'],
             'pic_ids.*' => ['required', 'string'],
         ]);
+
+        $validated['keputusan_rawas'] = app(SnpButirContent::class)->normalize($validated['keputusan_rawas'], (int) $record->id, 'rawas');
 
         $this->validatePicUnits($validated['pic_ids']);
 
@@ -423,6 +428,9 @@ class PerekamanRawasController extends Controller
 
     public function applyRawasPerekamanUpdate(RawasRecord $record, array $payload, User $user, Request $request): void
     {
+        if (! empty($payload['butir']['id'])) {
+            $payload['butir']['keputusan_rawas'] = app(SnpButirContent::class)->normalize($payload['butir']['keputusan_rawas'], (int) $record->id, 'rawas');
+        }
         DB::connection('mysql_rawas')->transaction(function () use ($record, $payload, $user, $request) {
             $oldValues = $record->load(['butirRawas.butirPics'])->toArray();
             $recordPayload = $payload['record'] ?? [];

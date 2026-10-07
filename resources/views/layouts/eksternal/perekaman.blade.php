@@ -6,7 +6,7 @@
         $summaryTuntas = $statistik['tuntas'] ?? $records->getCollection()->where('status', 'tuntas')->count();
     @endphp
 
-    <div x-data="perekamanRagabModal(@js($clusters), @js($direktorats), @js($unitKerjas))" class="space-y-6">
+    <div x-data="perekamanRagabModal(@js($clusters), @js($direktorats), @js($unitKerjas), 'eksternal', @js(collect(old())->only(['editor_record_id', 'butir_id', 'keputusan_eksternal'])->all()))" class="space-y-6">
         {{-- Page Header --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -210,7 +210,7 @@
                                                 'agenda_eksternal' => $butir->agenda_eksternal ?? '-',
                                                 'keputusan_eksternal' => $butir->keputusan_eksternal ?? '-',
                                                 'ringkasan' => \Illuminate\Support\Str::limit(
-                                                    $butir->keputusan_eksternal ?? $butir->agenda_eksternal ?? '-',
+                                                    app(\App\Services\SnpButirContent::class)->plain($butir->keputusan_eksternal ?? $butir->agenda_eksternal ?? '-'),
                                                     90,
                                                 ),
                                                 'cluster' => $butir->cluster?->nama_cluster ?? '-',
@@ -934,8 +934,10 @@
 
                                 <div class="lg:col-span-2">
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">Butir Rapat Eksternal</label>
-                                    <textarea name="keputusan_eksternal" rows="4" x-model="selectedEditButir.keputusan_eksternal" required
-                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                    <div @snp-editor-change.stop="selectedEditButir.keputusan_eksternal = $event.detail">
+                                        <x-snp-butir-editor name="keputusan_eksternal" module="eksternal" label="Keputusan Rapat Eksternal"
+                                            content-expression="selectedEditButir?.keputusan_eksternal" record-expression="editRecord?.id" key-expression="'edit-' + editorSession + '-' + selectedEditButir?.id" />
+                                    </div>
                                 </div>
 
                                 <div class="lg:col-span-2">
@@ -1252,9 +1254,10 @@
                                 Butir Rapat EKSTERNAL
                             </label>
 
-                            <textarea name="keputusan_eksternal" rows="4" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan butir Rapat EKSTERNAL..."></textarea>
+                            <div @snp-editor-change.stop="newButirContent = $event.detail">
+                                <x-snp-butir-editor name="keputusan_eksternal" module="eksternal" label="Keputusan Rapat Eksternal"
+                                    content-expression="newButirContent" record-expression="selectedRecord?.id" key-expression="'new-' + editorSession + '-' + selectedRecord?.id" />
+                            </div>
                         </div>
 
                         <div class="lg:col-span-2">

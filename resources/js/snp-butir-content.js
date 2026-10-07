@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 
 export const SNP_RICH_PREFIX = '<!--snp-rich:v1-->';
-const imagePattern = /^\/snp\/perekaman\/[1-9]\d*\/gambar\/[a-f0-9-]{36}\.(png|jpg)$/;
+const imagePattern = /^\/(snp|ragab|rawas|djsn|eksternal)\/perekaman\/[1-9]\d*\/gambar\/[a-f0-9-]{36}\.(png|jpg)$/;
 
 export function snpButirHtml(value = '', pasted = false) {
     value = String(value ?? '');

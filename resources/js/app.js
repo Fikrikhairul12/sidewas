@@ -6,7 +6,9 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
-const editorReady = document.querySelector('[data-snp-editor]')
+const hasEditor = document.querySelector('[data-snp-editor]')
+    || [...document.querySelectorAll('template')].some((template) => template.innerHTML.includes('data-snp-editor'));
+const editorReady = hasEditor
     ? import('./snp-butir-editor')
     : Promise.resolve();
 

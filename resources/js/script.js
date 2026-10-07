@@ -344,7 +344,8 @@ window.tanggapanSnpPage = function () {
  * Clone dari perekaman SNP.
  * Dipakai di resources/views/layouts/ragab/perekaman.blade.php
  */
-window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerjas = []) {
+window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerjas = [], module = 'ragab', oldEditor = {}) {
+    const contentField = module === 'eksternal' ? 'keputusan_eksternal' : 'keputusan_ragab';
     return {
         openCreateModal: false,
         openButirModal: false,
@@ -352,6 +353,8 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
         openEditModal: false,
 
         selectedRecord: null,
+        newButirContent: '',
+        editorSession: 0,
         editRecord: null,
         selectedEditButirId: '',
         detailRecord: null,
@@ -373,6 +376,9 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
 
         openButirModalFor(record) {
             this.selectedRecord = record;
+            this.newButirContent = String(oldEditor.editor_record_id) === String(record.id) && !oldEditor.butir_id
+                ? (oldEditor[contentField] ?? '') : '';
+            this.editorSession++;
 
             this.selectedClusterId = '';
             this.selectedSubClusterIds = [];
@@ -394,6 +400,14 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
         openEditModalFor(record) {
             this.editRecord = JSON.parse(JSON.stringify(record));
             this.selectedEditButirId = this.editRecord?.butirs?.[0]?.id ?? '';
+            this.editorSession++;
+            if (String(oldEditor.editor_record_id) === String(record.id) && oldEditor.butir_id) {
+                const restored = this.editRecord.butirs.find(butir => String(butir.id) === String(oldEditor.butir_id));
+                if (restored) {
+                    restored[contentField] = oldEditor[contentField] ?? restored[contentField];
+                    this.selectedEditButirId = restored.id;
+                }
+            }
             this.syncEditButir();
             this.openEditModal = true;
         },
@@ -462,7 +476,7 @@ window.perekamanRagabModal = function (clusters = [], direktorats = [], unitKerj
             return butirs.filter(butir => {
                 const id = String(butir.id_butir_ragab || '').toLowerCase();
                 const agenda = String(butir.agenda_ragab || '').toLowerCase();
-                const keputusan = String(butir.keputusan_ragab || '').toLowerCase();
+                const keputusan = snpButirPlain(butir.keputusan_ragab || butir.keputusan_eksternal || '').toLowerCase();
 
                 return id.includes(keyword)
                     || agenda.includes(keyword)
@@ -652,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 span.innerHTML = `
                     <span class="font-bold" style="color:#2377b9;">${escapeHtml(idButir)}</span>
                     <br>
-                    <span class="snp-butir-preview__text">${escapeHtml(isSnp ? snpButirPlain(isiButir) : isiButir)}</span>
+                    <span class="snp-butir-preview__text">${escapeHtml(snpButirPlain(isiButir))}</span>
                 `;
 
                 label.appendChild(input);
@@ -669,7 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 readButton.setAttribute('aria-label', `Baca isi lengkap ${idButir}`);
                 readButton.addEventListener('click', (event) => {
                     event.stopPropagation();
-                    readSnpButir({ id: idButir, content: isiButir, items: butirs, context: `Laporan ${moduleLabel} · ${recordLabel}`, label: contentLabel, format: isSnp ? 'rich' : 'plain' });
+                    readSnpButir({ id: idButir, content: isiButir, items: butirs, context: `Laporan ${moduleLabel} · ${recordLabel}`, label: contentLabel });
                 });
                 option.append(label, readButton);
                 group.appendChild(option);
@@ -950,7 +964,8 @@ document.addEventListener('DOMContentLoaded', () => {
  * Clone dari perekaman SNP.
  * Dipakai di resources/views/layouts/rawas/perekaman.blade.php
  */
-window.perekamanRawasModal = function (clusters = [], picOptions = []) {
+window.perekamanRawasModal = function (clusters = [], picOptions = [], oldEditor = {}) {
+    const contentField = 'keputusan_rawas';
     return {
         openCreateModal: false,
         openButirModal: false,
@@ -958,6 +973,8 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
         openEditModal: false,
 
         selectedRecord: null,
+        newButirContent: '',
+        editorSession: 0,
         editRecord: null,
         selectedEditButirId: '',
         detailRecord: null,
@@ -975,6 +992,9 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
 
         openButirModalFor(record) {
             this.selectedRecord = record;
+            this.newButirContent = String(oldEditor.editor_record_id) === String(record.id) && !oldEditor.butir_id
+                ? (oldEditor[contentField] ?? '') : '';
+            this.editorSession++;
             this.selectedClusterId = '';
             this.selectedPicIds = [];
             this.picSearch = '';
@@ -991,6 +1011,14 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
         openEditModalFor(record) {
             this.editRecord = JSON.parse(JSON.stringify(record));
             this.selectedEditButirId = this.editRecord?.butirs?.[0]?.id ?? '';
+            this.editorSession++;
+            if (String(oldEditor.editor_record_id) === String(record.id) && oldEditor.butir_id) {
+                const restored = this.editRecord.butirs.find(butir => String(butir.id) === String(oldEditor.butir_id));
+                if (restored) {
+                    restored[contentField] = oldEditor[contentField] ?? restored[contentField];
+                    this.selectedEditButirId = restored.id;
+                }
+            }
             this.syncEditButir();
             this.openEditModal = true;
         },
@@ -1037,7 +1065,7 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
             return butirs.filter(butir => {
                 const id = String(butir.id_butir_rawas || '').toLowerCase();
                 const agenda = String(butir.agenda_rawas || '').toLowerCase();
-                const keputusan = String(butir.keputusan_rawas || '').toLowerCase();
+                const keputusan = snpButirPlain(butir.keputusan_rawas).toLowerCase();
 
                 return id.includes(keyword)
                     || agenda.includes(keyword)
@@ -1082,7 +1110,8 @@ window.perekamanRawasModal = function (clusters = [], picOptions = []) {
  * Clone dari perekaman SNP.
  * Dipakai di resources/views/layouts/djsn/perekaman.blade.php
  */
-window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
+window.perekamanDjsnModal = function (clusters = [], direktorats = [], oldEditor = {}) {
+    const contentField = 'butir_djsn';
     return {
         openCreateModal: false,
         openButirModal: false,
@@ -1090,6 +1119,8 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
         openEditModal: false,
 
         selectedRecord: null,
+        newButirContent: '',
+        editorSession: 0,
         editRecord: null,
         selectedEditButirId: '',
         detailRecord: null,
@@ -1108,6 +1139,9 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
 
         openButirModalFor(record) {
             this.selectedRecord = record;
+            this.newButirContent = String(oldEditor.editor_record_id) === String(record.id) && !oldEditor.butir_id
+                ? (oldEditor[contentField] ?? '') : '';
+            this.editorSession++;
             this.selectedClusterId = '';
             this.selectedSubClusterId = '';
             this.selectedDirektoratUtamaId = '';
@@ -1126,6 +1160,14 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
         openEditModalFor(record) {
             this.editRecord = JSON.parse(JSON.stringify(record));
             this.selectedEditButirId = this.editRecord?.butirs?.[0]?.id ?? '';
+            this.editorSession++;
+            if (String(oldEditor.editor_record_id) === String(record.id) && oldEditor.butir_id) {
+                const restored = this.editRecord.butirs.find(butir => String(butir.id) === String(oldEditor.butir_id));
+                if (restored) {
+                    restored[contentField] = oldEditor[contentField] ?? restored[contentField];
+                    this.selectedEditButirId = restored.id;
+                }
+            }
             this.syncEditButir();
             this.openEditModal = true;
         },
@@ -1172,7 +1214,7 @@ window.perekamanDjsnModal = function (clusters = [], direktorats = []) {
 
             return butirs.filter(butir => {
                 const id = String(butir.id_butir_djsn || '').toLowerCase();
-                const isi = String(butir.butir_djsn || '').toLowerCase();
+                const isi = snpButirPlain(butir.butir_djsn).toLowerCase();
                 const cluster = String(butir.cluster || '').toLowerCase();
                 const subCluster = String(butir.sub_cluster || '').toLowerCase();
 
@@ -1269,20 +1311,22 @@ document.addEventListener('DOMContentLoaded', () => {
         title.textContent = detail.title || 'Detail Pengajuan';
         subtitle.textContent = detail.subtitle || '-';
         recordKey.textContent = detail.record_key || '-';
-        if (detail.type_code === 'snp') renderSnpButir(isiButir, detail.isi_butir);
-        else { isiButir.classList.remove('snp-rich-content'); isiButir.textContent = detail.isi_butir || '-'; }
-        const isSnp = detail.type_code === 'snp';
+        renderSnpButir(isiButir, detail.isi_butir);
+        const moduleLabels = { snp: 'SNP', ragab: 'RAGAB', rawas: 'RAWAS', djsn: 'DJSN', eksternal: 'Rapat Eksternal' };
+        const hasButir = Object.hasOwn(moduleLabels, detail.type_code);
         const readButton = document.getElementById('pengajuanDetailBacaButir');
         const contentPanel = document.getElementById('pengajuanDetailIsiButirPanel');
         const contentLabel = document.getElementById('pengajuanDetailIsiButirLabel');
-        contentPanel.classList.toggle('snp-butir-preview--expanded', isSnp);
-        isiButir.classList.toggle('snp-butir-preview__text', isSnp);
-        contentLabel.textContent = isSnp ? 'Isi Butir SNP yang Diajukan' : 'Isi Butir';
-        readButton.hidden = !isSnp;
+        contentPanel.classList.toggle('snp-butir-preview--expanded', hasButir);
+        isiButir.classList.toggle('snp-butir-preview__text', hasButir);
+        const label = detail.type_code === 'djsn' ? 'Isi Butir Rekomendasi DJSN' : detail.type_code === 'snp' ? 'Isi Butir SNP' : `Keputusan ${moduleLabels[detail.type_code]}`;
+        contentLabel.textContent = hasButir ? `${label} yang Diajukan` : 'Isi Butir';
+        readButton.hidden = !hasButir;
         readButton.onclick = () => readSnpButir({
             id: detail.butir?.['ID Butir'],
             content: detail.isi_butir,
-            context: 'Pengajuan edit SNP · Isi yang diajukan',
+            context: `Pengajuan edit ${moduleLabels[detail.type_code]} · Isi yang diajukan`,
+            label,
         });
         renderDetailRows(suratContainer, detail.surat || {});
         renderDetailRows(butirContainer, detail.butir || {});

@@ -16,6 +16,7 @@ use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ClusterSelection;
+use App\Services\SnpButirContent;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -228,7 +229,7 @@ class PerekamanEksternalController extends Controller
 
             'tanggal_eksternal' => ['required', 'date'],
             'agenda_eksternal' => ['required', 'string'],
-            'keputusan_eksternal' => ['required', 'string'],
+            'keputusan_eksternal' => ['required', 'string', 'max:500000'],
 
             'direktorat_ids' => ['required', 'array', 'min:1'],
             'direktorat_ids.*' => ['integer', 'exists:mysql.tb_direktorat,id,status,active'],
@@ -238,6 +239,8 @@ class PerekamanEksternalController extends Controller
 
             'komite_id' => ['nullable', 'integer'],
         ]);
+
+        $validated['keputusan_eksternal'] = app(SnpButirContent::class)->normalize($validated['keputusan_eksternal'], (int) $record->id, 'eksternal');
 
         $selectedDirektoratIds = collect($validated['direktorat_ids'])
             ->map(fn ($id) => (int) $id)
@@ -384,13 +387,15 @@ class PerekamanEksternalController extends Controller
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_eksternal.tb_sub_cluster,id', new ClusterSelection('eksternal', $existingButir)],
             'tanggal_eksternal' => ['required', 'date'],
             'agenda_eksternal' => ['required', 'string'],
-            'keputusan_eksternal' => ['required', 'string'],
+            'keputusan_eksternal' => ['required', 'string', 'max:500000'],
             'direktorat_ids' => ['required', 'array', 'min:1'],
             'direktorat_ids.*' => ['required', 'integer', 'exists:mysql.tb_direktorat,id,status,active'],
             'unit_kerja_ids' => ['required', 'array', 'min:1'],
             'unit_kerja_ids.*' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'komite_id' => ['nullable', 'integer', 'exists:mysql.tb_komite,id'],
         ]);
+
+        $validated['keputusan_eksternal'] = app(SnpButirContent::class)->normalize($validated['keputusan_eksternal'], (int) $record->id, 'eksternal');
 
         $subClusterBelongsToCluster = EksternalSubCluster::where('id', $validated['sub_cluster_id'])
             ->where('cluster_id', $validated['cluster_id'])
@@ -523,6 +528,9 @@ class PerekamanEksternalController extends Controller
 
     public function applyEksternalPerekamanUpdate(EksternalRecord $record, array $payload, User $user, Request $request): void
     {
+        if (! empty($payload['butir']['id'])) {
+            $payload['butir']['keputusan_eksternal'] = app(SnpButirContent::class)->normalize($payload['butir']['keputusan_eksternal'], (int) $record->id, 'eksternal');
+        }
         DB::connection('mysql_eksternal')->transaction(function () use ($record, $payload, $user, $request) {
             $oldValues = $record->load(['butirEksternal.butirPics', 'butirEksternal.butirDirektorats'])->toArray();
             $recordPayload = $payload['record'] ?? [];

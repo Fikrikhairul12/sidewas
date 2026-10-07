@@ -115,7 +115,12 @@ try {
     assert.equal(await page.$eval('#pengajuanDetailModal', element => element.classList.contains('hidden')), false);
     await page.click('[data-pengajuan-detail-close]');
     await page.click('#otherModulePending');
-    assert.equal(await page.$eval('#pengajuanDetailBacaButir', element => getComputedStyle(element).display), 'none');
+    assert.equal(await page.$eval('#pengajuanDetailBacaButir', element => getComputedStyle(element).display !== 'none'), true);
+    await page.click('#pengajuanDetailBacaButir');
+    await readerOpen();
+    assert.equal(await page.$eval('[data-snp-reader-content]', element => element.textContent), fixture.content);
+    await page.keyboard.press('Escape');
+    await readerClosed();
     await page.click('[data-pengajuan-detail-close]');
 
     for (const detailPage of ['perekaman', 'tanggapan', 'reviu', 'tindak-lanjut']) {

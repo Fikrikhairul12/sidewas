@@ -6,7 +6,7 @@
         $summaryTuntas = $statistik['tuntas'] ?? $records->getCollection()->where('status', 'tuntas')->count();
     @endphp
 
-    <div x-data="perekamanRagabModal(@js($clusters), @js($direktorats), @js($unitKerjas))" class="space-y-6">
+    <div x-data="perekamanRagabModal(@js($clusters), @js($direktorats), @js($unitKerjas), 'ragab', @js(collect(old())->only(['editor_record_id', 'butir_id', 'keputusan_ragab'])->all()))" class="space-y-6">
         {{-- Page Header --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -212,7 +212,7 @@
                                                 'agenda_ragab' => $butir->agenda_ragab ?? '-',
                                                 'keputusan_ragab' => $butir->keputusan_ragab ?? '-',
                                                 'ringkasan' => \Illuminate\Support\Str::limit(
-                                                    $butir->keputusan_ragab ?? $butir->agenda_ragab ?? '-',
+                                                    app(\App\Services\SnpButirContent::class)->plain($butir->keputusan_ragab ?? $butir->agenda_ragab ?? '-'),
                                                     90,
                                                 ),
                                                 'status' => $butir->statusTindakLanjut(),
@@ -936,8 +936,10 @@
 
                                 <div class="lg:col-span-2">
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">Keputusan RAGAB</label>
-                                    <textarea name="keputusan_ragab" rows="4" x-model="selectedEditButir.keputusan_ragab" required
-                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                    <div @snp-editor-change.stop="selectedEditButir.keputusan_ragab = $event.detail">
+                                        <x-snp-butir-editor name="keputusan_ragab" module="ragab" label="Keputusan RAGAB"
+                                            content-expression="selectedEditButir?.keputusan_ragab" record-expression="editRecord?.id" key-expression="'edit-' + editorSession + '-' + selectedEditButir?.id" />
+                                    </div>
                                 </div>
 
                                 <div class="lg:col-span-2">
@@ -1232,9 +1234,10 @@
                                 Butir Keputusan RAGAB
                             </label>
 
-                            <textarea name="keputusan_ragab" rows="4" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan butir keputusan RAGAB..."></textarea>
+                            <div @snp-editor-change.stop="newButirContent = $event.detail">
+                                <x-snp-butir-editor name="keputusan_ragab" module="ragab" label="Keputusan RAGAB"
+                                    content-expression="newButirContent" record-expression="selectedRecord?.id" key-expression="'new-' + editorSession + '-' + selectedRecord?.id" />
+                            </div>
                         </div>
 
                         <div class="lg:col-span-2">

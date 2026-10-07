@@ -33,7 +33,7 @@
                     String(butir.id_djsn || '').toLowerCase().includes(keyword) ||
                     String(butir.nomor_surat || '').toLowerCase().includes(keyword) ||
                     String(butir.perihal_surat || '').toLowerCase().includes(keyword) ||
-                    String(butir.butir_djsn || '').toLowerCase().includes(keyword);
+                    snpButirPlain(butir.butir_djsn).toLowerCase().includes(keyword);
             });
         },
 

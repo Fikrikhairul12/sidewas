@@ -17,10 +17,23 @@ class SnpButirContent
         return str_starts_with($value ?? '', self::PREFIX);
     }
 
-    public function normalize(string $value, int $recordId): string
+    public static function contentField(string $module): string
     {
+        return match ($module) {
+            'snp' => 'butir_snp',
+            'ragab' => 'keputusan_ragab',
+            'rawas' => 'keputusan_rawas',
+            'djsn' => 'butir_djsn',
+            'eksternal' => 'keputusan_eksternal',
+            default => throw new \InvalidArgumentException('Fitur isi butir tidak dikenali.'),
+        };
+    }
+
+    public function normalize(string $value, int $recordId, string $module = 'snp'): string
+    {
+        $field = self::contentField($module);
         if (strlen($value) > 500000) {
-            throw ValidationException::withMessages(['butir_snp' => 'Isi butir terlalu panjang (maksimal 500 KB).']);
+            throw ValidationException::withMessages([$field => 'Isi butir terlalu panjang (maksimal 500 KB).']);
         }
 
         if (! self::isRich($value)) {
@@ -30,15 +43,15 @@ class SnpButirContent
         $html = $this->html($value);
         $images = $this->images(self::PREFIX.$html);
         if (count($images) > 20) {
-            throw ValidationException::withMessages(['butir_snp' => 'Maksimal 20 gambar dalam satu butir.']);
+            throw ValidationException::withMessages([$field => 'Maksimal 20 gambar dalam satu butir.']);
         }
         foreach ($images as $image) {
-            if ($image['record_id'] !== $recordId || ! Storage::disk('local')->exists($image['path'])) {
-                throw ValidationException::withMessages(['butir_snp' => 'Gambar tidak tersedia atau berasal dari surat lain. Unggah ulang gambar pada surat ini.']);
+            if ($image['module'] !== $module || $image['record_id'] !== $recordId || ! Storage::disk('local')->exists($image['path'])) {
+                throw ValidationException::withMessages([$field => 'Gambar tidak tersedia atau berasal dari surat lain. Unggah ulang gambar pada surat ini.']);
             }
         }
         if (preg_replace('/[\s\x{00a0}\x{200b}]+/u', '', $this->plain(self::PREFIX.$html)) === '' && $images === []) {
-            throw ValidationException::withMessages(['butir_snp' => 'Isi Butir SNP wajib diisi.']);
+            throw ValidationException::withMessages([$field => 'Isi butir wajib diisi.']);
         }
 
         return self::PREFIX.$html;
@@ -66,17 +79,17 @@ class SnpButirContent
         return trim(html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     }
 
-    /** @return array{record_id: int, path: string, url: string}|null */
+    /** @return array{module: string, record_id: int, path: string, url: string}|null */
     public static function imageReference(string $source): ?array
     {
-        if (! preg_match('~^/snp/perekaman/([1-9][0-9]*)/gambar/([a-f0-9-]{36}\.(?:png|jpg))$~D', $source, $matches)) {
+        if (! preg_match('~^/(snp|ragab|rawas|djsn|eksternal)/perekaman/([1-9][0-9]*)/gambar/([a-f0-9-]{36}\.(?:png|jpg))$~D', $source, $matches)) {
             return null;
         }
 
-        return ['record_id' => (int) $matches[1], 'path' => 'snp-images/'.$matches[1].'/'.$matches[2], 'url' => $source];
+        return ['module' => $matches[1], 'record_id' => (int) $matches[2], 'path' => $matches[1].'-images/'.$matches[2].'/'.$matches[3], 'url' => $source];
     }
 
-    /** @return list<array{record_id: int, path: string, url: string, width: int}> */
+    /** @return list<array{module: string, record_id: int, path: string, url: string, width: int}> */
     public function images(?string $value): array
     {
         $images = [];

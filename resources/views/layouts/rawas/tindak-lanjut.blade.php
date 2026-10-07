@@ -52,7 +52,7 @@
                     String(butir.perihal_surat || '').toLowerCase().includes(keyword) ||
                     String(butir.tanggal_rawas_label || '').toLowerCase().includes(keyword) ||
                     String(butir.agenda_rawas || '').toLowerCase().includes(keyword) ||
-                    String(butir.keputusan_rawas || '').toLowerCase().includes(keyword) ||
+                    snpButirPlain(butir.keputusan_rawas).toLowerCase().includes(keyword) ||
                     String(butir.cluster || '').toLowerCase().includes(keyword) ||
                     String(butir.sub_cluster || '').toLowerCase().includes(keyword);
             });
@@ -506,7 +506,7 @@
                                                     <p class="mt-2 text-sm font-semibold uppercase leading-relaxed text-slate-800"
                                                         x-text="butir.agenda_rawas ?? '-'"></p>
 
-                                                    <p class="snp-butir-preview__text mt-2" x-text="butir.keputusan_rawas ?? '-'"></p>
+                                                    <p class="snp-butir-preview__text mt-2" x-text="snpButirPlain(butir.keputusan_rawas) || '-'"></p>
 
                                                     <p class="mt-2 text-xs text-slate-500">
                                                         Jatuh Tempo:

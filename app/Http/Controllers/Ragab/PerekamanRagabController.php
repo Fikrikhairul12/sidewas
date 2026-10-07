@@ -17,6 +17,7 @@ use App\Models\RagabSubCluster;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ClusterSelection;
+use App\Services\SnpButirContent;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -232,7 +233,7 @@ class PerekamanRagabController extends Controller
 
             'tanggal_ragab' => ['required', 'date'],
             'agenda_ragab' => ['required', 'string'],
-            'keputusan_ragab' => ['required', 'string'],
+            'keputusan_ragab' => ['required', 'string', 'max:500000'],
 
             'direktorat_ids' => ['required', 'array', 'min:1'],
             'direktorat_ids.*' => ['integer', 'exists:mysql.tb_direktorat,id,status,active'],
@@ -242,6 +243,8 @@ class PerekamanRagabController extends Controller
 
             'komite_id' => ['nullable', 'integer'],
         ]);
+
+        $validated['keputusan_ragab'] = app(SnpButirContent::class)->normalize($validated['keputusan_ragab'], (int) $record->id, 'ragab');
 
         $selectedSubClusterIds = collect($validated['sub_cluster_ids'])
             ->map(fn ($id) => (int) $id)
@@ -413,13 +416,15 @@ class PerekamanRagabController extends Controller
             'sub_cluster_ids.*' => ['required', 'integer', 'exists:mysql_ragab.tb_sub_cluster,id', new ClusterSelection('ragab', $existingButir)],
             'tanggal_ragab' => ['required', 'date'],
             'agenda_ragab' => ['required', 'string'],
-            'keputusan_ragab' => ['required', 'string'],
+            'keputusan_ragab' => ['required', 'string', 'max:500000'],
             'direktorat_ids' => ['required', 'array', 'min:1'],
             'direktorat_ids.*' => ['required', 'integer', 'exists:mysql.tb_direktorat,id,status,active'],
             'unit_kerja_ids' => ['required', 'array', 'min:1'],
             'unit_kerja_ids.*' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'komite_id' => ['nullable', 'integer', 'exists:mysql.tb_komite,id'],
         ]);
+
+        $validated['keputusan_ragab'] = app(SnpButirContent::class)->normalize($validated['keputusan_ragab'], (int) $record->id, 'ragab');
 
         $selectedSubClusterIds = collect($validated['sub_cluster_ids'])
             ->map(fn ($id) => (int) $id)
@@ -556,6 +561,9 @@ class PerekamanRagabController extends Controller
 
     public function applyRagabPerekamanUpdate(RagabRecord $record, array $payload, User $user, Request $request): void
     {
+        if (! empty($payload['butir']['id'])) {
+            $payload['butir']['keputusan_ragab'] = app(SnpButirContent::class)->normalize($payload['butir']['keputusan_ragab'], (int) $record->id, 'ragab');
+        }
         DB::connection('mysql_ragab')->transaction(function () use ($record, $payload, $user, $request) {
             $oldValues = $record->load(['butirRagab.butirPics', 'butirRagab.butirDirektorats', 'butirRagab.subClusters'])->toArray();
             $recordPayload = $payload['record'] ?? [];

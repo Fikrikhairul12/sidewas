@@ -6,7 +6,7 @@
         $summaryTuntas = $statistik['tuntas'] ?? $records->getCollection()->where('status', 'tuntas')->count();
     @endphp
 
-    <div x-data="perekamanRawasModal(@js($clusters), @js($picOptions))" class="space-y-6">
+    <div x-data="perekamanRawasModal(@js($clusters), @js($picOptions), @js(collect(old())->only(['editor_record_id', 'butir_id', 'keputusan_rawas'])->all()))" class="space-y-6">
         {{-- Page Header --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -199,7 +199,7 @@
                                                 'agenda_rawas' => $butir->agenda_rawas ?? '-',
                                                 'keputusan_rawas' => $butir->keputusan_rawas ?? '-',
                                                 'ringkasan' => \Illuminate\Support\Str::limit(
-                                                    $butir->keputusan_rawas ?? $butir->agenda_rawas ?? '-',
+                                                    app(\App\Services\SnpButirContent::class)->plain($butir->keputusan_rawas ?? $butir->agenda_rawas ?? '-'),
                                                     90,
                                                 ),
                                                 'cluster' => $butir->cluster?->nama_cluster,
@@ -822,8 +822,10 @@
                                 </div>
                                 <div class="lg:col-span-2">
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">Keputusan RAWAS</label>
-                                    <textarea name="keputusan_rawas" rows="4" x-model="selectedEditButir.keputusan_rawas" required
-                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                    <div @snp-editor-change.stop="selectedEditButir.keputusan_rawas = $event.detail">
+                                        <x-snp-butir-editor name="keputusan_rawas" module="rawas" label="Keputusan RAWAS"
+                                            content-expression="selectedEditButir?.keputusan_rawas" record-expression="editRecord?.id" key-expression="'edit-' + editorSession + '-' + selectedEditButir?.id" />
+                                    </div>
                                 </div>
                                 <div>
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">Cluster</label>
@@ -1051,9 +1053,10 @@
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
                                 Butir Keputusan RAWAS
                             </label>
-                            <textarea name="keputusan_rawas" rows="4" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan butir keputusan RAWAS..."></textarea>
+                            <div @snp-editor-change.stop="newButirContent = $event.detail">
+                                <x-snp-butir-editor name="keputusan_rawas" module="rawas" label="Keputusan RAWAS"
+                                    content-expression="newButirContent" record-expression="selectedRecord?.id" key-expression="'new-' + editorSession + '-' + selectedRecord?.id" />
+                            </div>
                         </div>
 
                         <div class="lg:col-span-2">

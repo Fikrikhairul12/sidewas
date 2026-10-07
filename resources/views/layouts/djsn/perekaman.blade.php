@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div x-data="perekamanDjsnModal(@js($clusters), @js($direktorats))" class="space-y-6">
+    <div x-data="perekamanDjsnModal(@js($clusters), @js($direktorats), @js(collect(old())->only(['editor_record_id', 'butir_id', 'butir_djsn'])->all()))" class="space-y-6">
         {{-- Page Header --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -362,7 +362,7 @@
                                                 'id' => $butir->id,
                                                 'id_butir_djsn' => $butir->id_butir_djsn,
                                                 'butir_djsn' => $butir->butir_djsn ?? '-',
-                                                'ringkasan' => \Illuminate\Support\Str::limit($butir->butir_djsn ?? '-', 90),
+                                                'ringkasan' => \Illuminate\Support\Str::limit(app(\App\Services\SnpButirContent::class)->plain($butir->butir_djsn), 90),
                                                 'cluster' => $butir->cluster?->nama_cluster ?? '-',
                                                 'sub_cluster' => $butir->subCluster?->nama_sub_cluster ?? '-',
                                                 'pic_utama' => $picUtama?->unitKerja
@@ -966,8 +966,10 @@
                             <div class="contents">
                                 <div class="lg:col-span-2">
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">Isi Butir Rekomendasi DJSN</label>
-                                    <textarea name="butir_djsn" rows="4" x-model="selectedEditButir.butir_djsn" required
-                                        class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                    <div @snp-editor-change.stop="selectedEditButir.butir_djsn = $event.detail">
+                                        <x-snp-butir-editor name="butir_djsn" module="djsn" label="Isi Butir Rekomendasi DJSN"
+                                            content-expression="selectedEditButir?.butir_djsn" record-expression="editRecord?.id" key-expression="'edit-' + editorSession + '-' + selectedEditButir?.id" />
+                                    </div>
                                 </div>
 
                                 <div>
@@ -1253,9 +1255,10 @@
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
                                 Isi Butir Rekomendasi DJSN
                             </label>
-                            <textarea name="butir_djsn" rows="4" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Masukkan isi butir Rekomendasi DJSN..."></textarea>
+                            <div @snp-editor-change.stop="newButirContent = $event.detail">
+                                <x-snp-butir-editor name="butir_djsn" module="djsn" label="Isi Butir Rekomendasi DJSN"
+                                    content-expression="newButirContent" record-expression="selectedRecord?.id" key-expression="'new-' + editorSession + '-' + selectedRecord?.id" />
+                            </div>
                         </div>
 
                         <div>

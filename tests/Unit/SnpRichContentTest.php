@@ -118,7 +118,11 @@ test('Excel exports complete plain text and images alongside the related butir',
             ->and($sheet->getDrawingCollection())->toHaveCount(2);
         foreach ($sheet->getDrawingCollection() as $drawing) {
             $row = $drawing->getCoordinates();
-            expect($sheet->getCell(str_replace('B', 'A', $row))->getValue())->toBe(str_contains($drawing->getName(), 'SNP.02') ? 'SNP.02' : 'SNP.01');
+            $idCell = $sheet->getCell(str_replace('B', 'A', $row));
+            if ($mergeRange = $idCell->getMergeRange()) {
+                $idCell = $sheet->getCell(explode(':', $mergeRange)[0]);
+            }
+            expect($idCell->getValue())->toBe(str_contains($drawing->getName(), 'SNP.02') ? 'SNP.02' : 'SNP.01');
         }
         if (getenv('SNP_EXPORT_ARTIFACTS')) {
             file_put_contents(storage_path('app/private/snp-rich-report.xlsx'), $bytes);
