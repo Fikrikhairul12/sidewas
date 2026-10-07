@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer';
 
 let input = '';
@@ -33,19 +32,13 @@ try {
             for (const image of cell.images) assert.ok(image.complete && image.natural > 0 && image.width <= cell.width && image.height <= 560);
         }
         assert.deepEqual(errors, []);
-        const bytes = await page.pdf({ format: 'Legal', landscape: true, printBackground: true, preferCSSPageSize: true });
-        assert.ok(bytes.length > 10000);
-        if (fixture.artifactDirectory) {
-            writeFileSync(resolve(fixture.artifactDirectory, `${fixture.module}-${name}.pdf`), bytes);
-            writeFileSync(resolve(fixture.artifactDirectory, `${fixture.module}-${name}.html`), html);
-        }
         await page.setContent(html.replace('window.butirReportReady = false;', 'document.documentElement.style.zoom = "125%"; window.butirReportReady = false;'), { waitUntil: 'load' });
         await page.waitForFunction(() => window.butirReportReady === true);
         const zoomedLabels = await page.$$eval('[data-report-label-id]', nodes => nodes.map(node => ({ id: node.dataset.reportLabelId, page: node.closest('tr').dataset.reportPage, visible: getComputedStyle(node).visibility === 'visible', continued: getComputedStyle(node.querySelector('.report-continuation')).visibility === 'visible' })));
         assert.deepEqual(zoomedLabels, labels, 'Preview zoom does not change continuation labels');
         await page.close();
     }
-    console.log(`${fixture.module}: actual Chromium print, bounded text and complete embedded images passed.`);
+    console.log(`${fixture.module}: HTML preview, bounded text, complete images and consistent zoom passed.`);
 } finally {
     await browser.close();
 }

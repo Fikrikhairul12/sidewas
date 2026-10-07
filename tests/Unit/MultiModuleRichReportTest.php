@@ -1,6 +1,10 @@
 <?php
 
 use App\Services\SnpButirContent;
+use App\Services\SnpReportPdfLabels;
+use Dompdf\Canvas;
+use Dompdf\Dompdf;
+use Dompdf\Frame;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
@@ -89,10 +93,83 @@ test('PDF and Excel preserve complete rich content images and every related foll
             }
         }
         expect($document->textContent)->toContain('TEKS-LAMA-2 <literal>', 'TEKS-LAMA-3 <literal>', 'SURAT-1', 'SURAT-2');
+        $renderedText = [];
+        $labels = [];
+        $continuations = [];
+        $contentPages = [];
+        $images = [];
+        $pdf = new Dompdf;
+        $pdf->setPaper('legal', 'landscape');
+        $pdf->getOptions()->setIsJavascriptEnabled(false);
+        $pdf->setCallbacks([...app(SnpReportPdfLabels::class)->callbacks(), ['event' => 'end_frame', 'f' => function (Frame $frame, Canvas $canvas) use (&$renderedText, &$labels, &$continuations, &$contentPages, &$images, $module): void {
+            $node = $frame->get_node();
+            $page = $canvas->get_page_number();
+            if ($node instanceof DOMText) {
+                $text = trim($node->textContent);
+                $renderedText[] = $text;
+                if (in_array($text, array_map(fn (int $id): string => strtoupper($module).'.0'.$id, [1, 2, 3]), true)) {
+                    $labels[$text][$page] = ($labels[$text][$page] ?? 0) + 1;
+                }
+                if ($text === 'Lanjutan') {
+                    for ($parent = $node->parentNode; $parent instanceof DOMElement; $parent = $parent->parentNode) {
+                        if ($parent->hasAttribute('data-snp-butir-label')) {
+                            $id = $parent->getAttribute('data-snp-butir-label');
+                            $continuations[$id][$page] = ($continuations[$id][$page] ?? 0) + 1;
+                            break;
+                        }
+                    }
+                }
+            }
+            if ($node instanceof DOMElement && $node->tagName === 'td' && $node->hasAttribute('data-report-content')) {
+                $contentPages[$node->getAttribute('data-report-content')][$page] = true;
+            }
+            if ($node instanceof DOMElement && $node->tagName === 'img') {
+                for ($parent = $frame->get_parent(); $parent; $parent = $parent->get_parent()) {
+                    $element = $parent->get_node();
+                    if ($element instanceof DOMElement && $element->hasAttribute('data-report-content')) {
+                        $images[] = ['box' => $frame->get_border_box(), 'cell' => $parent->get_content_box()];
+                        break;
+                    }
+                }
+            }
+        }]]);
+        $pdf->loadHtml($html);
+        $pdf->render();
+        $printedText = preg_replace('/\s+/u', ' ', implode(' ', $renderedText));
+        expect(substr_count($printedText, 'ISI-LENGKAP'))->toBe(400, 'Rendered pages: '.$pdf->getCanvas()->get_page_count().'; text: '.mb_substr($printedText, 0, 500))
+            ->and($printedText)->toContain('AWAL-BUTIR', 'ANTAR-GAMBAR', '=AKHIR-BUTIR', 'TEKS-LAMA-2 <literal>', 'TEKS-LAMA-3 <literal>')
+            ->and($pdf->getCanvas()->get_page_count())->toBeGreaterThan(2)
+            ->and($pdf->getCanvas()->get_width())->toBe(1008.0)
+            ->and($pdf->getCanvas()->get_height())->toBe(612.0)
+            ->and($images)->toHaveCount(4);
+        foreach ($images as $image) {
+            expect($image['box']['x'])->toBeGreaterThanOrEqual($image['cell']['x'] - 1)
+                ->and($image['box']['x'] + $image['box']['w'])->toBeLessThanOrEqual($image['cell']['x'] + $image['cell']['w'] + 1)
+                ->and($image['box']['y'] + $image['box']['h'])->toBeLessThan(574);
+        }
+        foreach ($contentPages as $id => $pages) {
+            $first = array_key_first($pages);
+            foreach ($pages as $page => $present) {
+                expect($labels[$id][$page] ?? 0)->toBe($page !== $first || $module === 'djsn' ? 1 : 0)
+                    ->and($continuations[$id][$page] ?? 0)->toBe($page !== $first ? 1 : 0);
+            }
+        }
+        foreach ([1, 2, 3] as $id) {
+            foreach ([1, 2] as $stage) {
+                expect(substr_count($printedText, 'TL-'.$id.'-'.$stage))->toBe(1)
+                    ->and(substr_count($printedText, 'DEL-'.$id.'-'.$stage))->toBe(1);
+            }
+        }
+        $bytes = $pdf->output();
+        expect($bytes)->toStartWith('%PDF-');
+        if (getenv('MULTI_REPORT_ARTIFACTS')) {
+            file_put_contents(getenv('MULTI_REPORT_ARTIFACTS').'/'.$module.'-'.$template.'.pdf', $bytes);
+            file_put_contents(getenv('MULTI_REPORT_ARTIFACTS').'/'.$module.'-'.$template.'.html', $html);
+        }
         $fixtures[$template] = $html;
     }
     $process = new Process(['node', base_path('tests/Unit/MultiModuleRichReport.browser.mjs')], base_path());
-    $process->setInput(json_encode(['module' => $module, 'fixtures' => $fixtures, 'artifactDirectory' => getenv('MULTI_REPORT_ARTIFACTS') ?: null], JSON_THROW_ON_ERROR));
+    $process->setInput(json_encode(['module' => $module, 'fixtures' => $fixtures], JSON_THROW_ON_ERROR));
     $process->setTimeout(90);
     $process->run();
     expect($process->isSuccessful())->toBeTrue($process->getOutput().$process->getErrorOutput());
@@ -152,6 +229,31 @@ test('PDF and Excel preserve complete rich content images and every related foll
             expect($html)->not->toContain('data:image/', 'AWAL-BUTIR');
         }
         expect(fn () => Excel::raw(new $exportClass($records, $selection, array_combine($selection, $selection)), Maatwebsite\Excel\Excel::XLSX))->not->toThrow(Throwable::class);
+    }
+})->with(['ragab', 'rawas', 'djsn', 'eksternal']);
+
+test('report download responses contain actual DomPDF bytes for regular and custom reports', function (string $module) {
+    if (getenv('REPORT_TEST_PROC_OPEN_DISABLED')) {
+        expect(function_exists('proc_open'))->toBeFalse();
+    }
+    Storage::fake('local');
+    $image = multiReportImage($module, 300, 100, '12345678-1234-1234-1234-123456789abc.png');
+    $records = multiReportRecords($module, SnpButirContent::PREFIX.'<p><strong>Isi butir lengkap</strong></p><img src="'.$image.'"><p>Sesudah gambar</p>');
+    $class = 'App\\Http\\Controllers\\'.ucfirst($module).'\\Report'.ucfirst($module).'Controller';
+    $controller = new $class;
+    $download = new ReflectionMethod($controller, 'downloadPdf');
+    $contentField = $module === 'djsn' ? 'isi_butir' : 'keputusan';
+    foreach (['pdf', 'pdf-custom'] as $template) {
+        $filename = $module.'-'.$template.'.pdf';
+        $response = $download->invoke($controller, 'layouts.'.$module.'.report.'.$template, [
+            'records' => $records,
+            'selectedFields' => [$contentField],
+            'fieldLabels' => [$contentField => 'Isi butir'],
+        ], $filename);
+        expect($response->getStatusCode())->toBe(200)
+            ->and($response->headers->get('Content-Type'))->toBe('application/pdf')
+            ->and($response->headers->get('Content-Disposition'))->toContain('attachment', $filename)
+            ->and($response->getContent())->toStartWith('%PDF-');
     }
 })->with(['ragab', 'rawas', 'djsn', 'eksternal']);
 

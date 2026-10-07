@@ -16,8 +16,8 @@ test('all non snp reports use preview then download while retaining their templa
             ->toContain("view('layouts.snp.report.preview'")
             ->toContain("route('{$routePrefix}.report.index')")
             ->toContain("if (\$request->boolean('_download'))")
-            ->toContain("'Content-Disposition' => 'attachment; filename=\"'.\$filename.'\"'")
-            ->toContain('Browsershot::html($html)');
+            ->toContain('->download($filename)')
+            ->toContain('Pdf::loadView($view, $data)');
     }
 });
 

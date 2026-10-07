@@ -30,6 +30,9 @@ class ButirReportPdf
             libxml_use_internal_errors($previous);
         }
         $xpath = new DOMXPath($document);
+        foreach ($xpath->query('//processing-instruction()') as $instruction) {
+            $instruction->parentNode->removeChild($instruction);
+        }
         $headers = $xpath->query('//table/thead/tr/th');
         $columnCount = $headers->length;
         $contentColumn = null;
@@ -94,13 +97,16 @@ class ButirReportPdf
                             }
                             $label = $document->createElement('div');
                             $label->setAttribute('data-report-label-id', $id);
+                            $label->setAttribute('data-snp-butir-label', $id);
                             $label->setAttribute('class', 'report-butir-label');
                             if ($index === 0 && $module === 'djsn') {
                                 $label->setAttribute('data-report-show-first', '1');
+                                $label->setAttribute('data-snp-show-first', '1');
                             }
                             $label->appendChild($document->createTextNode($id));
                             $continuation = $document->createElement('div', 'Lanjutan');
                             $continuation->setAttribute('class', 'report-continuation');
+                            $continuation->setAttribute('data-snp-continuation', '1');
                             $label->appendChild($continuation);
                             $cell->appendChild($label);
                         }
@@ -122,7 +128,7 @@ class ButirReportPdf
                 }
             }
         }
-        $style = $document->createElement('style', '@page { size:legal landscape; margin:8mm 8mm 14mm; } body { margin:0; width:1283px; } thead { display:table-header-group; } tbody td { border-top:0; border-bottom:0; } .butir-start td { border-top:1px solid #000; } .butir-end td { border-bottom:1px solid #000; } tr { break-inside:avoid; } .report-butir-content { white-space:normal; } .report-butir-content img { max-width:100%; } .report-butir-label { visibility:hidden; white-space:normal; } [data-report-show-first] { visibility:visible; } .report-continuation { visibility:hidden; color:#666; } .print-footer { left:0; bottom:0; font-size:6px; }');
+        $style = $document->createElement('style', '@page { size:legal landscape; margin:8mm 8mm 14mm; } body { margin:0; width:1283px; } thead { display:table-header-group; } tbody td { border-top:0; border-bottom:0; } .butir-start td { border-top:1px solid #000; } .butir-end td { border-bottom:1px solid #000; } tr { page-break-inside:avoid; break-inside:avoid; } .report-butir-content { white-space:normal; } .report-butir-content img { max-width:100%; } .report-butir-label { visibility:hidden; white-space:normal; } [data-report-show-first] { visibility:visible; } .report-continuation { visibility:hidden; color:#666; } .print-footer { left:0; bottom:-7mm; font-size:6px; }');
         $document->getElementsByTagName('head')->item(0)->appendChild($style);
 
         return str_replace('</body>', view('layouts.partials.report-page-labels')->render().'</body>', $document->saveHTML());

@@ -1,36 +1,36 @@
 <?php
 
-test('non SNP report pdf controllers still use browsershot', function () {
+use Symfony\Component\Process\Process;
+
+test('all non SNP report PDF controllers use DomPDF and the same labels as SNP', function () {
     $rootPath = dirname(__DIR__, 2);
-
-    $controllers = [
-        'ragab' => file_get_contents($rootPath.'/app/Http/Controllers/Ragab/ReportRagabController.php'),
-        'rawas' => file_get_contents($rootPath.'/app/Http/Controllers/Rawas/ReportRawasController.php'),
-        'djsn' => file_get_contents($rootPath.'/app/Http/Controllers/Djsn/ReportDjsnController.php'),
-    ];
-
-    foreach ($controllers as $source) {
+    foreach (['Ragab', 'Rawas', 'Djsn', 'Eksternal'] as $name) {
+        $module = strtolower($name);
+        $source = file_get_contents($rootPath.'/app/Http/Controllers/'.$name.'/Report'.$name.'Controller.php');
         expect($source)
-            ->toContain('use Spatie\\Browsershot\\Browsershot;')
-            ->toContain('private function streamBrowsershotPdf(string $view, array $data, string $filename): Response')
-            ->toContain('Browsershot::html($html)')
-            ->toContain("->format('Legal')")
-            ->toContain('->landscape()')
-            ->toContain('->showBackground()')
-            ->toContain('Content-Disposition')
-            ->not->toContain('Pdf::loadView')
-            ->not->toContain('Barryvdh\\DomPDF\\Facade\\Pdf');
+            ->toContain('use Barryvdh\\DomPDF\\Facade\\Pdf;')
+            ->toContain('private function downloadPdf(string $view, array $data, string $filename): Response')
+            ->toContain('Pdf::loadView($view, $data)')
+            ->toContain("->setPaper('legal', 'landscape')")
+            ->toContain('SnpReportPdfLabels::class)->callbacks()')
+            ->toContain('->download($filename)')
+            ->toContain("downloadPdf('layouts.".$module.".report.pdf'")
+            ->toContain("downloadPdf('layouts.".$module.".report.pdf-custom'")
+            ->not->toContain('Browsershot', 'streamBrowsershotPdf', 'waitForFunction');
     }
+});
 
-    expect($controllers['ragab'])
-        ->toContain("streamBrowsershotPdf('layouts.ragab.report.pdf'")
-        ->toContain("streamBrowsershotPdf('layouts.ragab.report.pdf-custom'");
-
-    expect($controllers['rawas'])
-        ->toContain("streamBrowsershotPdf('layouts.rawas.report.pdf'")
-        ->toContain("streamBrowsershotPdf('layouts.rawas.report.pdf-custom'");
-
-    expect($controllers['djsn'])
-        ->toContain("streamBrowsershotPdf('layouts.djsn.report.pdf'")
-        ->toContain("streamBrowsershotPdf('layouts.djsn.report.pdf-custom'");
+test('all report downloads also pass under PHP with proc_open disabled', function () {
+    $rootPath = dirname(__DIR__, 2);
+    $process = new Process([
+        PHP_BINARY, '-d', 'disable_functions=proc_open',
+        $rootPath.'/vendor/pestphp/pest/bin/pest',
+        $rootPath.'/tests/Unit/MultiModuleRichReportTest.php',
+        '--filter=report download responses contain actual DomPDF bytes',
+        '--compact',
+    ], $rootPath, ['REPORT_TEST_PROC_OPEN_DISABLED' => '1']);
+    $process->setTimeout(120);
+    $process->run();
+    expect($process->isSuccessful())->toBeTrue($process->getOutput().$process->getErrorOutput())
+        ->and($process->getOutput())->toMatch('/Tests:\s+4 (?:warnings|passed)/');
 });

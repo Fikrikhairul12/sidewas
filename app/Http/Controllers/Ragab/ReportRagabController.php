@@ -8,12 +8,13 @@ use App\Models\Direktorat;
 use App\Models\RagabRecord;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\SnpReportPdfLabels;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
-use Spatie\Browsershot\Browsershot;
 
 class ReportRagabController extends Controller
 {
@@ -132,7 +133,7 @@ class ReportRagabController extends Controller
         );
 
         if ($request->boolean('_download')) {
-            return $this->streamBrowsershotPdf('layouts.ragab.report.pdf', $data, 'report-ragab.pdf');
+            return $this->downloadPdf('layouts.ragab.report.pdf', $data, 'report-ragab.pdf');
         }
 
         return $this->previewPdf('layouts.ragab.report.pdf', $data, $request->except('_token'), 'Pratinjau Report RAGAB', 'report-ragab.pdf');
@@ -180,7 +181,7 @@ class ReportRagabController extends Controller
         );
 
         if ($request->boolean('_download')) {
-            return $this->streamBrowsershotPdf('layouts.ragab.report.pdf-custom', $data, 'report-ragab-custom.pdf');
+            return $this->downloadPdf('layouts.ragab.report.pdf-custom', $data, 'report-ragab-custom.pdf');
         }
 
         return $this->previewPdf('layouts.ragab.report.pdf-custom', $data, $request->except('_token'), 'Pratinjau Report RAGAB Custom', 'report-ragab-custom.pdf');
@@ -198,23 +199,13 @@ class ReportRagabController extends Controller
         ]);
     }
 
-    private function streamBrowsershotPdf(string $view, array $data, string $filename): Response
+    private function downloadPdf(string $view, array $data, string $filename): Response
     {
-        $html = view($view, $data)->render();
-
-        $pdf = Browsershot::html($html)
-            ->format('Legal')
-            ->landscape()
-            ->margins(8, 8, 8, 8)
-            ->showBackground()
-            ->waitForFunction('window.butirReportReady === true')
-            ->timeout(120)
-            ->pdf();
-
-        return response($pdf, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return Pdf::loadView($view, $data)
+            ->setPaper('legal', 'landscape')
+            ->setOption('isJavascriptEnabled', false)
+            ->setCallbacks(app(SnpReportPdfLabels::class)->callbacks())
+            ->download($filename);
     }
 
     public function cetakExcel(Request $request)
