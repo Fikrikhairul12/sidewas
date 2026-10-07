@@ -1,3 +1,4 @@
+<x-report-butir-pdf :records="$records" module="eksternal">
 <!DOCTYPE html>
 <html>
 
@@ -110,7 +111,7 @@
             <tr>
                 <th style="width: 11%;">NOMOR, TANGGAL & PERIHAL SURAT</th>
                 <th style="width: 9%;">TGL & AGENDA EKSTERNAL</th>
-                <th style="width: 13%;">KEPUTUSAN EKSTERNAL</th>
+                <th data-report-content style="width: 13%;">KEPUTUSAN EKSTERNAL</th>
                 <th style="width: 8%;">DIREKTORAT</th>
                 <th style="width: 7%;">UNIT PIC</th>
                 <th style="width: 13%;">TINDAK LANJUT KEPUTUSAN EKSTERNAL</th>
@@ -213,7 +214,7 @@
                             $direktoratLabel = $getDirektoratLabel($tl);
                         @endphp
 
-                        <tr>
+                        <tr data-report-butir="{{ $butir->id_butir_eksternal }}">
                             @if ($isFirstRecordRow)
                                 <td rowspan="{{ $totalRowsRecord }}" class="pre-line">
                                     {{ $record->nomor_surat ?? '-' }}
@@ -242,14 +243,14 @@
                             @endif
 
                             @if ($i === 0)
-                                <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                <td rowspan="{{ $jumlahBarisButir }}" class="pre-line" data-report-label>
                                     {{ $butir->tanggal_eksternal ? \Carbon\Carbon::parse($butir->tanggal_eksternal)->format('d-M-Y') : '-' }}
 
                                     {{ $butir->agenda_eksternal ?? '-' }}
                                 </td>
 
                                 <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
-                                    {{ $butir->keputusan_eksternal ?? '-' }}
+                                    -
                                 </td>
                             @endif
 
@@ -319,3 +320,4 @@
 </body>
 
 </html>
+</x-report-butir-pdf>

@@ -1,3 +1,4 @@
+<x-report-butir-pdf :records="$records" module="djsn">
 <!DOCTYPE html>
 <html>
 
@@ -118,7 +119,7 @@
         <thead>
             <tr>
                 @foreach ($selectedFields as $field)
-                    <th>
+                    <th @if ($field === 'isi_butir') data-report-content @endif>
                         {{ $fieldLabels[$field] ?? strtoupper($field) }}
                     </th>
                 @endforeach
@@ -175,7 +176,7 @@
                         };
                     @endphp
 
-                    <tr>
+                    <tr data-report-butir="{{ $butir->id_butir_djsn }}">
                         @foreach ($selectedFields as $field)
                             @if ($field === 'surat')
                                 @if ($isFirstRecordRow)
@@ -191,12 +192,12 @@
                                     @endphp
                                 @endif
                             @elseif ($field === 'id_butir')
-                                <td rowspan="{{ $jumlahBarisButir }}" class="center pre-line">
+                                <td rowspan="{{ $jumlahBarisButir }}" class="center pre-line" data-report-label>
                                     {{ $butir->id_butir_djsn }}
                                 </td>
                             @elseif ($field === 'isi_butir')
                                 <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
-                                    {{ $butir->butir_djsn }}
+                                    -
                                 </td>
                             @elseif ($field === 'pic_unit')
                                 <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
@@ -279,7 +280,7 @@
                             };
                         @endphp
 
-                        <tr>
+                        <tr data-report-butir="{{ $butir->id_butir_djsn }}">
                             @foreach ($selectedFields as $field)
                                 @if (in_array($field, ['surat', 'id_butir', 'isi_butir', 'pic_unit', 'komite']))
                                     @continue
@@ -334,3 +335,4 @@
 </body>
 
 </html>
+</x-report-butir-pdf>

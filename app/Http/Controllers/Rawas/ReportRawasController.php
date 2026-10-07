@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Browsershot\Browsershot;
 
@@ -19,7 +20,7 @@ class ReportRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRawasReport()) {
+        if (! $user || ! $user->canAccessRawasReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report RAWAS.');
         }
 
@@ -104,7 +105,7 @@ class ReportRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRawasReport()) {
+        if (! $user || ! $user->canAccessRawasReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAWAS.');
         }
 
@@ -137,7 +138,7 @@ class ReportRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRawasReport()) {
+        if (! $user || ! $user->canAccessRawasReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAWAS.');
         }
 
@@ -181,7 +182,7 @@ class ReportRawasController extends Controller
         return $this->previewPdf('layouts.rawas.report.pdf-custom', $data, $request->except('_token'), 'Pratinjau Report RAWAS Custom', 'report-rawas-custom.pdf');
     }
 
-    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): \Illuminate\View\View
+    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): View
     {
         return view('layouts.snp.report.preview', [
             'title' => $title,
@@ -202,6 +203,7 @@ class ReportRawasController extends Controller
             ->landscape()
             ->margins(8, 8, 8, 8)
             ->showBackground()
+            ->waitForFunction('window.butirReportReady === true')
             ->timeout(120)
             ->pdf();
 
@@ -215,7 +217,7 @@ class ReportRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRawasReport()) {
+        if (! $user || ! $user->canAccessRawasReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAWAS.');
         }
 
@@ -237,7 +239,7 @@ class ReportRawasController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRawasReport()) {
+        if (! $user || ! $user->canAccessRawasReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAWAS.');
         }
 
@@ -270,7 +272,7 @@ class ReportRawasController extends Controller
     {
         return RawasRecord::with([
             'butirRawas' => function ($query) use ($butirIds) {
-                if (!empty($butirIds)) {
+                if (! empty($butirIds)) {
                     $query->whereIn('id', $butirIds);
                 }
 
@@ -289,7 +291,7 @@ class ReportRawasController extends Controller
             'butirRawas.reviewTindakLanjut',
         ])
             ->whereIn('id', $recordIds)
-            ->when(!empty($butirIds), function ($query) use ($butirIds) {
+            ->when(! empty($butirIds), function ($query) use ($butirIds) {
                 $query->whereHas('butirRawas', function ($butirQuery) use ($butirIds) {
                     $butirQuery->whereIn('id', $butirIds);
                 });

@@ -100,7 +100,7 @@
                                 </td>
                             @elseif ($field === 'keputusan')
                                 <td>
-                                    {{ $butir->keputusan_eksternal ?? '-' }}
+                                    {{ app(\App\Services\SnpButirContent::class)->plain($butir->keputusan_eksternal) ?: '-' }}
                                 </td>
                             @elseif ($field === 'direktorat')
                                 @if (!in_array($direktoratLabel, $printedDirektorats, true))

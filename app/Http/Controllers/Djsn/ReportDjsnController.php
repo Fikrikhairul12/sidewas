@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Djsn;
 
-use App\Http\Controllers\Controller;
 use App\Exports\DjsnReportExport;
+use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
 use App\Models\DjsnRecord;
 use App\Models\Komite;
@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Browsershot\Browsershot;
 
@@ -21,7 +22,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnReport()) {
+        if (! $user || ! $user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report DJSN.');
         }
 
@@ -114,7 +115,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnReport()) {
+        if (! $user || ! $user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
 
@@ -157,7 +158,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnReport()) {
+        if (! $user || ! $user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
 
@@ -223,7 +224,7 @@ class ReportDjsnController extends Controller
         $fieldLabels = [
             'surat' => 'NOMOR, TANGGAL & PERIHAL SURAT',
             'id_butir' => 'ID BUTIR DJSN',
-            'isi_butir' => 'ISI BUTIR DJSN',
+            'isi_butir' => 'ISI BUTIR REKOMENDASI DJSN',
             'pic_unit' => 'PIC UNIT KERJA',
             'tanggapan_tl' => 'TANGGAPAN & TINDAK LANJUT DIREKSI',
             'deliverable' => 'DELIVERABLE',
@@ -252,7 +253,7 @@ class ReportDjsnController extends Controller
         return $this->previewPdf('layouts.djsn.report.pdf-custom', $data, $request->except('_token'), 'Pratinjau Report DJSN Custom', 'report-djsn-dewas-custom.pdf');
     }
 
-    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): \Illuminate\View\View
+    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): View
     {
         return view('layouts.snp.report.preview', [
             'title' => $title,
@@ -273,6 +274,7 @@ class ReportDjsnController extends Controller
             ->landscape()
             ->margins(8, 8, 8, 8)
             ->showBackground()
+            ->waitForFunction('window.butirReportReady === true')
             ->timeout(120)
             ->pdf();
 
@@ -287,7 +289,7 @@ class ReportDjsnController extends Controller
         return [
             'surat' => 'NOMOR, TANGGAL & PERIHAL SURAT',
             'id_butir' => 'ID BUTIR DJSN',
-            'isi_butir' => 'ISI BUTIR DJSN',
+            'isi_butir' => 'ISI BUTIR REKOMENDASI DJSN',
             'pic_utama' => 'PIC UNIT KERJA UTAMA',
             'pic_pendukung' => 'PIC UNIT KERJA PENDUKUNG',
             'tanggapan' => 'TANGGAPAN DIREKSI',
@@ -311,7 +313,7 @@ class ReportDjsnController extends Controller
 
         foreach ($fields as $field) {
             if ($field === 'pic_utama' || $field === 'pic_pendukung') {
-                if (!in_array('pic_unit', $mapped, true)) {
+                if (! in_array('pic_unit', $mapped, true)) {
                     $mapped[] = 'pic_unit';
                 }
 
@@ -319,7 +321,7 @@ class ReportDjsnController extends Controller
             }
 
             if ($field === 'tanggapan' || $field === 'tindak_lanjut') {
-                if (!in_array('tanggapan_tl', $mapped, true)) {
+                if (! in_array('tanggapan_tl', $mapped, true)) {
                     $mapped[] = 'tanggapan_tl';
                 }
 
@@ -336,7 +338,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnReport()) {
+        if (! $user || ! $user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
 
@@ -387,7 +389,7 @@ class ReportDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnReport()) {
+        if (! $user || ! $user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
 

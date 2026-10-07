@@ -1,3 +1,4 @@
+<x-report-butir-pdf :records="$records" module="rawas">
 <!DOCTYPE html>
 <html>
 
@@ -110,7 +111,7 @@
             <tr>
                 <th style="width: 11%;">NOMOR, TANGGAL & PERIHAL SURAT</th>
                 <th style="width: 9%;">TGL & AGENDA RAWAS</th>
-                <th style="width: 13%;">KEPUTUSAN RAWAS</th>
+                <th data-report-content style="width: 13%;">KEPUTUSAN RAWAS</th>
                 <th style="width: 8%;">DIREKTORAT</th>
                 <th style="width: 7%;">UNIT PIC</th>
                 <th style="width: 13%;">TINDAK LANJUT KEPUTUSAN RAWAS</th>
@@ -176,7 +177,7 @@
                     @endphp
 
                     @foreach ($tindakLanjuts as $i => $tl)
-                        <tr>
+                        <tr data-report-butir="{{ $butir->id_butir_rawas }}">
                             @if ($isFirstRecordRow)
                                 <td rowspan="{{ $totalRowsRecord }}" class="pre-line">
                                     {{ $record->nomor_surat ?? '-' }}
@@ -195,14 +196,14 @@
                             @endif
 
                             @if ($i === 0)
-                                <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                <td rowspan="{{ $jumlahBarisButir }}" class="pre-line" data-report-label>
                                     {{ $butir->tanggal_rawas ? \Carbon\Carbon::parse($butir->tanggal_rawas)->format('d-M-Y') : '-' }}
 
                                     {{ $butir->agenda_rawas ?? '-' }}
                                 </td>
 
                                 <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
-                                    {{ $butir->keputusan_rawas ?? '-' }}
+                                    -
                                 </td>
 
                                 <td rowspan="{{ $jumlahBarisButir }}" class="center pre-line">
@@ -264,3 +265,4 @@
 </body>
 
 </html>
+</x-report-butir-pdf>

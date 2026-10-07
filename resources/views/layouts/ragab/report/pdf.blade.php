@@ -1,3 +1,4 @@
+<x-report-butir-pdf :records="$records" module="ragab">
 <!DOCTYPE html>
 <html>
 
@@ -110,7 +111,7 @@
             <tr>
                 <th style="width: 11%;">NOMOR, TANGGAL & PERIHAL SURAT</th>
                 <th style="width: 9%;">TGL & AGENDA RAGAB</th>
-                <th style="width: 13%;">KEPUTUSAN RAGAB</th>
+                <th data-report-content style="width: 13%;">KEPUTUSAN RAGAB</th>
                 <th style="width: 8%;">DIREKTORAT</th>
                 <th style="width: 7%;">UNIT PIC</th>
                 <th style="width: 13%;">TINDAK LANJUT KEPUTUSAN RAGAB</th>
@@ -213,7 +214,7 @@
                             $direktoratLabel = $getDirektoratLabel($tl);
                         @endphp
 
-                        <tr>
+                        <tr data-report-butir="{{ $butir->id_butir_ragab }}">
                             @if ($isFirstRecordRow)
                                 <td rowspan="{{ $totalRowsRecord }}" class="pre-line">
                                     {{ $record->nomor_surat ?? '-' }}
@@ -239,14 +240,14 @@
                             @endif
 
                             @if ($i === 0)
-                                <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                <td rowspan="{{ $jumlahBarisButir }}" class="pre-line" data-report-label>
                                     {{ $butir->tanggal_ragab ? \Carbon\Carbon::parse($butir->tanggal_ragab)->format('d-M-Y') : '-' }}
 
                                     {{ $butir->agenda_ragab ?? '-' }}
                                 </td>
 
                                 <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
-                                    {{ $butir->keputusan_ragab ?? '-' }}
+                                    -
                                 </td>
                             @endif
 
@@ -316,3 +317,4 @@
 </body>
 
 </html>
+</x-report-butir-pdf>

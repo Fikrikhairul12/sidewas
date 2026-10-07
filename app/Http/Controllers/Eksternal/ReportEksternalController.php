@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Eksternal;
 
-use App\Http\Controllers\Controller;
 use App\Exports\EksternalReportExport;
+use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
 use App\Models\EksternalRecord;
 use App\Models\UnitKerja;
@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Browsershot\Browsershot;
 
@@ -20,7 +21,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalReport()) {
+        if (! $user || ! $user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report EKSTERNAL.');
         }
 
@@ -109,7 +110,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalReport()) {
+        if (! $user || ! $user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report EKSTERNAL.');
         }
 
@@ -142,7 +143,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalReport()) {
+        if (! $user || ! $user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report EKSTERNAL.');
         }
 
@@ -186,7 +187,7 @@ class ReportEksternalController extends Controller
         return $this->previewPdf('layouts.eksternal.report.pdf-custom', $data, $request->except('_token'), 'Pratinjau Report Rapat Eksternal Custom', 'report-eksternal-custom.pdf');
     }
 
-    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): \Illuminate\View\View
+    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): View
     {
         return view('layouts.snp.report.preview', [
             'title' => $title,
@@ -207,6 +208,7 @@ class ReportEksternalController extends Controller
             ->landscape()
             ->margins(8, 8, 8, 8)
             ->showBackground()
+            ->waitForFunction('window.butirReportReady === true')
             ->timeout(120)
             ->pdf();
 
@@ -220,7 +222,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalReport()) {
+        if (! $user || ! $user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report EKSTERNAL.');
         }
 
@@ -242,7 +244,7 @@ class ReportEksternalController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessEksternalReport()) {
+        if (! $user || ! $user->canAccessEksternalReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report EKSTERNAL.');
         }
 
@@ -275,7 +277,7 @@ class ReportEksternalController extends Controller
     {
         return EksternalRecord::with([
             'butirEksternal' => function ($query) use ($butirIds) {
-                if (!empty($butirIds)) {
+                if (! empty($butirIds)) {
                     $query->whereIn('id', $butirIds);
                 }
 
@@ -294,7 +296,7 @@ class ReportEksternalController extends Controller
             'butirEksternal.reviewTindakLanjut',
         ])
             ->whereIn('id', $recordIds)
-            ->when(!empty($butirIds), function ($query) use ($butirIds) {
+            ->when(! empty($butirIds), function ($query) use ($butirIds) {
                 $query->whereHas('butirEksternal', function ($butirQuery) use ($butirIds) {
                     $butirQuery->whereIn('id', $butirIds);
                 });

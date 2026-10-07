@@ -1,3 +1,4 @@
+<x-report-butir-pdf :records="$records" module="djsn">
 <!DOCTYPE html>
 <html>
 
@@ -145,7 +146,7 @@
             <tr>
                 <th style="width: 10%;">NOMOR, TANGGAL & PERIHAL SURAT</th>
                 <th style="width: 6%;">ID BUTIR DJSN</th>
-                <th style="width: 12%;">ISI BUTIR DJSN</th>
+                <th data-report-content style="width: 12%;">ISI BUTIR REKOMENDASI DJSN</th>
                 <th style="width: 8%;">PIC UNIT KERJA</th>
                 <th style="width: 12%;">TANGGAPAN & TINDAK LANJUT DIREKSI</th>
                 <th style="width: 7%;">DELIVERABLE</th>
@@ -197,7 +198,7 @@
                     @endphp
 
                     {{-- Baris Tanggapan --}}
-                    <tr>
+                    <tr data-report-butir="{{ $butir->id_butir_djsn }}">
                         @if ($isFirstRecordRow)
                             <td rowspan="{{ $totalRowsRecord }}" class="top pre-line">
                                 {{ $record->nomor_surat }}
@@ -211,12 +212,12 @@
                             @endphp
                         @endif
 
-                        <td class="center pre-line" rowspan="{{ $jumlahBarisButir }}">
+                        <td class="center pre-line" rowspan="{{ $jumlahBarisButir }}" data-report-label>
                             {{ $butir->id_butir_djsn }}
                         </td>
 
                         <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
-                            {{ $butir->butir_djsn }}
+                            -
                         </td>
 
                         <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
@@ -308,7 +309,7 @@
                             };
                         @endphp
 
-                        <tr>
+                        <tr data-report-butir="{{ $butir->id_butir_djsn }}">
                             <td class="pre-line top">
                                 {{ $tl->tindak_lanjut }}
                             </td>
@@ -356,3 +357,4 @@
 </body>
 
 </html>
+</x-report-butir-pdf>

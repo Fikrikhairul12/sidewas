@@ -1,3 +1,4 @@
+<x-report-butir-pdf :records="$records" module="ragab">
 <!DOCTYPE html>
 <html>
 
@@ -109,7 +110,7 @@
         <thead>
             <tr>
                 @foreach ($selectedFields as $field)
-                    <th>{{ $fieldLabels[$field] ?? strtoupper(str_replace('_', ' ', $field)) }}</th>
+                    <th @if ($field === 'keputusan') data-report-content @endif>{{ $fieldLabels[$field] ?? strtoupper(str_replace('_', ' ', $field)) }}</th>
                 @endforeach
             </tr>
         </thead>
@@ -206,7 +207,7 @@
                             $direktoratLabel = $getDirektoratLabel($tl);
                         @endphp
 
-                        <tr>
+                        <tr data-report-butir="{{ $butir->id_butir_ragab }}">
                             @foreach ($selectedFields as $field)
                                 @if ($field === 'surat')
                                     @if ($isFirstRecordRow)
@@ -234,7 +235,7 @@
                                     @endif
                                 @elseif ($field === 'tgl_agenda')
                                     @if ($i === 0)
-                                        <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
+                                        <td rowspan="{{ $jumlahBarisButir }}" class="pre-line" data-report-label>
                                             {{ $butir->tanggal_ragab ? \Carbon\Carbon::parse($butir->tanggal_ragab)->format('d-M-Y') : '-' }}
 
                                             {{ $butir->agenda_ragab ?? '-' }}
@@ -243,7 +244,7 @@
                                 @elseif ($field === 'keputusan')
                                     @if ($i === 0)
                                         <td rowspan="{{ $jumlahBarisButir }}" class="pre-line">
-                                            {{ $butir->keputusan_ragab ?? '-' }}
+                                            -
                                         </td>
                                     @endif
                                 @elseif ($field === 'direktorat')
@@ -325,3 +326,4 @@
 </body>
 
 </html>
+</x-report-butir-pdf>

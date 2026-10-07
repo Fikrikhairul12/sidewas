@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Ragab;
 
-use App\Http\Controllers\Controller;
 use App\Exports\RagabReportExport;
+use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
 use App\Models\RagabRecord;
 use App\Models\UnitKerja;
@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Browsershot\Browsershot;
 
@@ -20,7 +21,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabReport()) {
+        if (! $user || ! $user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report RAGAB.');
         }
 
@@ -108,7 +109,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabReport()) {
+        if (! $user || ! $user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 
@@ -141,7 +142,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabReport()) {
+        if (! $user || ! $user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 
@@ -185,7 +186,7 @@ class ReportRagabController extends Controller
         return $this->previewPdf('layouts.ragab.report.pdf-custom', $data, $request->except('_token'), 'Pratinjau Report RAGAB Custom', 'report-ragab-custom.pdf');
     }
 
-    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): \Illuminate\View\View
+    private function previewPdf(string $reportView, array $data, array $parameters, string $title, string $filename): View
     {
         return view('layouts.snp.report.preview', [
             'title' => $title,
@@ -206,6 +207,7 @@ class ReportRagabController extends Controller
             ->landscape()
             ->margins(8, 8, 8, 8)
             ->showBackground()
+            ->waitForFunction('window.butirReportReady === true')
             ->timeout(120)
             ->pdf();
 
@@ -219,7 +221,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabReport()) {
+        if (! $user || ! $user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 
@@ -241,7 +243,7 @@ class ReportRagabController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessRagabReport()) {
+        if (! $user || ! $user->canAccessRagabReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report RAGAB.');
         }
 
@@ -274,7 +276,7 @@ class ReportRagabController extends Controller
     {
         return RagabRecord::with([
             'butirRagab' => function ($query) use ($butirIds) {
-                if (!empty($butirIds)) {
+                if (! empty($butirIds)) {
                     $query->whereIn('id', $butirIds);
                 }
 
@@ -293,7 +295,7 @@ class ReportRagabController extends Controller
             'butirRagab.reviewTindakLanjut',
         ])
             ->whereIn('id', $recordIds)
-            ->when(!empty($butirIds), function ($query) use ($butirIds) {
+            ->when(! empty($butirIds), function ($query) use ($butirIds) {
                 $query->whereHas('butirRagab', function ($butirQuery) use ($butirIds) {
                     $butirQuery->whereIn('id', $butirIds);
                 });

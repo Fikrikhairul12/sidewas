@@ -60,7 +60,7 @@
                                 </td>
                             @elseif ($field === 'keputusan')
                                 <td>
-                                    {{ $butir->keputusan_rawas ?? '-' }}
+                                    {{ app(\App\Services\SnpButirContent::class)->plain($butir->keputusan_rawas) ?: '-' }}
                                 </td>
                             @elseif ($field === 'direktorat')
                                 <td>

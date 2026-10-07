@@ -50,7 +50,7 @@
                             <td>{{ $butir->id_butir_djsn }}</td>
 
                         @elseif ($field === 'isi_butir')
-                            <td>{{ $butir->butir_djsn }}</td>
+                            <td>{{ app(\App\Services\SnpButirContent::class)->plain($butir->butir_djsn) ?: '-' }}</td>
 
                         @elseif ($field === 'pic_utama')
                             <td>{{ $picUtama?->unitKerja?->kode_unit ?? '-' }}</td>
