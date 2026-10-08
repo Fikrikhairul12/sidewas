@@ -42,13 +42,19 @@
                     </p>
                 </div>
 
-                @if ($canCreateProdukHukum)
-                    <button type="button" @click="openCreateModal = true"
-                        class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
-                        style="background-color: #2377b9;">
-                        Tambah Produk Hukum
+                <div class="flex flex-wrap gap-3">
+                    <button type="button" @click="$dispatch('open-modal', 'produk-hukum-report')"
+                        class="rounded-xl border border-sidewas-blue px-5 py-3 text-sm font-bold text-sidewas-blue shadow-sm hover:bg-blue-50">
+                        Download Rekap
                     </button>
-                @endif
+                    @if ($canCreateProdukHukum)
+                        <button type="button" @click="openCreateModal = true"
+                            class="rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm hover:opacity-90"
+                            style="background-color: #2377b9;">
+                            Tambah Produk Hukum
+                        </button>
+                    @endif
+                </div>
             </div>
         </div>
 
@@ -199,6 +205,8 @@
 
             @include('layouts.produk-hukum.table')
         </div>
+
+        @include('layouts.produk-hukum.report-modal')
 
         @if ($canCreateProdukHukum)
             <div x-show="openCreateModal" x-transition.opacity

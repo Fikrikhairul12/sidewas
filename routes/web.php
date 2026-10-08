@@ -24,6 +24,7 @@ use App\Http\Controllers\Kunjungan\MapController as KunjunganMapController;
 use App\Http\Controllers\Kunjungan\ReportController as KunjunganReportController;
 use App\Http\Controllers\Kunjungan\VisitController as KunjunganVisitController;
 use App\Http\Controllers\ProdukHukum\ProdukHukumController;
+use App\Http\Controllers\ProdukHukum\ReportProdukHukumController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Ragab\PerekamanRagabController;
 use App\Http\Controllers\Ragab\ReportRagabController;
@@ -165,6 +166,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/produk-hukum', [ProdukHukumController::class, 'store'])
         ->name('produk-hukum.store');
+
+    Route::get('/produk-hukum/rekap/pilihan', [ReportProdukHukumController::class, 'options'])
+        ->name('produk-hukum.report.options');
+
+    Route::post('/produk-hukum/rekap/download', [ReportProdukHukumController::class, 'download'])
+        ->name('produk-hukum.report.download');
 
     Route::get('/produk-hukum/{produkHukum}', [ProdukHukumController::class, 'show'])
         ->name('produk-hukum.show');
