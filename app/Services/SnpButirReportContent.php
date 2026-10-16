@@ -33,7 +33,7 @@ class SnpButirReportContent
         $chunks = [];
         $html = '';
         $height = 0;
-        foreach ($this->contentBlocks($value) as $block) {
+        foreach ($this->contentBlocks($value) as $blockIndex => $block) {
             if ($block['type'] === 'image') {
                 if ($html !== '') {
                     $chunks[] = $html;
@@ -56,6 +56,8 @@ class SnpButirReportContent
 
                 continue;
             }
+            $textRuns = array_filter($block['runs'], fn (array $run): bool => trim($run['text']) !== '');
+            $keepNext = mb_strlen(implode('', array_column($textRuns, 'text'))) <= 120 && ! array_filter($textRuns, fn (array $run): bool => ! $run['bold']);
             foreach ($this->lines($block, max(32, $width - $block['indent'])) as $line) {
                 if ($height + $line['height'] > 240 && $html !== '') {
                     $chunks[] = $html;
@@ -63,7 +65,7 @@ class SnpButirReportContent
                     $height = 0;
                 }
                 $justify = $block['alignment'] === 'justify' && $line['softWrapped'];
-                $html .= '<div class="snp-content-line"'.($justify ? ' data-report-justify="1"' : '').' style="text-align:'.$block['alignment'].';'.($justify ? 'text-align-last:justify;' : '').'padding-left:'.$block['indent'].'px;line-height:'.$line['height'].'px;">'.($line['html'] ?: '&nbsp;').'</div>'."\n";
+                $html .= '<div class="snp-content-line" data-report-block="'.$blockIndex.'"'.($keepNext ? ' data-report-keep-next="1"' : '').($justify ? ' data-report-justify="1"' : '').' style="text-align:'.$block['alignment'].';'.($justify ? 'text-align-last:justify;' : '').'padding-left:'.$block['indent'].'px;line-height:'.$line['height'].'px;">'.($line['html'] ?: '&nbsp;').'</div>'."\n";
                 $height += $line['height'];
             }
             $html .= '<div style="height:4px;"></div>';

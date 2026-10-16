@@ -9,11 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class ButirReportPdf
 {
-    public function __construct(private SnpButirReportContent $content) {}
+    public function __construct(private SnpButirReportContent $content, private ReportPdfPagination $pagination) {}
 
     /** @param iterable<Model> $records */
     public function render(string $html, iterable $records, string $module): string
     {
+        if ($module === 'snp') {
+            return $this->pagination->render(str_replace('</body>', view('layouts.partials.report-page-labels')->render().'</body>', $html));
+        }
         $values = [];
         $relation = 'butir'.ucfirst($module);
         foreach ($records as $record) {
@@ -131,7 +134,7 @@ class ButirReportPdf
         $style = $document->createElement('style', '@page { size:legal landscape; margin:8mm 8mm 14mm; } body { margin:0; width:1283px; } thead { display:table-header-group; } tbody td { border-top:0; border-bottom:0; } .butir-start td { border-top:1px solid #000; } .butir-end td { border-bottom:1px solid #000; } tr { page-break-inside:avoid; break-inside:avoid; } .report-butir-content { white-space:normal; } .report-butir-content img { max-width:100%; } .report-butir-label { visibility:hidden; white-space:normal; } [data-report-show-first] { visibility:visible; } .report-continuation { visibility:hidden; color:#666; } .print-footer { left:0; bottom:-7mm; font-size:6px; }');
         $document->getElementsByTagName('head')->item(0)->appendChild($style);
 
-        return str_replace('</body>', view('layouts.partials.report-page-labels')->render().'</body>', $document->saveHTML());
+        return $this->pagination->render(str_replace('</body>', view('layouts.partials.report-page-labels')->render().'</body>', $document->saveHTML()));
     }
 
     private function emptyCell(DOMElement $original): DOMElement

@@ -72,6 +72,7 @@ test('downloaded PDFs justify soft wrapped lines to the actual column edge while
                 'right' => max(array_map(fn (array $box): float => $box['x'] + $box['w'], $bounds)),
                 'spacing' => max(array_map(fn (Text $text): float => $text->get_text_spacing(), $textFrames)),
                 'page' => $canvas->get_page_number(),
+                'block' => $node->getAttribute('data-report-block'),
                 'bold' => count(array_filter($textFrames, fn (Text $text): bool => $text->get_style()->font_weight === 'bold' || (float) $text->get_style()->font_weight >= 700)),
                 'italic' => count(array_filter($textFrames, fn (Text $text): bool => $text->get_style()->font_style === 'italic')),
                 'underline' => count(array_filter($textFrames, fn (Text $text): bool => in_array('underline', (array) $text->get_parent()->get_style()->text_decoration, true))),
@@ -114,6 +115,14 @@ test('downloaded PDFs justify soft wrapped lines to the actual column edge while
         }
     }
     $text = preg_replace('/\s+/u', ' ', implode(' ', array_column($lines, 'text')));
+    foreach (collect($lines)->groupBy('block') as $paragraph) {
+        $pages = $paragraph->groupBy('page');
+        if ($pages->count() > 1) {
+            foreach ($pages as $pageLines) {
+                expect($pageLines->count())->toBeGreaterThanOrEqual(2, 'A paragraph must not leave a single line on either side of a page break.');
+            }
+        }
+    }
     expect(substr_count($text, trim($sentence)))->toBe(200)
         ->and($text)->toContain('END-PARAGRAPH', 'BARIS-PENDEK SETELAH-BR', '3. Daftar', 'END-LIST', 'END-TOKEN')
         ->and($justifiedCount)->toBeGreaterThan(5)

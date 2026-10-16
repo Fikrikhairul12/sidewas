@@ -83,7 +83,7 @@ test('PDF and Excel preserve complete rich content images and every related foll
             ->and($html)->toContain('font-size:20px', 'font-weight:bold', 'font-style:italic', 'text-decoration:underline', 'data:image/png;base64')
             ->not->toContain('snp-rich:v1', '&lt;p&gt;');
         expect($xpath->query('//img[not(ancestor::td[@data-report-content])]'))->toHaveCount(0);
-        $headerCount = $xpath->query('//thead/tr/th')->length;
+        $headerCount = $xpath->query('(//thead)[1]/tr/th')->length;
         foreach ($xpath->query('//tbody/tr') as $row) {
             expect($xpath->query('./td', $row))->toHaveCount($headerCount);
         }

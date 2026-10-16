@@ -1,3 +1,4 @@
+<x-report-butir-pdf :records="$records" module="snp">
 <!DOCTYPE html>
 <html>
 
@@ -242,7 +243,7 @@
                                 ? $butir->reviews->where('tahap_review', 'tindak_lanjut')->where('putaran_tl', $stage->putaran_tl)->sortByDesc('id')->first()
                                 : null);
                         @endphp
-                        <tr class="{{ $rowIndex === 0 ? 'butir-start' : '' }} {{ $rowIndex === $rowCount - 1 ? 'butir-end' : '' }}">
+                        <tr data-report-butir="{{ $butir->id_butir_snp }}" class="{{ $rowIndex === 0 ? 'butir-start' : '' }} {{ $rowIndex === $rowCount - 1 ? 'butir-end' : '' }}">
                             <td class="pre-line top">@if ($rowIndex === 0){{ implode("\n", [$record->nomor_surat, $record->tanggal_surat ? \Carbon\Carbon::parse($record->tanggal_surat)->format('d-M-Y') : '-', $record->perihal_surat]) }}@endif</td>
                             <td class="center">@include('layouts.snp.report.butir-label', ['isFirst' => $rowIndex === 0, 'showFirst' => true])</td>
                             <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">{!! $contentChunks[$rowIndex] ?? '' !!}</td>
@@ -279,3 +280,4 @@
 </body>
 
 </html>
+</x-report-butir-pdf>

@@ -80,15 +80,21 @@ test('PDF keeps long formatted text lists and wide or tall images in their origi
         ->not->toContain('lihat lampiran', 'snp-content-appendix');
     $imageCell = $xpath->query('//img/ancestor::td')->item(0);
     $lastCell = $cells->item($cells->length - 1);
-    expect($imageCell->textContent)->not->toContain('AKHIR-BUTIR')
+    expect($imageCell->getAttribute('data-snp-butir-content'))->toBe('SNP.01')
         ->and($lastCell->textContent)->toContain('AKHIR-BUTIR')
         ->and($records[0]->butirSnp[0]->butir_snp)->toBe($value);
+    $sequence = implode(' ', array_map(fn ($node): string => $node->tagName === 'img' ? 'GAMBAR-UJI' : $node->textContent, iterator_to_array($xpath->query('//td[@data-snp-butir-content="SNP.01"]//img | //td[@data-snp-butir-content="SNP.01"]/div[@class="snp-content-line"]'))));
+    expect(strpos($sequence, 'AWAL-BUTIR'))->toBeLessThan(strpos($sequence, 'GAMBAR-UJI'))
+        ->and(strrpos($sequence, 'GAMBAR-UJI'))->toBeLessThan(strpos($sequence, 'AKHIR-BUTIR'));
     $pdf = new Dompdf;
     $pdf->setCallbacks(app(SnpReportPdfLabels::class)->callbacks());
     $pdf->setPaper('legal', 'landscape');
     $pdf->loadHtml($html);
     $pdf->render();
     expect($pdf->getCanvas()->get_page_count())->toBeGreaterThan(1);
+    if (getenv('REPORT_PAGINATION_ARTIFACTS')) {
+        file_put_contents(getenv('REPORT_PAGINATION_ARTIFACTS').'/snp-'.$template.'-rich-'.$width.'.pdf', $pdf->output());
+    }
     if (getenv('SNP_EXPORT_ARTIFACTS')) {
         file_put_contents(storage_path('app/private/snp-layout-'.$template.'-'.$width.'.pdf'), $pdf->output());
         file_put_contents(storage_path('app/private/snp-layout-'.$template.'-'.$width.'.html'), $html);

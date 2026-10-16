@@ -1,3 +1,4 @@
+<x-report-butir-pdf :records="$records" module="snp">
 <!DOCTYPE html>
 <html>
 
@@ -267,7 +268,7 @@
                             ($reviewTl?->status ?? ($reviewTanggapan?->status ?? 'belum_ditanggapi'));
                     @endphp
 
-                    <tr class="butir-start {{ count($contentChunks) === 1 ? 'butir-end' : '' }}">
+                    <tr data-report-butir="{{ $butir->id_butir_snp }}" class="butir-start {{ count($contentChunks) === 1 ? 'butir-end' : '' }}">
                         @foreach ($selectedFields as $field)
                             @if ($field === 'surat')
                                 <td class="pre-line">
@@ -400,7 +401,7 @@
                         @endforeach
                     </tr>
                     @foreach (array_slice($contentChunks, 1) as $chunk)
-                        <tr class="{{ $loop->last ? 'butir-end' : '' }}">
+                        <tr data-report-butir="{{ $butir->id_butir_snp }}" class="{{ $loop->last ? 'butir-end' : '' }}">
                             @foreach ($selectedFields as $field)
                                 @if ($field === 'isi_butir')
                                     <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">
@@ -427,3 +428,4 @@
 </body>
 
 </html>
+</x-report-butir-pdf>

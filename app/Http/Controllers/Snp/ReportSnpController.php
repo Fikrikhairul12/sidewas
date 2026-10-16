@@ -327,6 +327,7 @@ class ReportSnpController extends Controller
     {
         return Pdf::loadView($view, $data)
             ->setPaper('legal', 'landscape')
+            ->setOption('isJavascriptEnabled', false)
             ->setCallbacks([...app(ButirReportPdfAlignment::class)->callbacks(), ...app(SnpReportPdfLabels::class)->callbacks()])
             ->download($filename);
     }
