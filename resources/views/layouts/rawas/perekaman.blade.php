@@ -364,7 +364,7 @@
                                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                                                 Keputusan RAWAS
                                                             </p>
-                                                            <x-butir-preview class="mt-3" :content="$butir->keputusan_rawas ?? ''" :butir-id="$butir->id_butir_rawas ?? ''" label="Keputusan RAWAS" context="Perekaman RAWAS" />
+                                                            <x-butir-preview class="mt-3" :content="$butir->keputusan_rawas ?? ''" :butir-id="$butir->id_butir_rawas ?? ''" :show-read-button="false" label="Keputusan RAWAS" context="Perekaman RAWAS" />
                                                         </div>
                                                     </div>
 
@@ -446,7 +446,7 @@
                                                 {{ $firstButir?->id_butir_rawas ?? '-' }}
                                             </p>
 
-                                            <x-butir-preview class="mt-3" :content="$firstButir?->keputusan_rawas ?? ''" :butir-id="$firstButir?->id_butir_rawas ?? ''" label="Keputusan RAWAS" context="Perekaman RAWAS" />
+                                            <x-butir-preview class="mt-3" :content="$firstButir?->keputusan_rawas ?? ''" :butir-id="$firstButir?->id_butir_rawas ?? ''" :show-read-button="false" label="Keputusan RAWAS" context="Perekaman RAWAS" />
 
                                             <p class="mt-3 text-xs text-slate-500">
                                                 Menampilkan ringkasan 1 dari {{ $butirCount }} butir.

@@ -74,11 +74,11 @@ test('kunjungan integration contains the brd roles and report approval workflow'
         ->toContain("\$table->unique(['visit_id', 'version']");
 
     expect($sidebar)
-        ->toContain('Dashboard Kunjungan')
-        ->toContain('Daftar Kunjungan')
-        ->toContain('Ajukan Kunjungan')
-        ->toContain('Kalender Kunjungan')
-        ->toContain('Peta Kunjungan')
+        ->toContain('Dashboard')
+        ->toContain('Daftar')
+        ->toContain('Ajukan')
+        ->toContain('Kalender')
+        ->toContain('Peta')
         ->toContain('Persetujuan')
         ->not->toContain('Direktori Pegawai')
         ->not->toContain("route('kunjungan.employees.index')");

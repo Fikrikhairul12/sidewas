@@ -5,6 +5,7 @@
     'idExpression' => null,
     'itemsExpression' => '[]',
     'expanded' => false,
+    'showReadButton' => true,
     'label' => 'Isi Butir',
     'context' => null,
 ])
@@ -24,19 +25,21 @@
     @else
         <p class="snp-butir-preview__text">{{ app(\App\Services\SnpButirContent::class)->plain($content) ?: (\App\Services\SnpButirContent::isRich($content) ? '[Gambar]' : 'Belum ada isi butir.') }}</p>
     @endif
-    <button type="button" class="snp-butir-read-button"
-        x-on:click.stop="$dispatch('snp-read-butir', {
-            id: {{ $idExpression ?: \Illuminate\Support\Js::from($butirId) }},
-            content: {{ $contentExpression ?: \Illuminate\Support\Js::from($content) }},
-            items: {{ $itemsExpression }},
-            label: @js($label),
-            context: @js($context ?: $label),
-            format: 'rich'
-        })">
-        <svg class="h-4 w-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 7v14m0-14C9 5 5 4 2 5v14c3-1 7 0 10 2m0-14c3-2 7-3 10-2v14c-3-1-7 0-10 2" />
-        </svg>
-        {{ $expanded ? 'Perbesar bacaan' : 'Baca isi lengkap' }}
-        <span class="sr-only" @if ($idExpression) x-text="{{ $idExpression }}" @endif>{{ $butirId }}</span>
-    </button>
+    @if ($showReadButton)
+        <button type="button" class="snp-butir-read-button"
+            x-on:click.stop="$dispatch('snp-read-butir', {
+                id: {{ $idExpression ?: \Illuminate\Support\Js::from($butirId) }},
+                content: {{ $contentExpression ?: \Illuminate\Support\Js::from($content) }},
+                items: {{ $itemsExpression }},
+                label: @js($label),
+                context: @js($context ?: $label),
+                format: 'rich'
+            })">
+            <svg class="h-4 w-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 7v14m0-14C9 5 5 4 2 5v14c3-1 7 0 10 2m0-14c3-2 7-3 10-2v14c-3-1-7 0-10 2" />
+            </svg>
+            {{ $expanded ? 'Perbesar bacaan' : 'Baca isi lengkap' }}
+            <span class="sr-only" @if ($idExpression) x-text="{{ $idExpression }}" @endif>{{ $butirId }}</span>
+        </button>
+    @endif
 </div>

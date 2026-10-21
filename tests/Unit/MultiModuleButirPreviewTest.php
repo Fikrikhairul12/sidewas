@@ -110,6 +110,13 @@ test('all seventeen module pages provide full reading without disturbing drafts 
             }
             $pagesChecked++;
         }
+        if ($module === 'djsn') {
+            $tanggapanSource = file_get_contents(resource_path('views/layouts/djsn/tanggapan.blade.php'));
+            preg_match('/<button\b[^>]*data-djsn-tanggapan-detail\b.*?<\/button>/s', $tanggapanSource, $detailButton);
+            expect($detailButton)->not->toBeEmpty();
+            $sections[] = 'tanggapan-detail';
+            $html .= '<section id="tanggapan-detail">'.Blade::render($detailButton[0], compact('butir')).'</section>';
+        }
         $html .= '</form></div></div>';
         $perekamanSource = file_get_contents(resource_path('views/layouts/'.$module.'/perekaman.blade.php'));
         preg_match('/x-data="(perekaman\w+Modal)\(/', $perekamanSource, $factory);

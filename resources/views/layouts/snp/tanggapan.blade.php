@@ -204,7 +204,7 @@
                                         {{ $butir->id_butir_snp }}
                                     </p>
 
-                                    <x-snp-butir-preview class="mt-3" :content="$butir->butir_snp" :butir-id="$butir->id_butir_snp" context="Tanggapan SNP" />
+                                    <x-snp-butir-preview class="mt-3" :content="$butir->butir_snp" :butir-id="$butir->id_butir_snp" :show-read-button="false" context="Tanggapan SNP" />
                                 </td>
 
                                 <td class="px-6 py-6 align-top">

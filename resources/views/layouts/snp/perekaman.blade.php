@@ -526,7 +526,7 @@
                                                 {{ $butir->id_butir_snp }}
                                             </p>
 
-                                            <x-snp-butir-preview class="mt-3" :content="$butir->butir_snp" :butir-id="$butir->id_butir_snp" context="Perekaman SNP" />
+                                            <x-snp-butir-preview class="mt-3" :content="$butir->butir_snp" :butir-id="$butir->id_butir_snp" :show-read-button="false" context="Perekaman SNP" />
 
                                             <div class="mt-5 space-y-4">
                                                 <div>
@@ -606,7 +606,7 @@
                                                     <p class="text-sm font-bold" style="color: #2377b9;">
                                                         {{ $butir->id_butir_snp }}
                                                     </p>
-                                                    <x-snp-butir-preview class="mt-2" :content="$butir->butir_snp" :butir-id="$butir->id_butir_snp" context="Perekaman SNP" />
+                                                    <x-snp-butir-preview class="mt-2" :content="$butir->butir_snp" :butir-id="$butir->id_butir_snp" :show-read-button="false" context="Perekaman SNP" />
                                                 </div>
                                             @endforeach
 

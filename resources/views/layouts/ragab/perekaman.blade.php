@@ -403,7 +403,7 @@
                                                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                                                 Keputusan RAGAB
                                                             </p>
-                                                            <x-butir-preview class="mt-3" :content="$butir->keputusan_ragab ?? ''" :butir-id="$butir->id_butir_ragab ?? ''" label="Keputusan RAGAB" context="Perekaman RAGAB" />
+                                                            <x-butir-preview class="mt-3" :content="$butir->keputusan_ragab ?? ''" :butir-id="$butir->id_butir_ragab ?? ''" :show-read-button="false" label="Keputusan RAGAB" context="Perekaman RAGAB" />
                                                         </div>
                                                     </div>
 
@@ -494,7 +494,7 @@
                                             <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
                                                 Ringkasan Butir
                                             </p>
-                                            <x-butir-preview class="mt-3" :content="$firstButir?->keputusan_ragab ?? ''" :butir-id="$firstButir?->id_butir_ragab ?? ''" label="Keputusan RAGAB" context="Perekaman RAGAB" />
+                                            <x-butir-preview class="mt-3" :content="$firstButir?->keputusan_ragab ?? ''" :butir-id="$firstButir?->id_butir_ragab ?? ''" :show-read-button="false" label="Keputusan RAGAB" context="Perekaman RAGAB" />
 
                                             <div class="mt-4 rounded-lg bg-slate-50 px-3 py-2">
                                                 <p class="text-xs font-semibold text-slate-500">

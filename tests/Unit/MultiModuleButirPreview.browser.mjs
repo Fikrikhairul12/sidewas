@@ -86,7 +86,14 @@ try {
             form.addEventListener('submit', event => { event.preventDefault(); window.submissions++; });
         });
         for (const section of data.sections) {
-            await page.click(`#${section} .snp-butir-read-button`);
+            const isPerekamanSummary = section.startsWith('perekaman-') && !(await page.$(`#${section} .snp-butir-preview--expanded`));
+            if (isPerekamanSummary || section === 'tanggapan-0') {
+                assert.equal(await page.$(`#${section} .snp-butir-read-button`), null);
+                assert.equal(await page.$eval(`#${section} .snp-butir-preview__text`, element => element.textContent), fixture.content);
+                continue;
+            }
+            const readerTrigger = section === 'tanggapan-detail' ? '[data-djsn-tanggapan-detail]' : '.snp-butir-read-button';
+            await page.click(`#${section} ${readerTrigger}`);
             await open();
             assert.equal(await page.$eval('[data-snp-reader-content]', element => element.textContent), fixture.content, `${module} ${section} must receive full text`);
             assert.equal(await page.$eval('[data-snp-reader-content]', element => element.children.length), 0);
@@ -120,7 +127,9 @@ try {
         }
         await close();
         await page.setViewport({ width: 1366, height: 900 });
-        await page.click('#openCustomReportModalBtn');
+        assert.deepEqual(errors, [], `${module} must preserve reader and form interactions`);
+        await page.locator('#openCustomReportModalBtn').click();
+        await page.waitForSelector('#customReportModal .custom-butir-checkbox', { visible: true });
         await page.click('.custom-butir-checkbox');
         const selections = await page.$$eval('.custom-butir-checkbox', elements => elements.map(element => element.checked));
         const fields = await page.$$eval('.custom-field-checkbox', elements => elements.map(element => element.checked));

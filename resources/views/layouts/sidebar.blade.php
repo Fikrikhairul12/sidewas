@@ -128,12 +128,12 @@
                     <a href="{{ route('snp.perekaman') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('snp.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Perekaman SNP
+                        Perekaman
                     </a>
                 @else
                     <a href="#"
-                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50
-                        Perekaman SNP
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
+                        Perekaman
                     </a>
 @endif
 
@@ -141,12 +141,12 @@
 <a href="{{ route('snp.tanggapan.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('snp.tanggapan.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Tanggapan SNP
+                        Tanggapan
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Tanggapan SNP
+                        Tanggapan
                     </a>
                 @endif
 
@@ -154,12 +154,12 @@
                     <a href="{{ route('snp.tindak-lanjut.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('snp.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Tindak Lanjut SNP
+                        Tindak Lanjut
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Tindak Lanjut SNP
+                        Tindak Lanjut
                     </a>
                 @endif
 
@@ -167,12 +167,12 @@
                     <a href="{{ route('snp.kompilasi.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('snp.kompilasi.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Kompilasi SNP
+                        Kompilasi
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Kompilasi SNP
+                        Kompilasi
                     </a>
                 @endif
 
@@ -180,12 +180,12 @@
                     <a href="{{ route('snp.reviu.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('snp.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Reviu Tanggapan & Tindak Lanjut SNP
+                        Reviu
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Reviu Tanggapan & Tindak Lanjut SNP
+                        Reviu
                     </a>
                 @endif
 
@@ -193,12 +193,12 @@
                     <a href="{{ route('snp.report.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('snp.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Cetak Laporan SNP
+                        Cetak Laporan
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Cetak Laporan SNP
+                        Cetak Laporan
                     </a>
                 @endif
             </div>
@@ -252,12 +252,12 @@
                     <a href="{{ route('ragab.perekaman') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('ragab.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Perekaman Keputusan Ragab
+                        Perekaman
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Perekaman Keputusan Ragab
+                        Perekaman
                     </a>
                 @endif
 
@@ -265,12 +265,12 @@
                     <a href="{{ route('ragab.tindak-lanjut.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('ragab.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Tindak Lanjut Keputusan Ragab
+                        Tindak Lanjut
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Tindak Lanjut Keputusan Ragab
+                        Tindak Lanjut
                     </a>
                 @endif
 
@@ -278,12 +278,12 @@
                     <a href="{{ route('ragab.reviu.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('ragab.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Reviu Tindak Lanjut Keputusan Ragab
+                        Reviu
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Reviu Tindak Lanjut Keputusan Ragab
+                        Reviu
                     </a>
                 @endif
 
@@ -291,12 +291,12 @@
                     <a href="{{ route('ragab.report.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('ragab.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Cetak Laporan Tindak Lanjut Keputusan Ragab
+                        Cetak Laporan
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Cetak Laporan Tindak Lanjut Keputusan Ragab
+                        Cetak Laporan
                     </a>
                 @endif
             </div>
@@ -352,12 +352,12 @@
                     <a href="{{ route('rawas.perekaman') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('rawas.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Perekaman Keputusan Rawas
+                        Perekaman
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Perekaman Keputusan Rawas
+                        Perekaman
                     </a>
                 @endif
 
@@ -365,12 +365,12 @@
                     <a href="{{ route('rawas.tindak-lanjut.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('rawas.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Tindak Lanjut Keputusan Rawas
+                        Tindak Lanjut
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Tindak Lanjut Keputusan Rawas
+                        Tindak Lanjut
                     </a>
                 @endif
 
@@ -378,12 +378,12 @@
                     <a href="{{ route('rawas.reviu.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('rawas.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Reviu Tindak Lanjut Keputusan Rawas
+                        Reviu
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Reviu Tindak Lanjut Keputusan Rawas
+                        Reviu
                     </a>
                 @endif
 
@@ -391,12 +391,12 @@
                     <a href="{{ route('rawas.report.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('rawas.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Cetak Laporan Tindak Lanjut Keputusan Rawas
+                        Cetak Laporan
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Cetak Laporan Tindak Lanjut Keputusan Rawas
+                        Cetak Laporan
                     </a>
                 @endif
             </div>
@@ -451,12 +451,12 @@
                     <a href="{{ route('djsn.perekaman') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('djsn.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Perekaman Rekomendasi DJSN
+                        Perekaman
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Perekaman Rekomendasi DJSN
+                        Perekaman
                     </a>
                 @endif
 
@@ -464,12 +464,12 @@
                     <a href="{{ route('djsn.tanggapan.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('djsn.tanggapan.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Tanggapan Rekomendasi DJSN
+                        Tanggapan
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Tanggapan Rekomendasi DJSN
+                        Tanggapan
                     </a>
                 @endif
 
@@ -477,12 +477,12 @@
                     <a href="{{ route('djsn.tindak-lanjut.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('djsn.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Tindak Lanjut Rekomendasi DJSN
+                        Tindak Lanjut
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Tindak Lanjut Rekomendasi DJSN
+                        Tindak Lanjut
                     </a>
                 @endif
 
@@ -490,12 +490,12 @@
                     <a href="{{ route('djsn.reviu.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('djsn.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Reviu Tanggapan & Tindak Lanjut Rekomendasi DJSN
+                        Reviu
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Reviu Tanggapan & Tindak Lanjut Rekomendasi DJSN
+                        Reviu
                     </a>
                 @endif
 
@@ -503,12 +503,12 @@
                     <a href="{{ route('djsn.report.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('djsn.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Cetak Laporan Tanggapan & Tindak Lanjut Rekomendasi DJSN
+                        Cetak Laporan
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Cetak Laporan Tanggapan & Tindak Lanjut Rekomendasi DJSN
+                        Cetak Laporan
                     </a>
                 @endif
             </div>
@@ -562,12 +562,12 @@
                     <a href="{{ route('eksternal.perekaman') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('eksternal.perekaman') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Perekaman Rapat Eksternal
+                        Perekaman
                     </a>
                 @else
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Perekaman Rapat Eksternal
+                        Perekaman
                     </a>
                 @endif
 
@@ -575,12 +575,12 @@
                     <a href="{{ route('eksternal.tindak-lanjut.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                         {{ request()->routeIs('eksternal.tindak-lanjut.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Tindak Lanjut Rapat Eksternal
+                        Tindak Lanjut
                     </a>
                 @else
                     <a href="{{ route('eksternal.tindak-lanjut.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Tindak Lanjut Rapat Eksternal
+                        Tindak Lanjut
                     </a>
                 @endif
 
@@ -588,12 +588,12 @@
                     <a href="{{ route('eksternal.reviu.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('eksternal.reviu.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Reviu Tindak Lanjut Rapat Eksternal
+                        Reviu
                     </a>
                 @else
                     <a href="{{ route('eksternal.reviu.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Reviu Tindak Lanjut Rapat Eksternal
+                        Reviu
                     </a>
                 @endif
 
@@ -601,12 +601,12 @@
                     <a href="{{ route('eksternal.report.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                     {{ request()->routeIs('eksternal.report.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Cetak Laporan Tindak Lanjut Rapat Eksternal
+                        Cetak Laporan
                     </a>
                 @else
                     <a href="{{ route('eksternal.report.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
-                        Cetak Laporan Tindak Lanjut Rapat Eksternal
+                        Cetak Laporan
                     </a>
                 @endif
             </div>
@@ -646,29 +646,29 @@
                     <a href="{{ route('kunjungan.dashboard') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                             {{ request()->routeIs('kunjungan.dashboard') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Dashboard Kunjungan
+                        Dashboard
                     </a>
                     <a href="{{ route('kunjungan.visits.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                             {{ request()->routeIs('kunjungan.visits.index', 'kunjungan.visits.show', 'kunjungan.visits.edit') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Daftar Kunjungan
+                        Daftar
                     </a>
                     @if ($canCreateKunjungan)
                         <a href="{{ route('kunjungan.visits.create') }}"
                             class="block border-b border-slate-200 px-10 py-3 text-sm transition
                                 {{ request()->routeIs('kunjungan.visits.create') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                            Ajukan Kunjungan
+                            Ajukan
                         </a>
                     @endif
                     <a href="{{ route('kunjungan.calendar') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                             {{ request()->routeIs('kunjungan.calendar') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Kalender Kunjungan
+                        Kalender
                     </a>
                     <a href="{{ route('kunjungan.map') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
                             {{ request()->routeIs('kunjungan.map') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
-                        Peta Kunjungan
+                        Peta
                     </a>
                     @if ($canApproveKunjungan)
                         <a href="{{ route('kunjungan.approvals.index') }}"

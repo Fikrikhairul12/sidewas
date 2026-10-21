@@ -132,7 +132,7 @@
                                         {{ $butir->id_butir_djsn }}
                                     </p>
 
-                                    <x-butir-preview class="mt-3" :content="$butir->butir_djsn ?? ''" :butir-id="$butir->id_butir_djsn ?? ''" label="Isi Butir Rekomendasi DJSN" context="Tanggapan DJSN" />
+                                    <x-butir-preview class="mt-3" :content="$butir->butir_djsn ?? ''" :butir-id="$butir->id_butir_djsn ?? ''" :show-read-button="false" label="Isi Butir Rekomendasi DJSN" context="Tanggapan DJSN" />
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
@@ -200,7 +200,20 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    <div class="flex justify-center">
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <button type="button" data-djsn-tanggapan-detail
+                                            x-on:click.stop="$dispatch('snp-read-butir', {
+                                                id: @js($butir->id_butir_djsn),
+                                                content: @js($butir->butir_djsn ?? ''),
+                                                items: [],
+                                                label: 'Isi Butir Rekomendasi DJSN',
+                                                context: 'Detail Tanggapan DJSN',
+                                                format: 'rich'
+                                            })"
+                                            class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
+                                            style="background-color: #6bb17e;">
+                                            Detail
+                                        </button>
                                         @if (!$butir->tanggapan && $canRespond)
                                             <button type="button"
                                                 @click="selectedButir = {
