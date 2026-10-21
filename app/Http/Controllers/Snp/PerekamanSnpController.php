@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Snp;
 
+use App\Enums\SuratStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DeleteRequest;
 use App\Models\Direktorat;
@@ -20,10 +21,12 @@ use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ClusterSelection;
 use App\Services\SnpButirContent;
+use App\Services\SuratAwalStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class PerekamanSnpController extends Controller
 {
@@ -34,6 +37,10 @@ class PerekamanSnpController extends Controller
         if (! $user || ! $user->canAccessSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses ke halaman perekaman SNP.');
         }
+
+        $statusService = new SuratAwalStatusService;
+        $statusService->synchronizeModule('snp');
+        $statusSuratOptions = $statusService->options('snp');
 
         $recordsQuery = SnpRecord::query()
             ->with([
@@ -51,7 +58,7 @@ class PerekamanSnpController extends Controller
         |--------------------------------------------------------------------------
         */
         if ($request->filled('status')) {
-            $recordsQuery->where('status', $request->status);
+            $statusService->applyFilter($recordsQuery, $request->status);
         }
 
         /*
@@ -177,12 +184,7 @@ class PerekamanSnpController extends Controller
 
         $komites = Komite::orderBy('nama_komite')->get();
 
-        $statistik = [
-            'total' => SnpRecord::count(),
-            'tuntas' => SnpRecord::where('status', 'tuntas')->count(),
-            'proses' => SnpRecord::where('status', 'dalam_proses')->count(),
-            'draft' => SnpRecord::where('status', 'draft')->count(),
-        ];
+        $statistik = $statusService->statistics('snp');
 
         return view('layouts.snp.perekaman', compact(
             'records',
@@ -190,7 +192,8 @@ class PerekamanSnpController extends Controller
             'direktorats',
             'unitKerjas',
             'komites',
-            'statistik'
+            'statistik',
+            'statusSuratOptions'
         ));
     }
 
@@ -355,7 +358,7 @@ class PerekamanSnpController extends Controller
             'perihal_surat' => ['required', 'string'],
             'cluster_id' => ['required', 'integer', 'exists:mysql_snp.tb_cluster,id', new ClusterSelection('snp', $record)],
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_snp.tb_sub_cluster,id', new ClusterSelection('snp', $record)],
-            'status' => ['required', 'string', 'in:draft,dalam_proses,tuntas'],
+            'status' => ['nullable', 'string', Rule::in([...array_keys(SuratStatus::options()), 'dalam_proses', 'tuntas'])],
 
             'butir_id' => ['required', 'integer', 'exists:mysql_snp.tb_butir_snp,id'],
             'butir_snp' => ['required', 'string', 'max:500000'],
@@ -463,7 +466,6 @@ class PerekamanSnpController extends Controller
                 'perihal_surat' => $validated['perihal_surat'],
                 'cluster_id' => (int) $validated['cluster_id'],
                 'sub_cluster_id' => (int) $validated['sub_cluster_id'],
-                'status' => $validated['status'],
             ],
             'butir' => [
                 'id' => (int) $butir->id,
@@ -527,7 +529,6 @@ class PerekamanSnpController extends Controller
                 'perihal_surat' => $recordPayload['perihal_surat'] ?? $record->perihal_surat,
                 'cluster_id' => $recordPayload['cluster_id'] ?? $record->cluster_id,
                 'sub_cluster_id' => $recordPayload['sub_cluster_id'] ?? $record->sub_cluster_id,
-                'status' => $recordPayload['status'] ?? $record->status,
                 'updated_by' => $user->id,
             ];
 

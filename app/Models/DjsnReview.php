@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSuratPutaran;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DjsnReview extends Model
 {
+    use BelongsToSuratPutaran;
     use TracksUser;
 
     protected $connection = 'mysql_djsn';
@@ -14,6 +17,8 @@ class DjsnReview extends Model
     protected $table = 'tb_review';
 
     protected $fillable = [
+        'putaran_id',
+        'kompilasi_id',
         'id_butir_djsn',
         'id_tanggapan',
         'id_tindak_lanjut',
@@ -30,6 +35,11 @@ class DjsnReview extends Model
     public function butir()
     {
         return $this->belongsTo(DjsnButir::class, 'id_butir_djsn', 'id_butir_djsn');
+    }
+
+    public function kompilasiPutaran(): BelongsTo
+    {
+        return $this->belongsTo(DjsnKompilasi::class, 'kompilasi_id');
     }
 
     public function tanggapan()

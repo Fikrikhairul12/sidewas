@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSuratPutaran;
+use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SnpTanggapan extends Model
 {
+    use BelongsToSuratPutaran;
+    use SyncsSuratAwalStatus;
     use TracksUser;
 
     protected $connection = 'mysql_snp';
@@ -14,6 +19,8 @@ class SnpTanggapan extends Model
     protected $table = 'tb_tanggapan';
 
     protected $fillable = [
+        'putaran_id',
+        'unit_kerja_id',
         'id_butir_snp',
         'butir_pic_id',
         'tanggapan',
@@ -46,5 +53,10 @@ class SnpTanggapan extends Model
     public function butirPic()
     {
         return $this->belongsTo(SnpButirPic::class, 'butir_pic_id', 'id');
+    }
+
+    public function unitKerja(): BelongsTo
+    {
+        return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
     }
 }

@@ -17,7 +17,7 @@ uses(TestCase::class);
 
 test('SNP regular and custom previews reuse the current tab and restore report selections while downloads retain their parameters', function () {
     URL::forceRootUrl('http://localhost');
-    $this->app->instance('request', Request::create('http://localhost/snp/report?keyword=SURAT&status=dalam_proses&page=2'));
+    $this->app->instance('request', Request::create('http://localhost/snp/report?keyword=SURAT&status=proses&page=2'));
     $records = collect([1, 2])->map(function (int $id): SnpRecord {
         $butirs = collect($id === 1 ? [11, 12] : [21])->map(function (int $id): SnpButir {
             $butir = (new SnpButir)->forceFill(['id' => $id, 'id_butir_snp' => 'SNP.'.$id, 'butir_snp' => 'Isi lengkap butir '.$id]);
@@ -29,7 +29,7 @@ test('SNP regular and custom previews reuse the current tab and restore report s
 
             return $butir;
         });
-        $record = (new SnpRecord)->forceFill(['id' => $id, 'id_snp' => 'SNP-'.$id, 'nomor_surat' => 'SURAT-'.$id, 'perihal_surat' => 'Uji navigasi laporan', 'tanggal_surat' => '2026-10-07', 'status' => 'dalam_proses', 'butir_snp_count' => $butirs->count()]);
+        $record = (new SnpRecord)->forceFill(['id' => $id, 'id_snp' => 'SNP-'.$id, 'nomor_surat' => 'SURAT-'.$id, 'perihal_surat' => 'Uji navigasi laporan', 'tanggal_surat' => '2026-10-07', 'status' => 'proses', 'butir_snp_count' => $butirs->count()]);
         $record->setRelation('butirSnp', $butirs);
 
         return $record;

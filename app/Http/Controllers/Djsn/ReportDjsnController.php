@@ -11,6 +11,7 @@ use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ButirReportPdfAlignment;
 use App\Services\SnpReportPdfLabels;
+use App\Services\SuratAwalStatusService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -27,6 +28,10 @@ class ReportDjsnController extends Controller
         if (! $user || ! $user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report DJSN.');
         }
+
+        $statusService = new SuratAwalStatusService;
+        $statusService->synchronizeModule('djsn');
+        $statusSuratOptions = $statusService->options('djsn');
 
         $recordsQuery = DjsnRecord::with([
             'butirDjsn.cluster',
@@ -45,7 +50,7 @@ class ReportDjsnController extends Controller
         }
 
         if ($request->filled('status')) {
-            $recordsQuery->where('status', $request->status);
+            $statusService->applyFilter($recordsQuery, $request->status);
         }
 
         if ($request->filled('tanggal_mulai')) {
@@ -109,7 +114,8 @@ class ReportDjsnController extends Controller
             'records',
             'direktorats',
             'unitKerjas',
-            'komites'
+            'komites',
+            'statusSuratOptions'
         ));
     }
 
@@ -120,6 +126,8 @@ class ReportDjsnController extends Controller
         if (! $user || ! $user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
+
+        (new SuratAwalStatusService)->synchronizeModule('djsn');
 
         $validated = $request->validate([
             'record_ids' => ['required', 'array', 'min:1'],
@@ -163,6 +171,8 @@ class ReportDjsnController extends Controller
         if (! $user || ! $user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
+
+        (new SuratAwalStatusService)->synchronizeModule('djsn');
 
         $validated = $request->validate([
             'record_ids' => ['required', 'array', 'min:1'],
@@ -335,6 +345,8 @@ class ReportDjsnController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
 
+        (new SuratAwalStatusService)->synchronizeModule('djsn');
+
         $validated = $request->validate([
             'record_ids' => ['required', 'array', 'min:1'],
             'record_ids.*' => ['integer'],
@@ -385,6 +397,8 @@ class ReportDjsnController extends Controller
         if (! $user || ! $user->canAccessDjsnReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report DJSN.');
         }
+
+        (new SuratAwalStatusService)->synchronizeModule('djsn');
 
         $validated = $request->validate([
             'record_ids' => ['required', 'array', 'min:1'],

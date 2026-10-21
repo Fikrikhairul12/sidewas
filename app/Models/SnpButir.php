@@ -2,20 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\SnpButirPic;
-use App\Models\SnpTindakLanjut;
-use App\Models\SnpTanggapan;
-use App\Models\SnpReview;
-use App\Models\SnpRecord;
-use App\Models\User;
 
 class SnpButir extends Model
 {
+    use SyncsSuratAwalStatus;
     use TracksUser;
 
     protected $connection = 'mysql_snp';
+
     protected $table = 'tb_butir_snp';
 
     protected $fillable = [
@@ -47,7 +44,7 @@ class SnpButir extends Model
             ? ((int) substr($lastButir->id_butir_snp, strrpos($lastButir->id_butir_snp, '.') + 1)) + 1
             : 1;
 
-        return $idSnp . '.' . str_pad($nextNumber, 2, '0', STR_PAD_LEFT);
+        return $idSnp.'.'.str_pad($nextNumber, 2, '0', STR_PAD_LEFT);
     }
 
     public function record()

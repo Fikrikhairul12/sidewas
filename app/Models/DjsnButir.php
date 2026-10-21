@@ -2,20 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
-use App\Models\DjsnButirPic;
-use App\Models\DjsnRecord;
-use App\Models\DjsnReview;
-use App\Models\DjsnTanggapan;
-use App\Models\DjsnTindakLanjut;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
 class DjsnButir extends Model
 {
+    use SyncsSuratAwalStatus;
     use TracksUser;
 
     protected $connection = 'mysql_djsn';
+
     protected $table = 'tb_butir_djsn';
 
     protected $fillable = [
@@ -49,7 +46,7 @@ class DjsnButir extends Model
             ? ((int) substr($lastButir->id_butir_djsn, strrpos($lastButir->id_butir_djsn, '.') + 1)) + 1
             : 1;
 
-        return $idDjsn . '.' . str_pad($nextNumber, 2, '0', STR_PAD_LEFT);
+        return $idDjsn.'.'.str_pad($nextNumber, 2, '0', STR_PAD_LEFT);
     }
 
     public function record()

@@ -2,15 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSuratPutaran;
+use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
+use App\Services\SuratAwalStatusService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 class SnpRecord extends Model
 {
+    use HasSuratPutaran;
+    use SyncsSuratAwalStatus;
     use TracksUser;
 
     protected $connection = 'mysql_snp';
+
     protected $table = 'tb_record';
 
     protected $fillable = [
@@ -29,6 +35,7 @@ class SnpRecord extends Model
     ];
 
     protected $casts = [
+        'pernah_terbit' => 'boolean',
         'tanggal_surat' => 'date',
         'jth_tempo' => 'date',
     ];
@@ -40,7 +47,7 @@ class SnpRecord extends Model
                 $record->id_snp = static::generateIdSnp($record->nomor_surat);
             }
 
-            if (!empty($record->tanggal_surat) && empty($record->jth_tempo)) {
+            if (! empty($record->tanggal_surat) && empty($record->jth_tempo)) {
                 $record->jth_tempo = static::hitungJatuhTempo($record->tanggal_surat);
             }
 
@@ -54,7 +61,7 @@ class SnpRecord extends Model
     {
         $nomorSurat = trim($nomorSurat);
 
-        return $nomorSurat . '-SNP';
+        return $nomorSurat.'-SNP';
     }
 
     public static function hitungJatuhTempo(string|Carbon $tanggalMulai, int $jumlahHariKerja = 14): Carbon
@@ -116,6 +123,22 @@ class SnpRecord extends Model
 
     public function syncStatusFromButir(?int $updatedBy = null): void
     {
+        $service = new SuratAwalStatusService;
+        if ($service->enabled($this->getConnectionName())) {
+            if (! $this->usesPutaranWorkflow() && $updatedBy !== null
+                && in_array($this->status, $service->initialValues(), true) && $this->isEveryButirSelesaiTuntas()) {
+                $this->update(['status' => 'tuntas', 'updated_by' => $updatedBy]);
+            } else {
+                $service->synchronizeRecord($this);
+            }
+
+            return;
+        }
+
+        if ($this->usesPutaranWorkflow()) {
+            return;
+        }
+
         $this->loadMissing('butirSnp');
 
         $status = match (true) {

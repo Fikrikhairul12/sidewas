@@ -2,15 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSuratPutaran;
+use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
+use App\Services\SuratAwalStatusService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 class DjsnRecord extends Model
 {
+    use HasSuratPutaran;
+    use SyncsSuratAwalStatus;
     use TracksUser;
 
     protected $connection = 'mysql_djsn';
+
     protected $table = 'tb_record';
 
     protected $fillable = [
@@ -26,6 +32,7 @@ class DjsnRecord extends Model
     ];
 
     protected $casts = [
+        'pernah_terbit' => 'boolean',
         'tanggal_surat' => 'date',
         'jth_tempo' => 'date',
     ];
@@ -37,7 +44,7 @@ class DjsnRecord extends Model
                 $record->id_djsn = static::generateIdDjsn($record->nomor_surat);
             }
 
-            if (!empty($record->tanggal_surat) && empty($record->jth_tempo)) {
+            if (! empty($record->tanggal_surat) && empty($record->jth_tempo)) {
                 $record->jth_tempo = Carbon::parse($record->tanggal_surat)->addDays(30);
             }
 
@@ -51,7 +58,7 @@ class DjsnRecord extends Model
     {
         $nomorSurat = trim($nomorSurat);
 
-        return $nomorSurat . '-DJSN';
+        return $nomorSurat.'-DJSN';
     }
 
     public function butirDjsn()
@@ -86,6 +93,22 @@ class DjsnRecord extends Model
 
     public function syncStatusFromButir(?int $updatedBy = null): void
     {
+        $service = new SuratAwalStatusService;
+        if ($service->enabled($this->getConnectionName())) {
+            if (! $this->usesPutaranWorkflow() && $updatedBy !== null
+                && in_array($this->status, $service->initialValues(), true) && $this->isEveryButirSelesaiTuntas()) {
+                $this->update(['status' => 'tuntas', 'updated_by' => $updatedBy]);
+            } else {
+                $service->synchronizeRecord($this);
+            }
+
+            return;
+        }
+
+        if ($this->usesPutaranWorkflow()) {
+            return;
+        }
+
         $this->loadMissing('butirDjsn');
 
         $status = match (true) {

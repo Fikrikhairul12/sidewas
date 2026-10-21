@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('visits:sync-status')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('employees:sync-sidewas')->hourly()->withoutOverlapping();
+Schedule::command('workflow:sync-status')->dailyAt('00:00')->timezone('Asia/Jakarta')->withoutOverlapping();

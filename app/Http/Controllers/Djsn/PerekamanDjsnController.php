@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Djsn;
 
+use App\Enums\SuratStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DeleteRequest;
 use App\Models\Direktorat;
@@ -16,11 +17,13 @@ use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ClusterSelection;
 use App\Services\SnpButirContent;
+use App\Services\SuratAwalStatusService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class PerekamanDjsnController extends Controller
 {
@@ -31,6 +34,10 @@ class PerekamanDjsnController extends Controller
         if (! $user || ! $user->canAccessDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses ke halaman perekaman DJSN.');
         }
+
+        $statusService = new SuratAwalStatusService;
+        $statusService->synchronizeModule('djsn');
+        $statusSuratOptions = $statusService->options('djsn');
 
         $recordsQuery = DjsnRecord::query()
             ->with([
@@ -48,7 +55,7 @@ class PerekamanDjsnController extends Controller
         |--------------------------------------------------------------------------
         */
         if ($request->filled('status')) {
-            $recordsQuery->where('status', $request->status);
+            $statusService->applyFilter($recordsQuery, $request->status);
         }
 
         /*
@@ -178,12 +185,7 @@ class PerekamanDjsnController extends Controller
 
         $komites = Komite::orderBy('nama_komite')->get();
 
-        $statistik = [
-            'total' => DjsnRecord::count(),
-            'tuntas' => DjsnRecord::where('status', 'tuntas')->count(),
-            'proses' => DjsnRecord::where('status', 'dalam_proses')->count(),
-            'draft' => DjsnRecord::where('status', 'draft')->count(),
-        ];
+        $statistik = $statusService->statistics('djsn');
 
         return view('layouts.djsn.perekaman', compact(
             'records',
@@ -191,7 +193,8 @@ class PerekamanDjsnController extends Controller
             'direktorats',
             'unitKerjas',
             'komites',
-            'statistik'
+            'statistik',
+            'statusSuratOptions'
         ));
     }
 
@@ -469,7 +472,7 @@ class PerekamanDjsnController extends Controller
             'nomor_surat' => ['required', 'string'],
             'tanggal_surat' => ['required', 'date'],
             'perihal_surat' => ['required', 'string'],
-            'status' => ['required', 'string', 'in:draft,dalam_proses,tuntas'],
+            'status' => ['nullable', 'string', Rule::in([...array_keys(SuratStatus::options()), 'dalam_proses', 'tuntas'])],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
 
             'butir_id' => ['required', 'integer', 'exists:mysql_djsn.tb_butir_djsn,id'],
@@ -562,7 +565,6 @@ class PerekamanDjsnController extends Controller
                 'nomor_surat' => $validated['nomor_surat'],
                 'tanggal_surat' => $validated['tanggal_surat'],
                 'perihal_surat' => $validated['perihal_surat'],
-                'status' => $validated['status'],
             ],
             'butir' => [
                 'id' => (int) $butir->id,
@@ -616,7 +618,6 @@ class PerekamanDjsnController extends Controller
                 'nomor_surat' => $recordPayload['nomor_surat'] ?? $record->nomor_surat,
                 'tanggal_surat' => $recordPayload['tanggal_surat'] ?? $record->tanggal_surat,
                 'perihal_surat' => $recordPayload['perihal_surat'] ?? $record->perihal_surat,
-                'status' => $recordPayload['status'] ?? $record->status,
                 'updated_by' => $user->id,
             ];
 

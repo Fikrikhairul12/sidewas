@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SuratStatus;
 use App\Models\DjsnButir;
 use App\Models\DjsnRecord;
 use App\Models\EksternalButir;
@@ -15,6 +16,7 @@ use App\Models\SnpButir;
 use App\Models\SnpRecord;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\SuratAwalStatusService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -43,34 +45,55 @@ class DashboardController extends Controller
             'status' => $request->string('status')->toString(),
             'unit_kerja_id' => $request->integer('unit_kerja_id') ?: null,
         ];
+        if (in_array($selectedType, ['snp', 'djsn'], true) && $filters['status'] === 'dalam_proses') {
+            $filters['status'] = SuratStatus::Proses->value;
+        }
+
+        $statusService = new SuratAwalStatusService;
+        foreach ($activeTypeCodes->intersect(['snp', 'djsn']) as $moduleCode) {
+            $statusService->synchronizeModule($moduleCode);
+        }
+        $statusFilterOptions = in_array($selectedType, ['snp', 'djsn'], true)
+            ? $statusService->options($selectedType)
+            : [
+                ...($activeTypeCodes->intersect(['snp', 'djsn'])->isNotEmpty() ? SuratStatus::options() : []),
+                'terbit' => 'Terbit', 'dalam_proses' => 'Dalam Proses',
+                'diusulkan_tuntas' => 'Diusulkan Tuntas', 'selesai_tuntas' => 'Selesai Tuntas',
+            ];
 
         $moduleStats = $activeTypeCodes
             ->mapWithKeys(fn (string $typeCode): array => [
                 $typeCode => $this->moduleStats($typeCode, $modules[$typeCode], $filters),
             ]);
 
-        $chartData = [
-            'suratPerJenis' => [
-                'labels' => $moduleStats->pluck('label')->values(),
-                'datasets' => [
-                    [
-                        'label' => 'Draft',
-                        'data' => $moduleStats->pluck('status_surat.draft')->values(),
-                        'backgroundColor' => '#94a3b8',
-                    ],
-                    [
-                        'label' => 'Dalam Proses',
-                        'data' => $moduleStats->pluck('status_surat.dalam_proses')->values(),
-                        'backgroundColor' => '#c8e079',
-                    ],
-                    [
-                        'label' => 'Selesai Tuntas',
-                        'data' => $moduleStats->pluck('status_surat.tuntas')->values(),
-                        'backgroundColor' => '#2377b9',
-                    ],
-                ],
-            ],
-        ];
+        $chartStatuses = ['draft' => 'Draft'];
+        if ($activeTypeCodes->intersect(['snp', 'djsn'])->isNotEmpty()) {
+            foreach (SuratStatus::options() as $value => $label) {
+                if (in_array($value, ['draft', 'terbit', 'belum_ditindaklanjuti', 'proses'], true)
+                    || $moduleStats->sum(fn ($module) => $module['status_surat'][$value] ?? 0) > 0) {
+                    $chartStatuses[$value] = $label;
+                }
+            }
+        }
+        if ($activeTypeCodes->diff(['snp', 'djsn'])->isNotEmpty()) {
+            $chartStatuses['dalam_proses'] = 'Dalam Proses';
+            $chartStatuses['tuntas'] = 'Selesai Tuntas';
+        } elseif ($moduleStats->sum(fn ($module) => $module['status_surat']['tuntas'] ?? 0) > 0) {
+            $chartStatuses['tuntas'] = 'Tuntas (Alur Lama)';
+        }
+        $datasets = [];
+        foreach ($chartStatuses as $value => $label) {
+            $datasets[] = [
+                'label' => $label,
+                'data' => $moduleStats->map(fn ($module) => $module['status_surat'][$value] ?? 0)->values(),
+                'backgroundColor' => match ($value) {
+                    'draft' => '#94a3b8',
+                    'tuntas' => '#2377b9',
+                    default => SuratStatus::colorFor($value),
+                },
+            ];
+        }
+        $chartData = ['suratPerJenis' => ['labels' => $moduleStats->pluck('label')->values(), 'datasets' => $datasets]];
 
         return view('dashboard', [
             'allowedTypes' => $allowedTypeCodes
@@ -81,6 +104,7 @@ class DashboardController extends Controller
             'attentionRows' => $this->attentionRows($activeTypeCodes, $modules, $filters, $user),
             'chartData' => $chartData,
             'filters' => $filters,
+            'statusFilterOptions' => $statusFilterOptions,
             'moduleStats' => $moduleStats,
             'recentActivities' => $this->recentActivities($activeTypeCodes),
             'unitKerjas' => UnitKerja::orderBy('nama_unit')->get(['id', 'kode_unit', 'nama_unit']),
@@ -168,6 +192,10 @@ class DashboardController extends Controller
             'dalam_proses' => (clone $baseRecordQuery)->where('status', 'dalam_proses')->count(),
             'tuntas' => (clone $baseRecordQuery)->where('status', 'tuntas')->count(),
         ];
+        if (in_array($typeCode, ['snp', 'djsn'], true)) {
+            $counts = (clone $baseRecordQuery)->selectRaw('status, COUNT(*) as jumlah')->groupBy('status')->pluck('jumlah', 'status');
+            $statusSurat = [...array_fill_keys([...array_keys(SuratStatus::options()), 'tuntas'], 0), ...$counts->map(fn ($value): int => (int) $value)->all()];
+        }
 
         $statusButir = [
             'terbit' => $this->countButirsByStatus($module, $filters, 'terbit'),
@@ -221,7 +249,7 @@ class DashboardController extends Controller
             });
         }
 
-        if (! empty($filters['status'])) {
+        if (! empty($filters['status']) && ! in_array($module['record_model'], [SnpRecord::class, DjsnRecord::class], true)) {
             $query->where('status', $filters['status']);
         }
 
@@ -279,6 +307,7 @@ class DashboardController extends Controller
                     ->get()
                     ->map(function ($butir) use ($typeCode, $module, $sender): array {
                         $record = $butir->{$module['record_relation']};
+                        $letterStatus = in_array($typeCode, ['snp', 'djsn'], true);
                         $recipientEmails = $this->picEmailsForButir($butir);
 
                         return [
@@ -286,8 +315,8 @@ class DashboardController extends Controller
                             'jenis' => $module['label'],
                             'butir' => $butir->{$module['butir_key']},
                             'perihal' => str($record->perihal_surat ?? '-')->limit(60)->toString(),
-                            'status' => $this->statusLabel($butir->status),
-                            'status_class' => $this->statusClass($butir->status),
+                            'status' => $letterStatus ? SuratStatus::labelFor($record->status) : $this->statusLabel($butir->status),
+                            'status_class' => $this->statusClass($letterStatus ? $record->status : $butir->status),
                             'jatuh_tempo' => optional($record->jth_tempo)->format('d/m/Y') ?? '-',
                             'reminder_mailto' => $this->reminderMailto($recipientEmails, $sender, $record, $butir, $module),
                             'reminder_gmail_url' => $this->reminderGmailUrl($recipientEmails, $sender, $record, $butir, $module),
@@ -358,19 +387,19 @@ class DashboardController extends Controller
             return null;
         }
 
-        $subject = 'Pengingat tindak lanjut ' . $butir->{$module['butir_key']};
+        $subject = 'Pengingat tindak lanjut '.$butir->{$module['butir_key']};
         $body = implode("\n", [
             'Yth. PIC terkait,',
             '',
             'Mohon ditindaklanjuti butir pengawasan berikut:',
-            'Jenis Pengawasan: ' . $module['label'],
-            'No Surat: ' . $record->{$module['record_key']},
-            'ID Butir: ' . $butir->{$module['butir_key']},
-            'Perihal: ' . ($record->perihal_surat ?? '-'),
-            'Status: ' . $this->statusLabel($butir->status),
-            'Jatuh Tempo: ' . (optional($record->jth_tempo)->format('d/m/Y') ?? '-'),
+            'Jenis Pengawasan: '.$module['label'],
+            'No Surat: '.$record->{$module['record_key']},
+            'ID Butir: '.$butir->{$module['butir_key']},
+            'Perihal: '.($record->perihal_surat ?? '-'),
+            'Status: '.$this->statusLabel($butir->status),
+            'Jatuh Tempo: '.(optional($record->jth_tempo)->format('d/m/Y') ?? '-'),
             '',
-            'Dikirim oleh: ' . $sender->email,
+            'Dikirim oleh: '.$sender->email,
         ]);
 
         $query = http_build_query([
@@ -379,7 +408,7 @@ class DashboardController extends Controller
             'body' => $body,
         ], '', '&', PHP_QUERY_RFC3986);
 
-        return 'mailto:' . implode(',', $recipientEmails) . '?' . $query;
+        return 'mailto:'.implode(',', $recipientEmails).'?'.$query;
     }
 
     /**
@@ -392,22 +421,22 @@ class DashboardController extends Controller
             return null;
         }
 
-        $subject = 'Pengingat tindak lanjut ' . $butir->{$module['butir_key']};
+        $subject = 'Pengingat tindak lanjut '.$butir->{$module['butir_key']};
         $body = implode("\n", [
             'Yth. PIC terkait,',
             '',
             'Mohon ditindaklanjuti butir pengawasan berikut:',
-            'Jenis Pengawasan: ' . $module['label'],
-            'No Surat: ' . $record->{$module['record_key']},
-            'ID Butir: ' . $butir->{$module['butir_key']},
-            'Perihal: ' . ($record->perihal_surat ?? '-'),
-            'Status: ' . $this->statusLabel($butir->status),
-            'Jatuh Tempo: ' . (optional($record->jth_tempo)->format('d/m/Y') ?? '-'),
+            'Jenis Pengawasan: '.$module['label'],
+            'No Surat: '.$record->{$module['record_key']},
+            'ID Butir: '.$butir->{$module['butir_key']},
+            'Perihal: '.($record->perihal_surat ?? '-'),
+            'Status: '.$this->statusLabel($butir->status),
+            'Jatuh Tempo: '.(optional($record->jth_tempo)->format('d/m/Y') ?? '-'),
             '',
-            'Dikirim oleh: ' . $sender->email,
+            'Dikirim oleh: '.$sender->email,
         ]);
 
-        return 'https://mail.google.com/mail/?view=cm&fs=1&' . http_build_query([
+        return 'https://mail.google.com/mail/?view=cm&fs=1&'.http_build_query([
             'to' => implode(',', $recipientEmails),
             'cc' => $sender->email,
             'su' => $subject,
@@ -437,15 +466,19 @@ class DashboardController extends Controller
         }
 
         if (! empty($filters['unit_kerja_id'])) {
-            $query->whereHas($module['butir_relation'] . '.butirPics', function ($picQuery) use ($filters): void {
+            $query->whereHas($module['butir_relation'].'.butirPics', function ($picQuery) use ($filters): void {
                 $picQuery->where('unit_kerja_id', $filters['unit_kerja_id']);
             });
         }
 
         if (! empty($filters['status'])) {
-            $query->whereHas($module['butir_relation'], function ($butirQuery) use ($filters): void {
-                $butirQuery->where('status', $filters['status']);
-            });
+            if (in_array($module['record_model'], [SnpRecord::class, DjsnRecord::class], true)) {
+                (new SuratAwalStatusService)->applyFilter($query, $filters['status']);
+            } else {
+                $query->whereHas($module['butir_relation'], function ($butirQuery) use ($filters): void {
+                    $butirQuery->where('status', $filters['status']);
+                });
+            }
         }
     }
 
@@ -467,7 +500,7 @@ class DashboardController extends Controller
             'draft' => 'bg-slate-100 text-slate-700',
             'terbit' => 'bg-blue-100 text-blue-700',
             'diusulkan_tuntas' => 'bg-purple-100 text-purple-700',
-            'selesai', 'tuntas', 'selesai_tuntas' => 'bg-green-100 text-green-700',
+            'selesai', 'tuntas', 'selesai_tuntas', 'tindak_lanjut_sesuai' => 'bg-green-100 text-green-700',
             default => 'bg-amber-100 text-amber-700',
         };
     }

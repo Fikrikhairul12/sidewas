@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\SuratStatus;
 use App\Exports\DjsnReportExport;
 use App\Exports\SnpReportExport;
 use App\Models\DjsnButir;
@@ -124,6 +125,8 @@ beforeEach(function () {
         $table->integer('updated_by')->nullable();
         $table->timestamps();
     });
+    (require database_path('migrations/2026_10_21_134321_add_surat_putaran_foundation.php'))->up();
+    (require database_path('migrations/2026_10_21_141454_enable_snp_djsn_initial_letter_statuses.php'))->up();
     Storage::fake('local');
 });
 
@@ -154,7 +157,8 @@ function workflowButir(string $module): SnpButir|DjsnButir
 function workflowReview(string $module, SnpButir|DjsnButir $butir): SnpReview|DjsnReview
 {
     $reviewClass = $module === 'snp' ? SnpReview::class : DjsnReview::class;
-    $tanggapanId = DB::connection('mysql_'.$module)->table('tb_tanggapan')->insertGetId(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'tanggapan' => 'Tanggapan sumber']);
+    $responseClass = $module === 'snp' ? SnpTanggapan::class : DjsnTanggapan::class;
+    $tanggapanId = $responseClass::create(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'tanggapan' => 'Tanggapan sumber'])->id;
 
     return $reviewClass::create(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'id_tanggapan' => $tanggapanId, 'komite_id' => 1, 'tahap_review' => 'tanggapan', 'status' => 'belum_ditanggapi', 'hasil_review' => 'Reviu lama']);
 }
@@ -168,6 +172,7 @@ test('SNP compilation saves safe rich content and uploads only for authorized ed
     $this->post(route('snp.kompilasi.store', $butir), ['tahap_kompilasi' => 'tanggapan', 'putaran_tl' => 1, 'hasil_kompilasi' => $value])->assertRedirect(route('snp.kompilasi.index'))->assertSessionHasNoErrors();
     $kompilasi = SnpKompilasi::firstOrFail();
     expect($kompilasi->hasil_kompilasi)->toContain('<strong>KOMPILASI</strong>', 'data-width="50"')->not->toContain('onerror', 'script')
+        ->and($butir->record->fresh()->status)->toBe('terbit')
         ->and($kompilasi->status)->toBe('dalam_proses_reviu_dewas')
         ->and(SnpReview::firstOrFail()->status)->toBe('belum_ditanggapi')
         ->and($butir->fresh()->butir_snp)->toBe('Isi butir lama');
@@ -363,3 +368,69 @@ test('Excel keeps workflow text formatting and multiple images in their related 
         unlink($path);
     }
 })->with([['snp', true], ['snp', false], ['djsn', true], ['djsn', false]]);
+
+test('initial letter statuses agree across perekaman detail filters reports and dashboard', function (string $module) {
+    $this->travelTo(now('Asia/Jakarta')->setDate(2026, 10, 21)->startOfDay());
+    $this->actingAs(workflowUser('super_admin'));
+    $recordClass = $module === 'snp' ? SnpRecord::class : DjsnRecord::class;
+    $butirClass = $module === 'snp' ? SnpButir::class : DjsnButir::class;
+    $draft = $recordClass::create(['nomor_surat' => 'DRAFT-UJI', 'tanggal_surat' => '2026-10-21']);
+    $expired = $recordClass::create(['nomor_surat' => 'BATAS-UJI', 'tanggal_surat' => '2026-10-08']);
+    $published = workflowButir($module)->record;
+    $proses = $recordClass::create(['nomor_surat' => 'PROSES-UJI', 'tanggal_surat' => '2026-01-01']);
+    $butir = $butirClass::create(['id_'.$module => $proses->{'id_'.$module}, 'butir_'.$module => 'Butir proses']);
+    $db = DB::connection('mysql_'.$module);
+    $pic = $db->table('tb_butir_pic')->insertGetId(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'jenis_pic' => 'utama', 'unit_kerja_id' => 1]);
+    $db->table('tb_butir_pic')->insert(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'jenis_pic' => 'pendukung', 'unit_kerja_id' => 2]);
+    $db->table('tb_butir_pic')->insert(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'jenis_pic' => 'komite', 'komite_id' => 1]);
+    $this->post(route($module.'.tanggapan.store', $butir), [
+        'butir_pic_id' => $pic, 'tanggapan' => 'Jawaban satu unit', 'deliverables' => 'Hasil satu unit',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    expect($proses->fresh()->status)->toBe('proses')->and($db->table('tb_tanggapan')->count())->toBe(1);
+    expect($expired->fresh()->status)->toBe('draft');
+    $this->travelTo(now('Asia/Jakarta')->setDate(2026, 10, 22)->startOfDay());
+    $cases = ['draft' => $draft, 'terbit' => $published, 'belum_ditindaklanjuti' => $expired, 'proses' => $proses];
+    foreach ($cases as $status => $record) {
+        $page = $this->get(route($module.'.perekaman', ['status' => $status]))->assertOk()
+            ->assertViewHas('records', fn ($records) => $records->pluck('id')->all() === [$record->id])
+            ->assertViewHas('statistik', fn ($stats) => $stats['total'] === 4 && $stats[$status] === 1)
+            ->assertSee(SuratStatus::labelFor($status))
+            ->assertSee('detailRecord?.status_label', false)
+            ->assertSee('status_label', false);
+        expect($record->fresh()->status)->toBe($status);
+        $this->get(route($module.'.report.index', ['status' => $status]))->assertOk()
+            ->assertViewHas('records', fn ($records) => $records->pluck('id')->all() === [$record->id])
+            ->assertSee(SuratStatus::labelFor($status))
+            ->assertSee('background-color: '.SuratStatus::colorFor($status).'; color: '.SuratStatus::textColorFor($status).';', false);
+        $this->get(route('dashboard', ['jenis_rapat' => $module, 'status' => $status]))->assertOk()
+            ->assertViewHas('moduleStats', fn ($stats) => $stats[$module]['total_surat'] === 1 && $stats[$module]['status_surat'][$status] === 1)
+            ->assertViewHas('chartData', function ($data) use ($status): bool {
+                $label = SuratStatus::labelFor($status);
+                $dataset = collect($data['suratPerJenis']['datasets'])->firstWhere('label', $label);
+
+                return $dataset !== null && collect($dataset['data'])->all() === [1];
+            });
+    }
+    $this->travelBack();
+})->with(['snp', 'djsn']);
+
+test('perekaman edits cannot replace the calculated letter status', function (string $module) {
+    $this->actingAs(workflowUser('super_admin'));
+    $butir = workflowButir($module);
+    $record = $butir->record;
+    foreach (['tb_cluster' => 'nama_cluster', 'tb_sub_cluster' => 'nama_sub_cluster'] as $table => $column) {
+        DB::connection('mysql_'.$module)->table($table)->insert(['id' => 1, $column => 'Aktif', ...($table === 'tb_sub_cluster' ? ['cluster_id' => 1] : [])]);
+    }
+    if ($module === 'snp') {
+        $record->update(['cluster_id' => 1, 'sub_cluster_id' => 1]);
+    } else {
+        $butir->update(['cluster_id' => 1, 'sub_cluster_id' => 1]);
+    }
+    $this->patch(route($module.'.perekaman.update', $record), [
+        'nomor_surat' => $record->nomor_surat, 'tanggal_surat' => '2026-10-21', 'perihal_surat' => 'Perihal diperbaiki',
+        'cluster_id' => 1, 'sub_cluster_id' => 1, 'status' => 'tindak_lanjut_sesuai',
+        'butir_id' => $butir->id, 'butir_'.$module => 'Butir diperbaiki', 'butir_status' => 'terbit',
+        'unit_kerja_utama_id' => 1, 'unit_kerja_pendukung_id' => [], 'komite_id' => 1,
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    expect($record->fresh()->perihal_surat)->toBe('Perihal diperbaiki')->and($record->fresh()->status)->toBe('terbit');
+})->with(['snp', 'djsn']);

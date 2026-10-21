@@ -39,93 +39,7 @@
             </div>
         @endif
 
-        {{-- Summary Cards --}}
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {{-- Total Perekaman --}}
-            <div class="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-slate-500">Total Perekaman</p>
-                        <p class="mt-2 text-3xl font-bold text-slate-800">
-                            {{ $statistik['total'] ?? 0 }}
-                        </p>
-                    </div>
-
-                    <div class="flex h-12 w-12 items-center justify-center rounded-xl text-white"
-                        style="background-color: #2377b9;">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5" />
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Tuntas --}}
-            <div class="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-slate-500">Tuntas</p>
-                        <p class="mt-2 text-3xl font-bold" style="color: #6bb17e;">
-                            {{ $statistik['tuntas'] ?? 0 }}
-                        </p>
-                    </div>
-
-                    <div class="flex h-12 w-12 items-center justify-center rounded-xl text-white"
-                        style="background-color: #6bb17e;">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Dalam Proses --}}
-            <div class="rounded-2xl border border-yellow-100 bg-white p-5 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-slate-500">Dalam Proses</p>
-                        <p class="mt-2 text-3xl font-bold text-slate-800">
-                            {{ $statistik['proses'] ?? 0 }}
-                        </p>
-                    </div>
-
-                    <div class="flex h-12 w-12 items-center justify-center rounded-xl text-slate-700"
-                        style="background-color: #c8e079;">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M12 6v6l4 2m6-2a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z" />
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Draft --}}
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-slate-500">Draf</p>
-                        <p class="mt-2 text-3xl font-bold text-slate-700">
-                            {{ $statistik['draft'] ?? 0 }}
-                        </p>
-                    </div>
-
-                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M16.862 4.487 18.55 2.8a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                        </svg>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <x-surat-status-summary :statistics="$statistik" />
 
         {{-- Filter --}}
         <div x-data="{ openFilter: false }" class="rounded-2xl border border-blue-100 bg-white shadow-sm">
@@ -164,9 +78,9 @@
                             <select name="status"
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">Semua Status</option>
-                                <option value="draft" @selected(request('status') === 'draft')>Draft</option>
-                                <option value="dalam_proses" @selected(request('status') === 'dalam_proses')>Dalam Proses</option>
-                                <option value="tuntas" @selected(request('status') === 'tuntas')>Tuntas</option>
+                                @foreach ($statusSuratOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected(request('status') === $value || ($value === 'proses' && request('status') === 'dalam_proses'))>{{ $label }}</option>
+                                @endforeach
                             </select>
                         </div>
 
@@ -352,6 +266,11 @@
                                     'id' => $record->id,
                                     'id_djsn' => $record->id_djsn,
                                     'nomor_surat' => $record->nomor_surat,
+                                    'status' => $record->status,
+                                    'status_label' => \App\Enums\SuratStatus::labelFor($record->status),
+                                    'status_color' => \App\Enums\SuratStatus::colorFor($record->status),
+                                    'status_text_color' => \App\Enums\SuratStatus::textColorFor($record->status),
+                                    'batas_status_awal' => $record->batasStatusAwal()?->format('d/m/Y'),
                                     'butirs' => $record->butirDjsn
                                         ->map(function ($butir) {
                                             $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
@@ -642,32 +561,18 @@
                                 {{-- Status --}}
                                 <td class="px-6 py-6 align-top">
                                     @php
-                                        $statusLabel =
-                                            [
-                                                'draft' => 'Draft',
-                                                'dalam_proses' => 'Proses',
-                                                'tuntas' => 'Tuntas',
-                                            ][$record->status] ?? ucwords(str_replace('_', ' ', $record->status));
-
-                                        $statusColor =
-                                            [
-                                                'draft' => '#64748b',
-                                                'dalam_proses' => '#c8e079',
-                                                'tuntas' => '#6bb17e',
-                                            ][$record->status] ?? '#64748b';
-
-                                        $teksColor =
-                                            [
-                                                'draft' => 'text-white',
-                                                'dalam_proses' => 'text-black',
-                                                'tuntas' => 'text-white',
-                                            ][$record->status] ?? 'text-white';
+                                        $statusLabel = \App\Enums\SuratStatus::labelFor($record->status);
+                                        $statusColor = \App\Enums\SuratStatus::colorFor($record->status);
+                                        $teksColor = \App\Enums\SuratStatus::textColorFor($record->status);
                                     @endphp
 
-                                    <span class="inline-flex text-center rounded-full px-4 py-1.5 text-xs font-bold {{ $teksColor }}"
-                                        style="background-color: {{ $statusColor }};">
+                                    <span class="inline-flex text-center rounded-full px-4 py-1.5 text-xs font-bold"
+                                        style="background-color: {{ $statusColor }}; color: {{ $teksColor }};">
                                         {{ $statusLabel }}
                                     </span>
+                                    @if ($record->batasStatusAwal())
+                                        <p class="mt-2 text-xs text-slate-500">Batas pencatatan butir: {{ $record->batasStatusAwal()->format('d/m/Y') }} (14 hari kalender).</p>
+                                    @endif
 
                                     <p class="mt-3 text-sm text-slate-500">
                                         {{ $record->butir_djsn_count ?? $record->butirDjsn->count() }} butir
@@ -784,6 +689,16 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
                     </button>
+                </div>
+
+                <div class="border-b border-slate-100 px-6 py-3">
+                    <p class="mb-1 text-xs font-semibold text-slate-500">Status Surat</p>
+                    <span class="inline-flex rounded-full px-4 py-1.5 text-xs font-bold"
+                        :style="`background-color: ${detailRecord?.status_color}; color: ${detailRecord?.status_text_color}`"
+                        x-text="detailRecord?.status_label ?? '-'"></span>
+                    <p x-show="detailRecord?.batas_status_awal" class="mt-2 text-xs text-slate-500">
+                        Batas pencatatan butir: <span x-text="detailRecord?.batas_status_awal"></span> (14 hari kalender dari tanggal surat).
+                    </p>
                 </div>
 
                 <div class="grid min-h-[520px] lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -944,12 +859,10 @@
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">Status Surat</label>
-                            <select name="status" x-model="editRecord.status" required
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="draft">Draft</option>
-                                <option value="dalam_proses">Dalam Proses</option>
-                                <option value="tuntas">Tuntas</option>
-                            </select>
+                            <input type="text" readonly
+                                    :value="(@js(\App\Enums\SuratStatus::options() + ['tuntas' => 'Tuntas (Alur Lama)', 'dalam_proses' => 'Proses']))[editRecord.status] ?? '-'"
+                                    class="w-full rounded-xl border-slate-300 bg-slate-50 text-sm shadow-sm">
+                                <p class="mt-1 text-xs text-slate-500">Status mengikuti butir, tanggapan, dan hasil reviu.</p>
                         </div>
 
                         <div>

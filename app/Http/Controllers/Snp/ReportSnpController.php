@@ -11,6 +11,7 @@ use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ButirReportPdfAlignment;
 use App\Services\SnpReportPdfLabels;
+use App\Services\SuratAwalStatusService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -27,6 +28,10 @@ class ReportSnpController extends Controller
         if (! $user || ! $user->canAccessSnpReport()) {
             abort(403, 'Anda tidak memiliki akses ke halaman report SNP.');
         }
+
+        $statusService = new SuratAwalStatusService;
+        $statusService->synchronizeModule('snp');
+        $statusSuratOptions = $statusService->options('snp');
 
         $recordsQuery = SnpRecord::with([
             'cluster',
@@ -46,7 +51,7 @@ class ReportSnpController extends Controller
         }
 
         if ($request->filled('status')) {
-            $recordsQuery->where('status', $request->status);
+            $statusService->applyFilter($recordsQuery, $request->status);
         }
 
         if ($request->filled('tanggal_mulai')) {
@@ -110,7 +115,8 @@ class ReportSnpController extends Controller
             'records',
             'direktorats',
             'unitKerjas',
-            'komites'
+            'komites',
+            'statusSuratOptions'
         ));
     }
 
@@ -175,6 +181,8 @@ class ReportSnpController extends Controller
         if (! $user || ! $user->canAccessSnpReport()) {
             abort(403, 'Anda tidak memiliki akses untuk mencetak report SNP.');
         }
+
+        (new SuratAwalStatusService)->synchronizeModule('snp');
 
         return $user;
     }

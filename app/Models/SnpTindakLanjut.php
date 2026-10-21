@@ -2,17 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSuratPutaran;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
 
 class SnpTindakLanjut extends Model
 {
+    use BelongsToSuratPutaran;
     use TracksUser;
 
     protected $connection = 'mysql_snp';
+
     protected $table = 'tb_tindak_lanjut';
 
     protected $fillable = [
+        'putaran_id',
         'id_butir_snp',
         'butir_pic_id',
         'putaran_tl',

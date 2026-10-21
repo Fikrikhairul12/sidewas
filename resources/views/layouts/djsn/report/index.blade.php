@@ -89,9 +89,9 @@
                             <select name="status"
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">Semua Status</option>
-                                <option value="draft" @selected(request('status') === 'draft')>Draft</option>
-                                <option value="dalam_proses" @selected(request('status') === 'dalam_proses')>Dalam Proses</option>
-                                <option value="tuntas" @selected(request('status') === 'tuntas')>Tuntas</option>
+                                @foreach (($statusSuratOptions ?? \App\Enums\SuratStatus::options()) as $value => $label)
+                                    <option value="{{ $value }}" @selected(request('status') === $value || ($value === 'proses' && request('status') === 'dalam_proses'))>{{ $label }}</option>
+                                @endforeach
                             </select>
                         </div>
 
@@ -239,9 +239,9 @@
 
                                     <td class="px-6 py-5 align-top">
                                         <span
-                                            class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
-                                            style="background-color: #2377b9;">
-                                            {{ ucwords(str_replace('_', ' ', $record->status)) }}
+                                            class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold"
+                                            style="background-color: {{ \App\Enums\SuratStatus::colorFor($record->status) }}; color: {{ \App\Enums\SuratStatus::textColorFor($record->status) }};">
+                                            {{ \App\Enums\SuratStatus::labelFor($record->status) }}
                                         </span>
                                     </td>
                                 </tr>

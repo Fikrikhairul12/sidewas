@@ -51,7 +51,8 @@ const server = createServer(async (request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const reportUrl = `${origin}${reportPath}?keyword=SURAT&status=dalam_proses&page=2`;
+const recordStatus = ['snp', 'djsn'].includes(module) ? 'proses' : 'dalam_proses';
+const reportUrl = `${origin}${reportPath}?keyword=SURAT&status=${recordStatus}&page=2`;
 const executablePath = [process.env.PUPPETEER_EXECUTABLE_PATH, puppeteer.executablePath(), 'C:/Program Files/Google/Chrome/Application/chrome.exe', '/usr/bin/chromium'].find(path => path && existsSync(path));
 let browser;
 try {
@@ -99,7 +100,7 @@ try {
     assert.equal(page.url(), reportUrl);
     assert.deepEqual(await checked('#reportForm', 'record_ids[]'), ['1']);
     assert.equal(await page.$eval('input[name="keyword"]', input => input.value), 'SURAT');
-    assert.equal(await page.$eval('select[name="status"]', input => input.value), 'dalam_proses');
+    assert.equal(await page.$eval('select[name="status"]', input => input.value), recordStatus);
     assert.equal(await page.$eval('#reportFormatModal', modal => modal.classList.contains('hidden')), true);
     if (await page.$('#selectAllReportRecords')) {
         assert.deepEqual(await page.$eval('#selectAllReportRecords', input => [input.checked, input.indeterminate]), [false, true], 'Select all reflects the restored partial selection');

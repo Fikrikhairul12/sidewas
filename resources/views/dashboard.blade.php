@@ -6,7 +6,7 @@
     </x-slot> --}}
 
     @php
-        $statusOptions = [
+        $statusOptions = $statusFilterOptions ?? [
             'terbit' => 'Terbit',
             'dalam_proses' => 'Dalam Proses',
             'diusulkan_tuntas' => 'Diusulkan Tuntas',
@@ -59,7 +59,7 @@
                     </select>
                 </label>
                 <label class="block min-w-0">
-                    <span class="text-xs font-semibold text-slate-700">Status Tindak Lanjut</span>
+                    <span class="text-xs font-semibold text-slate-700">{{ in_array($filters['jenis_rapat'], ['snp', 'djsn'], true) ? 'Status Surat' : 'Status Surat / Tindak Lanjut' }}</span>
                     <select name="status" class="mt-2 w-full rounded-xl border-slate-300 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Semua</option>
                         @foreach ($statusOptions as $value => $label)
