@@ -342,9 +342,9 @@
                                     @endforelse
                                 </td>
                             @elseif ($field === 'kompilasi_tanggapan')
-                                <td class="pre-line">{{ $normalizeReportText($kompilasiTanggapan?->hasil_kompilasi) }}</td>
+                                <td><x-rich-content data-report-rich :content="$kompilasiTanggapan?->hasil_kompilasi" /></td>
                             @elseif ($field === 'kompilasi_tindak_lanjut')
-                                <td class="pre-line">{{ $normalizeReportText($kompilasiTindakLanjut?->hasil_kompilasi) }}</td>
+                                <td><x-rich-content data-report-rich :content="$kompilasiTindakLanjut?->hasil_kompilasi" /></td>
                             @elseif ($field === 'deliverable')
                                 <td class="pre-line">
                                     {{ $joinReportSections([
@@ -387,11 +387,14 @@
                             @elseif ($field === 'komite')
                                 <td>{{ $komitePic?->komite?->kode_komite ?? '-' }}</td>
                             @elseif ($field === 'hasil_reviu')
-                                <td class="pre-line">
-                                    {{ $joinReportSections([
-                                        $reportSection('Reviu Tanggapan', $reviewTanggapan?->hasil_review),
-                                        $reportSection('Reviu Tindak Lanjut', $reviewTl?->hasil_review),
-                                    ]) }}
+                                <td>
+                                    @foreach (['Reviu Tanggapan' => $reviewTanggapan, 'Reviu Tindak Lanjut' => $reviewTl] as $label => $review)
+                                        @if (filled($review?->hasil_review))
+                                            <div class="entry-title">{{ $label }}:</div>
+                                            <x-rich-content data-report-rich :content="$review->hasil_review" />
+                                        @endif
+                                    @endforeach
+                                    @if (blank($reviewTanggapan?->hasil_review) && blank($reviewTl?->hasil_review)) - @endif
                                 </td>
                             @elseif ($field === 'status')
                                 <td>{{ ucwords(str_replace('_', ' ', $status)) }}</td>

@@ -12,6 +12,7 @@ use App\Models\SnpKompilasi;
 use App\Models\SnpReview;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\SnpButirContent;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +25,7 @@ class KompilasiSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpKompilasi()) {
+        if (! $user || ! $user->canAccessSnpKompilasi()) {
             abort(403, 'Anda tidak memiliki akses ke halaman kompilasi SNP.');
         }
 
@@ -128,7 +129,7 @@ class KompilasiSnpController extends Controller
             $putaranTlList = $butir->tindakLanjuts
                 ->pluck('putaran_tl')
                 ->filter()
-                ->map(fn($putaran) => (int) $putaran)
+                ->map(fn ($putaran) => (int) $putaran)
                 ->unique()
                 ->sort()
                 ->values();
@@ -145,23 +146,23 @@ class KompilasiSnpController extends Controller
             $putaranTlList = $putaranTlList->push(1)->unique()->sort()->values();
 
             foreach ($putaranTlList as $putaranTl) {
-                    $kompilasi = $butir->kompilasis
-                        ->where('tahap_kompilasi', 'tindak_lanjut')
-                        ->where('putaran_tl', $putaranTl)
-                        ->first();
+                $kompilasi = $butir->kompilasis
+                    ->where('tahap_kompilasi', 'tindak_lanjut')
+                    ->where('putaran_tl', $putaranTl)
+                    ->first();
 
-                    $items->push((object) [
-                        'butir' => $butir,
-                        'tahap' => 'tindak_lanjut',
-                        'putaran_tl' => $putaranTl,
-                        'tahap_label' => 'Kompilasi Tindak Lanjut Putaran ' . $putaranTl,
-                        'kompilasi' => $kompilasi,
-                        'status' => $kompilasi?->status ?? 'belum_dikompilasi',
-                        'data_unit' => $butir->tindakLanjuts
-                            ->where('putaran_tl', $putaranTl)
-                            ->sortBy(fn($tl) => $tl->butirPic?->unitKerja?->kode_unit ?? 'ZZZ')
-                            ->groupBy('butir_pic_id'),
-                    ]);
+                $items->push((object) [
+                    'butir' => $butir,
+                    'tahap' => 'tindak_lanjut',
+                    'putaran_tl' => $putaranTl,
+                    'tahap_label' => 'Kompilasi Tindak Lanjut Putaran '.$putaranTl,
+                    'kompilasi' => $kompilasi,
+                    'status' => $kompilasi?->status ?? 'belum_dikompilasi',
+                    'data_unit' => $butir->tindakLanjuts
+                        ->where('putaran_tl', $putaranTl)
+                        ->sortBy(fn ($tl) => $tl->butirPic?->unitKerja?->kode_unit ?? 'ZZZ')
+                        ->groupBy('butir_pic_id'),
+                ]);
             }
         }
 
@@ -228,7 +229,7 @@ class KompilasiSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canCreateSnpKompilasi()) {
+        if (! $user || ! $user->canCreateSnpKompilasi()) {
             abort(403, 'Anda tidak memiliki akses untuk melakukan kompilasi SNP.');
         }
 
@@ -251,6 +252,9 @@ class KompilasiSnpController extends Controller
             'status_pengajuan_tgl' => ['nullable', 'in:pending,disetujui,ditolak'],
         ]);
 
+        $validated['hasil_kompilasi'] = app(SnpButirContent::class)->normalize(
+            $validated['hasil_kompilasi'], $butir->record->id, 'snp', 'hasil_kompilasi', 'Hasil kompilasi'
+        );
         $putaranTl = (int) ($validated['putaran_tl'] ?? 1);
 
         DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $butir, $user, $putaranTl) {
@@ -281,14 +285,14 @@ class KompilasiSnpController extends Controller
                 'ubah_tgl' => $validated['tahap_kompilasi'] === 'tanggapan'
                     ? ($validated['ubah_tgl'] ?? null)
                     : null,
-                'status_pengajuan_tgl' => $validated['tahap_kompilasi'] === 'tanggapan' && !empty($validated['ubah_tgl'])
+                'status_pengajuan_tgl' => $validated['tahap_kompilasi'] === 'tanggapan' && ! empty($validated['ubah_tgl'])
                     ? 'pending'
                     : null,
                 'status' => 'dalam_proses_reviu_dewas',
                 'updated_by' => $user->id,
             ]);
 
-            if (!$kompilasi->exists) {
+            if (! $kompilasi->exists) {
                 $kompilasi->created_by = $user->id;
             }
 
@@ -325,7 +329,7 @@ class KompilasiSnpController extends Controller
                 'database_name' => 'sidewas_snp',
                 'table_name' => 'tb_kompilasi',
                 'record_key' => $butir->id_butir_snp,
-                'action' => 'kompilasi_' . $validated['tahap_kompilasi'],
+                'action' => 'kompilasi_'.$validated['tahap_kompilasi'],
                 'description' => 'User melakukan kompilasi SNP dan mengirim ke proses reviu Dewas.',
                 'old_values' => null,
                 'new_values' => [
@@ -346,21 +350,20 @@ class KompilasiSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpKompilasi()) {
+        if (! $user || ! $user->canAccessSnpKompilasi()) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen kompilasi.');
         }
 
-        if (!$kompilasi->dokumen) {
+        if (! $kompilasi->dokumen) {
             abort(404, 'Dokumen kompilasi tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $kompilasi->dokumen);
+        $filePath = storage_path('app/public/'.$kompilasi->dokumen);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 
         return response()->download($filePath);
     }
-
 }

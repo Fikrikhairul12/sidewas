@@ -191,9 +191,7 @@
                                     <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
                                         Hasil Reviu
                                     </p>
-                                    <p class="whitespace-pre-line mt-2 max-w-lg text-xs text-slate-800">
-                                        {{ $review->hasil_review ?? '-' }}
-                                    </p>
+                                    <x-rich-content :content="$review->hasil_review" class="mt-2 max-w-lg text-xs text-slate-800" />
 
                                     <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
                                         Deliverables Reviu
@@ -222,6 +220,8 @@
                                                     status: @js($review->status),
                                                     status_pengajuan_tgl: @js($tanggapan?->status_pengajuan_tgl ?? 'pending'),
                                                     hasil_review: @js($review->hasil_review ?? ''),
+                                                    record_id: {{ $review->butir?->record?->id ?? 'null' }},
+                                                    image_upload_url: @js(route('djsn.reviu.images.store', $review->id, false)),
                                                     deliverables: @js($review->deliverables ?? '')
                                                 }; openModal = true"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
@@ -301,9 +301,12 @@
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
                                 Hasil Reviu
                             </label>
-                            <textarea name="hasil_review" rows="4" required x-model="selectedReview.hasil_review"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor surat reviu Dewas (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi hasil reviu..."></textarea>
+                            <x-snp-butir-editor module="djsn" name="hasil_review" label="Hasil Reviu"
+                                content-expression="selectedReview?.hasil_review"
+                                record-expression="selectedReview?.record_id"
+                                key-expression="openModal ? selectedReview?.id : 'closed'"
+                                upload-url-expression="selectedReview?.image_upload_url" />
+                            <p class="mt-2 text-xs text-slate-500">Cantumkan nomor surat reviu Dewas, tanggal, dan isi hasil reviu.</p>
                         </div>
 
                         <div>

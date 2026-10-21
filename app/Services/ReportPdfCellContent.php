@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use DOMDocument;
 use DOMElement;
 use DOMNode;
 use Dompdf\Dompdf;
@@ -68,6 +69,40 @@ class ReportPdfCellContent
             return;
         }
         if (! $node instanceof DOMElement || $node->hasAttribute('data-snp-butir-label')) {
+            return;
+        }
+        if ($node->hasAttribute('data-report-rich')) {
+            $this->flush($width);
+            $html = '';
+            foreach ($node->childNodes as $child) {
+                $html .= $node->ownerDocument->saveHTML($child);
+            }
+            $chunks = app(SnpButirReportContent::class)->pdfChunks(SnpButirContent::PREFIX.$html, $width);
+            $document = new DOMDocument('1.0', 'UTF-8');
+            $previous = libxml_use_internal_errors(true);
+            try {
+                $document->loadHTML('<?xml encoding="UTF-8"><div>'.implode('', $chunks).'</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NONET);
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($previous);
+            }
+            $prefix = 'result-'.$this->block++.'-';
+            foreach ($document->documentElement->childNodes as $child) {
+                if (! $child instanceof DOMElement) {
+                    continue;
+                }
+                if ($this->units !== [] && preg_match('/height:\s*4px/', $child->getAttribute('style'))) {
+                    $this->units[array_key_last($this->units)]['html'] .= $document->saveHTML($child);
+                } else {
+                    $this->units[] = [
+                        'html' => $document->saveHTML($child),
+                        'block' => $prefix.($child->hasAttribute('data-report-block') ? $child->getAttribute('data-report-block') : $this->block++),
+                        'line' => str_contains($child->getAttribute('class'), 'snp-content-line'),
+                        'keepNext' => $child->hasAttribute('data-report-keep-next'),
+                    ];
+                }
+            }
+
             return;
         }
         $tag = strtolower($node->tagName);

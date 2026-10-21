@@ -11,6 +11,7 @@ for await (const chunk of process.stdin) {
 const fixture = JSON.parse(input);
 const field = fixture.field || 'butir_snp';
 const imagePrefix = `/${fixture.module || 'snp'}/perekaman/1/gambar`;
+const uploadUrl = fixture.uploadUrl || imagePrefix;
 const buildRoot = resolve('public/build');
 let uploads = 0;
 const server = createServer((request, response) => {
@@ -19,7 +20,7 @@ const server = createServer((request, response) => {
         response.end(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/build/${fixture.css}"><script type="module" src="/build/${fixture.js}"></script></head><body>${fixture.html}</body></html>`);
         return;
     }
-    if (request.url === imagePrefix && request.method === 'POST') {
+    if (request.url === uploadUrl && request.method === 'POST') {
         uploads++;
         request.resume();
         request.on('end', () => {

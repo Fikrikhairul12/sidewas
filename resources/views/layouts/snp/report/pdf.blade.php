@@ -248,7 +248,7 @@
                             <td class="center">@include('layouts.snp.report.butir-label', ['isFirst' => $rowIndex === 0, 'showFirst' => true])</td>
                             <td class="snp-butir-cell" data-snp-butir-content="{{ $butir->id_butir_snp }}">{!! $contentChunks[$rowIndex] ?? '' !!}</td>
                             <td class="pre-line top">@if ($rowIndex === 0){{ implode("\n", ['PIC UNIT KERJA UTAMA:', $picUtama?->unitKerja?->kode_unit ?? '-', '', 'PIC UNIT KERJA PENDUKUNG:', $picPendukung->map(fn($pic) => $pic->unitKerja?->kode_unit)->filter()->implode(', ') ?: '-']) }}@endif</td>
-                            <td class="pre-line top">@if ($hasStage){{ $stage?->hasil_kompilasi ?? '-' }}@endif</td>
+                            <td class="top">@if ($hasStage)<x-rich-content data-report-rich :content="$stage?->hasil_kompilasi" />@endif</td>
                             <td class="pre-line top">@if ($hasStage){{ $stage?->deliverables ?? '-' }}@endif</td>
                             <td class="center">
                                 @if ($hasStage)
@@ -262,7 +262,7 @@
                             </td>
                             <td class="pre-line top">@if ($hasStage){{ ($rowIndex === 0 ? $jatuhTempoAwal : $jatuhTempoFinal)?->format('d-M-Y') ?? '-' }}@if ($rowIndex === 0 && $kompilasiTanggapan?->ubah_tgl){{ "\n\nPengajuan ubah tanggal:\n" . \Carbon\Carbon::parse($kompilasiTanggapan->ubah_tgl)->format('d-M-Y') . "\n\nStatus pengajuan:\n" . ucwords(str_replace('_', ' ', $kompilasiTanggapan->status_pengajuan_tgl ?? 'pending')) }}@endif @endif</td>
                             <td class="center">@if ($rowIndex === 0){{ $komitePic?->komite?->kode_komite ?? '-' }}@endif</td>
-                            <td class="pre-line top">@if ($hasStage){{ $review?->hasil_review ?? '-' }}@endif</td>
+                            <td class="top">@if ($hasStage)<x-rich-content data-report-rich :content="$review?->hasil_review" />@endif</td>
                             <td class="center">
                                 @if ($rowIndex === 0)
                                     <span class="status-badge {{ $statusTerbaruButirClass }}">{{ ucwords(str_replace('_', ' ', $statusTerbaruButir)) }}</span>

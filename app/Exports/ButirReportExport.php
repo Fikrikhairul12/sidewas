@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Services\SnpButirContent;
 use App\Services\SnpButirReportContent;
+use App\Services\WorkflowReportExcelContent;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -58,6 +59,10 @@ abstract class ButirReportExport extends StringValueBinder implements FromView, 
             $contentField = $this->module === 'djsn' ? 'isi_butir' : 'keputusan';
             $index = array_search($contentField, $this->selectedFields, true);
             if ($index === false) {
+                if ($this->module === 'djsn') {
+                    app(WorkflowReportExcelContent::class)->apply($sheet, $this->selectedFields);
+                }
+
                 return;
             }
             $sheet->setShowGridlines(false);
@@ -157,6 +162,9 @@ abstract class ButirReportExport extends StringValueBinder implements FromView, 
                     if ($value === '') {
                         continue;
                     }
+                    if ($this->module === 'djsn' && $field === 'hasil_reviu' && SnpButirContent::isRich($value)) {
+                        continue;
+                    }
                     $lines = array_sum(array_map(fn (string $line): int => max(1, (int) ceil(mb_strlen($line) / 26)), explode("\n", $value)));
                     $requiredHeight = $lines * 15 + 6;
                     $range = $cell->getMergeRange();
@@ -182,6 +190,9 @@ abstract class ButirReportExport extends StringValueBinder implements FromView, 
                     ]);
                 }
                 $firstRow = $lastRow + 1;
+            }
+            if ($this->module === 'djsn') {
+                app(WorkflowReportExcelContent::class)->apply($sheet, $this->selectedFields);
             }
         }];
     }

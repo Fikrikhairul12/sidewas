@@ -1,5 +1,5 @@
-@props(['contentExpression' => "''", 'recordExpression' => 'null', 'keyExpression' => "'new'", 'name' => 'butir_snp', 'module' => 'snp', 'label' => 'Isi Butir SNP'])
-<div data-snp-editor x-data="snpButirEditor(@js($module), @js($label))" x-effect="sync({{ $keyExpression }}, {{ $contentExpression }}, {{ $recordExpression }})" class="snp-editor">
+@props(['contentExpression' => "''", 'recordExpression' => 'null', 'keyExpression' => "'new'", 'uploadUrlExpression' => 'null', 'name' => 'butir_snp', 'module' => 'snp', 'label' => 'Isi Butir SNP'])
+<div data-snp-editor x-data="snpButirEditor(@js($module), @js($label))" x-effect="sync({{ $keyExpression }}, {{ $contentExpression }}, {{ $recordExpression }}, {{ $uploadUrlExpression }})" class="snp-editor">
     <input type="hidden" name="{{ $name }}" :value="value">
     <input type="hidden" name="editor_record_id" :value="{{ $recordExpression }}">
     <div x-ref="surface" class="snp-editor__surface" :aria-busy="busy">

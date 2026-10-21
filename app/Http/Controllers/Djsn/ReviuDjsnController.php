@@ -10,6 +10,7 @@ use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\SnpButirContent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class ReviuDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnReview()) {
+        if (! $user || ! $user->canAccessDjsnReview()) {
             abort(403, 'Anda tidak memiliki akses ke halaman reviu DJSN.');
         }
 
@@ -46,7 +47,7 @@ class ReviuDjsnController extends Controller
                     });
             });
 
-        if (!$user->isSuperAdmin()) {
+        if (! $user->isSuperAdmin()) {
             $query->whereIn('komite_id', $komiteIds);
         }
 
@@ -178,7 +179,7 @@ class ReviuDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canReviewDjsnByKomite($review->komite_id)) {
+        if (! $user || ! $user->canReviewDjsnByKomite($review->komite_id)) {
             abort(403, 'Anda tidak memiliki akses untuk mereviu data ini.');
         }
 
@@ -212,6 +213,10 @@ class ReviuDjsnController extends Controller
             ],
             'status_pengajuan_tgl' => ['nullable', 'in:pending,disetujui,ditolak'],
         ]);
+
+        $validated['hasil_review'] = app(SnpButirContent::class)->normalize(
+            $validated['hasil_review'], $review->butir->record->id, 'djsn', 'hasil_review', 'Hasil reviu'
+        );
 
         DB::connection('mysql_djsn')->transaction(function () use ($request, $validated, $review, $user) {
             $oldReview = $review->toArray();
@@ -260,7 +265,7 @@ class ReviuDjsnController extends Controller
 
                 if (
                     ($validated['status_pengajuan_tgl'] ?? null) === 'disetujui'
-                    && !empty($review->tanggapan->ubah_tgl)
+                    && ! empty($review->tanggapan->ubah_tgl)
                     && $review->butir
                     && $review->butir->record
                 ) {
@@ -306,7 +311,7 @@ class ReviuDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canReviewDjsnByKomite($review->komite_id)) {
+        if (! $user || ! $user->canReviewDjsnByKomite($review->komite_id)) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen ini.');
         }
 
@@ -322,13 +327,13 @@ class ReviuDjsnController extends Controller
             $dokumen = $review->tindakLanjut?->dokumen;
         }
 
-        if (!$dokumen) {
+        if (! $dokumen) {
             abort(404, 'Dokumen tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $dokumen);
+        $filePath = storage_path('app/public/'.$dokumen);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 

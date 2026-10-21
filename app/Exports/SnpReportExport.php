@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Services\SnpButirReportContent;
+use App\Services\WorkflowReportExcelContent;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Concerns\FromView;
@@ -66,6 +67,8 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
             }
             $index = array_search('isi_butir', $this->selectedFields, true);
             if ($index === false) {
+                app(WorkflowReportExcelContent::class)->apply($sheet, $this->selectedFields);
+
                 return;
             }
             $sheet->setShowGridlines(false);
@@ -150,6 +153,7 @@ class SnpReportExport extends StringValueBinder implements FromView, WithCustomV
                 }
                 $firstRow = $lastRow + 1;
             }
+            app(WorkflowReportExcelContent::class)->apply($sheet, $this->selectedFields);
         }];
     }
 }

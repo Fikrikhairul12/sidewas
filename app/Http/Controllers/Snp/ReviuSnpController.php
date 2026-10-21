@@ -5,12 +5,12 @@ namespace App\Http\Controllers\Snp;
 use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
 use App\Models\Komite;
-use App\Models\SnpCluster;
-use App\Models\SnpKompilasi;
-use App\Models\UnitKerja;
 use App\Models\LogActivity;
+use App\Models\SnpCluster;
 use App\Models\SnpReview;
+use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\SnpButirContent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +22,7 @@ class ReviuSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpReview()) {
+        if (! $user || ! $user->canAccessSnpReview()) {
             abort(403, 'Anda tidak memiliki akses ke halaman reviu SNP.');
         }
 
@@ -44,7 +44,7 @@ class ReviuSnpController extends Controller
             'komite',
         ]);
 
-        if (!$user->isSuperAdmin()) {
+        if (! $user->isSuperAdmin()) {
             $query->whereIn('komite_id', $komiteIds);
         }
 
@@ -179,7 +179,7 @@ class ReviuSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canReviewSnpByKomite($review->komite_id)) {
+        if (! $user || ! $user->canReviewSnpByKomite($review->komite_id)) {
             abort(403, 'Anda tidak memiliki akses untuk mereviu data ini.');
         }
 
@@ -210,6 +210,10 @@ class ReviuSnpController extends Controller
             ],
             'status_pengajuan_tgl' => ['nullable', 'in:pending,disetujui,ditolak'],
         ]);
+
+        $validated['hasil_review'] = app(SnpButirContent::class)->normalize(
+            $validated['hasil_review'], $review->butir->record->id, 'snp', 'hasil_review', 'Hasil reviu'
+        );
 
         DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $review, $user) {
             $oldReview = $review->toArray();
@@ -268,7 +272,7 @@ class ReviuSnpController extends Controller
 
                 if (
                     $statusPengajuanTanggal === 'disetujui'
-                    && !empty($review->kompilasiTanggapan->ubah_tgl)
+                    && ! empty($review->kompilasiTanggapan->ubah_tgl)
                     && $review->butir
                     && $review->butir->record
                 ) {
@@ -319,7 +323,7 @@ class ReviuSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canReviewSnpByKomite($review->komite_id)) {
+        if (! $user || ! $user->canReviewSnpByKomite($review->komite_id)) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen ini.');
         }
 
@@ -340,13 +344,13 @@ class ReviuSnpController extends Controller
 
         $dokumen = $kompilasi?->dokumen;
 
-        if (!$dokumen) {
+        if (! $dokumen) {
             abort(404, 'Dokumen kompilasi tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $dokumen);
+        $filePath = storage_path('app/public/'.$dokumen);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 
@@ -357,17 +361,17 @@ class ReviuSnpController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canReviewSnpByKomite($review->komite_id)) {
+        if (! $user || ! $user->canReviewSnpByKomite($review->komite_id)) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen memo reviu.');
         }
 
-        if (!$review->dokumen_memo) {
+        if (! $review->dokumen_memo) {
             abort(404, 'Dokumen memo reviu tidak ditemukan.');
         }
 
-        $filePath = storage_path('app/public/' . $review->dokumen_memo);
+        $filePath = storage_path('app/public/'.$review->dokumen_memo);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di storage.');
         }
 

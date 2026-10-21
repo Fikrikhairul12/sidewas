@@ -327,9 +327,7 @@
                                         <p class="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">
                                             Hasil Kompilasi
                                         </p>
-                                        <p class="mt-2 whitespace-pre-line text-xs text-slate-800">
-                                            {{ $kompilasi->hasil_kompilasi }}
-                                        </p>
+                                        <x-rich-content :content="$kompilasi->hasil_kompilasi" class="mt-2 text-xs text-slate-800" />
                                     @endif
 
                                     @if ($kompilasi?->deliverables)
@@ -394,6 +392,8 @@
                                                     putaran_tl: @js($item->putaran_tl ?? 1),
                                                     tahap_label: @js($item->tahap_label),
                                                     hasil_kompilasi: @js($kompilasi?->hasil_kompilasi ?? ''),
+                                                    record_id: {{ $butir->record?->id ?? 'null' }},
+                                                    image_upload_url: @js(route('snp.kompilasi.images.store', ['butir' => $butir->id, 'tahap_kompilasi' => $item->tahap, 'putaran_tl' => $item->putaran_tl ?? 1], false)),
                                                     deliverables: @js($kompilasi?->deliverables ?? ''),
                                                     ubah_tgl: @js($kompilasi?->ubah_tgl ? \Carbon\Carbon::parse($kompilasi->ubah_tgl)->format('Y-m-d') : ''),
                                                 }; openModal = true"
@@ -480,9 +480,12 @@
                                 Hasil Kompilasi
                             </label>
 
-                            <textarea name="hasil_kompilasi" rows="5" required x-model="selectedItem.hasil_kompilasi"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nomor surat kompilasi (B/XXXX/MMYYYY)&#10;Tanggal (DD-MM-YYYY)&#10;&#10;Isi kompilasi..."></textarea>
+                            <x-snp-butir-editor name="hasil_kompilasi" label="Hasil Kompilasi"
+                                content-expression="selectedItem?.hasil_kompilasi"
+                                record-expression="selectedItem?.record_id"
+                                key-expression="openModal ? selectedItem?.image_upload_url : 'closed'"
+                                upload-url-expression="selectedItem?.image_upload_url" />
+                            <p class="mt-2 text-xs text-slate-500">Cantumkan nomor surat kompilasi, tanggal, dan isi kompilasi.</p>
                         </div>
 
                         <div>

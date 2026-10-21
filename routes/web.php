@@ -41,6 +41,7 @@ use App\Http\Controllers\Snp\ReviuSnpController;
 use App\Http\Controllers\Snp\SnpButirImageController;
 use App\Http\Controllers\Snp\TanggapanSnpController;
 use App\Http\Controllers\Snp\TindakLanjutSnpController;
+use App\Http\Controllers\WorkflowImageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [DashboardController::class, 'index'])
@@ -236,6 +237,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/snp/kompilasi/{butir}', [KompilasiSnpController::class, 'store'])
         ->name('snp.kompilasi.store');
 
+    Route::post('/snp/kompilasi/{butir}/gambar', [WorkflowImageController::class, 'snpKompilasi'])
+        ->middleware('throttle:30,1')->name('snp.kompilasi.images.store');
+
     Route::get('/snp/kompilasi/{kompilasi}/dokumen', [KompilasiSnpController::class, 'downloadDokumen'])
         ->name('snp.kompilasi.dokumen');
 });
@@ -246,6 +250,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::patch('/snp/reviu/{review}', [ReviuSnpController::class, 'update'])
         ->name('snp.reviu.update');
+
+    Route::post('/snp/reviu/{review}/gambar', [WorkflowImageController::class, 'snpReviu'])
+        ->middleware('throttle:30,1')->name('snp.reviu.images.store');
 
     Route::get('/snp/reviu/{review}/dokumen', [ReviuSnpController::class, 'downloadDokumen'])
         ->name('snp.reviu.dokumen');
@@ -539,6 +546,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::patch('/djsn/reviu/{review}', [ReviuDjsnController::class, 'update'])
         ->name('djsn.reviu.update');
+
+    Route::post('/djsn/reviu/{review}/gambar', [WorkflowImageController::class, 'djsnReviu'])
+        ->middleware('throttle:30,1')->name('djsn.reviu.images.store');
 
     Route::get('/djsn/reviu/{review}/dokumen', [ReviuDjsnController::class, 'downloadDokumen'])
         ->name('djsn.reviu.dokumen');

@@ -23,6 +23,7 @@ window.snpButirEditor = function (module = 'snp', label = 'Isi Butir SNP') {
     let canvas;
     let currentKey;
     let currentRecord;
+    let currentUploadUrl;
     let originalValue = '';
     let form;
     let submitHandler;
@@ -48,8 +49,9 @@ window.snpButirEditor = function (module = 'snp', label = 'Isi Butir SNP') {
                 this.ready = true;
             });
         },
-        sync(key, content, record) {
+        sync(key, content, record, uploadUrl = null) {
             if (!this.ready) return;
+            currentUploadUrl = uploadUrl;
             if (currentKey === String(key)) return;
             uploadVersion++;
             this.busy = false;
@@ -114,7 +116,7 @@ window.snpButirEditor = function (module = 'snp', label = 'Isi Butir SNP') {
         async upload(file) {
             if (!file || this.busy) return;
             if ((editor?.getHTML().match(/<img /g) ?? []).length >= 20) {
-                this.error = 'Maksimal 20 gambar dalam satu butir.';
+                this.error = `Maksimal 20 gambar dalam ${label.toLowerCase()}.`;
                 return;
             }
             if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 2 * 1024 * 1024) {
@@ -131,7 +133,7 @@ window.snpButirEditor = function (module = 'snp', label = 'Isi Butir SNP') {
             try {
                 const data = new FormData();
                 data.append('image', file);
-                const response = await fetch(`/${module}/perekaman/${currentRecord}/gambar`, {
+                const response = await fetch(currentUploadUrl || `/${module}/perekaman/${currentRecord}/gambar`, {
                     method: 'POST', body: data, credentials: 'same-origin',
                     headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
                 });

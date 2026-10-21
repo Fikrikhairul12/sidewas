@@ -421,9 +421,7 @@
                                                 Hasil Reviu
                                             </p>
 
-                                            <p class="mt-2 max-w-lg whitespace-pre-line text-xs text-slate-800">
-                                                {{ $reviewTerakhir->hasil_review }}
-                                            </p>
+                                            <x-rich-content :content="$reviewTerakhir->hasil_review" class="mt-2 max-w-lg text-xs text-slate-800" />
                                         @endif
 
                                         @if ($reviewTerakhir->deliverables)

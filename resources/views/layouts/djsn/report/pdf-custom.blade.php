@@ -253,7 +253,7 @@
                                 </td>
                             @elseif ($field === 'hasil_reviu')
                                 <td class="pre-line">
-                                    {{ $reviewTanggapan?->hasil_review ?? '-' }}
+                                    <x-rich-content data-report-rich :content="$reviewTanggapan?->hasil_review" />
                                 </td>
                             @elseif ($field === 'status')
                                 <td class="center">
@@ -309,7 +309,7 @@
                                     </td>
                                 @elseif ($field === 'hasil_reviu')
                                     <td class="pre-line">
-                                        {{ $reviewTl?->hasil_review ?? '-' }}
+                                        <x-rich-content data-report-rich :content="$reviewTl?->hasil_review" />
                                     </td>
                                 @elseif ($field === 'status')
                                     <td class="center">

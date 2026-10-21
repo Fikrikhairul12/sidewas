@@ -271,7 +271,7 @@
                         </td>
 
                         <td class="pre-line top">
-                            {{ $reviewTanggapan?->hasil_review ?? '-' }}
+                            <x-rich-content data-report-rich :content="$reviewTanggapan?->hasil_review" />
                         </td>
 
                         <td class="center">
@@ -333,7 +333,7 @@
                             </td>
 
                             <td class="pre-line top">
-                                {{ $reviewTl?->hasil_review ?? '-' }}
+                                <x-rich-content data-report-rich :content="$reviewTl?->hasil_review" />
                             </td>
 
                             <td class="center">

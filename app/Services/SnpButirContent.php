@@ -29,11 +29,11 @@ class SnpButirContent
         };
     }
 
-    public function normalize(string $value, int $recordId, string $module = 'snp'): string
+    public function normalize(string $value, int $recordId, string $module = 'snp', ?string $field = null, string $label = 'Isi butir'): string
     {
-        $field = self::contentField($module);
+        $field ??= self::contentField($module);
         if (strlen($value) > 500000) {
-            throw ValidationException::withMessages([$field => 'Isi butir terlalu panjang (maksimal 500 KB).']);
+            throw ValidationException::withMessages([$field => $label.' terlalu panjang (maksimal 500 KB).']);
         }
 
         if (! self::isRich($value)) {
@@ -43,7 +43,8 @@ class SnpButirContent
         $html = $this->html($value);
         $images = $this->images(self::PREFIX.$html);
         if (count($images) > 20) {
-            throw ValidationException::withMessages([$field => 'Maksimal 20 gambar dalam satu butir.']);
+            $description = $label === 'Isi butir' ? 'satu butir' : strtolower($label);
+            throw ValidationException::withMessages([$field => 'Maksimal 20 gambar dalam '.$description.'.']);
         }
         foreach ($images as $image) {
             if ($image['module'] !== $module || $image['record_id'] !== $recordId || ! Storage::disk('local')->exists($image['path'])) {
@@ -51,7 +52,7 @@ class SnpButirContent
             }
         }
         if (preg_replace('/[\s\x{00a0}\x{200b}]+/u', '', $this->plain(self::PREFIX.$html)) === '' && $images === []) {
-            throw ValidationException::withMessages([$field => 'Isi butir wajib diisi.']);
+            throw ValidationException::withMessages([$field => $label.' wajib diisi.']);
         }
 
         return self::PREFIX.$html;

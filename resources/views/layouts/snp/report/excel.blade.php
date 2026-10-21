@@ -184,11 +184,10 @@
                             <td>{{ $komitePic?->komite?->kode_komite ?? '-' }}</td>
                         @elseif ($field === 'hasil_reviu')
                             <td>
-                                Reviu Tanggapan:
-                                {{ $reviewTanggapan?->hasil_review ?? '-' }}
-
-                                Reviu Tindak Lanjut:
-                                {{ $reviewTl?->hasil_review ?? '-' }}
+                                {{ app(\App\Services\WorkflowReportExcelContent::class)->combine([
+                                    ['label' => 'Reviu Tanggapan:', 'content' => $reviewTanggapan?->hasil_review],
+                                    ['label' => 'Reviu Tindak Lanjut:', 'content' => $reviewTl?->hasil_review],
+                                ]) }}
                             </td>
                         @elseif ($field === 'status')
                             <td>{{ ucwords(str_replace('_', ' ', $status)) }}</td>
