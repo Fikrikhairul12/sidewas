@@ -102,12 +102,15 @@ class TanggapanUnitService
             'complete' => $pics->isNotEmpty() && $pics->every(fn ($pic): bool => $responses->contains(fn ($response): bool => (int) $response->unit_kerja_id === (int) $pic->unit_kerja_id)),
             'round_id' => $this->currentRoundId($butir),
             'round_label' => $label,
+            'is_closed' => $butir->record?->getAttribute('closed_at') !== null,
             'detail' => [
                 'id' => $butir->id,
                 'id_surat' => $butir->record?->{'id_'.$module},
                 'id_butir' => $butir->{'id_butir_'.$module},
                 'butir_content' => $butir->{'butir_'.$module},
                 'round_label' => $label,
+                'closed_at' => $butir->record?->closed_at?->format('d/m/Y H:i'),
+                'closed_status_label' => $this->isClosed($butir) ? SuratStatus::labelFor($butir->record->status) : null,
                 'pic_tanggapans' => $cards->values()->all(),
                 'rounds' => $this->detailRounds($butir, $user, $cards),
             ],
@@ -135,6 +138,8 @@ class TanggapanUnitService
                 'id_butir' => $butir->{'id_butir_'.$module},
                 'butir_content' => $butir->{'butir_'.$module},
                 'sudah_menanggapi' => true,
+                'submitted_after_close' => $response->submitted_after_close_at !== null,
+                'submitted_after_close_at' => $response->submitted_after_close_at?->format('d/m/Y H:i'),
                 'tanggapan' => $response->tanggapan,
                 'tanggapan_singkat' => Str::limit($response->tanggapan ?? '', 110),
                 'deliverables' => $response->deliverables,
@@ -188,6 +193,7 @@ class TanggapanUnitService
                 'round_label' => $round->isLegacy() ? 'Putaran awal' : 'Putaran '.$round->nomor_putaran,
                 'is_current' => $active,
                 'read_only' => ! $active,
+                'is_closed' => $active && $butir->record->closed_at !== null,
                 'opened_at' => $round->opened_at?->format('d/m/Y H:i'),
                 'archived_at' => $round->archived_at?->format('d/m/Y H:i'),
                 'pic_tanggapans' => $cards->values()->all(),
@@ -341,13 +347,17 @@ class TanggapanUnitService
         }
         $round = $butir->record->putaran->firstWhere('id', $this->currentRoundId($butir));
 
+        if ($butir->record->closed_at !== null && (int) $butir->record->closed_putaran_id !== (int) $round?->id) {
+            return false;
+        }
+
         return $round === null || $round->archived_at === null;
     }
 
     private function isClosed(SnpButir|DjsnButir $butir): bool
     {
         return $butir->record?->status === 'tuntas'
-            || (SuratStatus::tryFrom($butir->record?->status ?? '')?->isClosed() ?? false);
+            || ($butir->record?->isWorkflowClosed() ?? false);
     }
 
     private function prepareLegacyNextStep(SnpButir|DjsnButir $butir, SnpTanggapan|DjsnTanggapan $response, User $user): void
@@ -392,7 +402,8 @@ class TanggapanUnitService
             'table_name' => 'tb_tanggapan',
             'record_key' => $response->{'id_butir_'.$module},
             'action' => $action,
-            'description' => ($action === 'create' ? 'User membuat' : 'User mengubah').' tanggapan '.strtoupper($module).'.',
+            'description' => ($response->submitted_after_close_at !== null ? 'Tanggapan setelah penutupan: ' : '')
+                .($action === 'create' ? 'User membuat' : 'User mengubah').' tanggapan '.strtoupper($module).'.',
             'old_values' => $oldValues,
             'new_values' => $response->fresh()->toArray(),
             'ip_address' => $request->ip(),

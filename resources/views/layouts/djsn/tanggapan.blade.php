@@ -206,6 +206,9 @@
                                         <div class="mt-4 space-y-3">
                                             @foreach ($tanggapanList->take(2) as $item)
                                                 <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                                                    @if ($item->submitted_after_close_at)
+                                                        <p class="mb-2 text-xs font-bold text-amber-700">Tanggapan setelah penutupan · {{ $item->submitted_after_close_at->format('d/m/Y H:i') }}</p>
+                                                    @endif
                                                     <p class="text-xs font-bold uppercase tracking-wide"
                                                         style="color: #2377b9;">
                                                         {{ $item->unitKerja?->kode_unit ?? '-' }}
@@ -252,6 +255,7 @@
                                                 @click="selectedButir = {
                                                     id: {{ $butir->id }},
                                                     putaran_id: @js($responseState['round_id']),
+                                                    is_closed: @js($responseState['is_closed']),
                                                     id_butir_djsn: @js($butir->id_butir_djsn),
                                                     butir_djsn: @js($butir->butir_djsn),
                                                     id_djsn: @js($butir->record?->id_djsn),
@@ -337,6 +341,9 @@
                     class="px-6 py-6">
                     @csrf
                     <input type="hidden" name="putaran_id" :value="selectedButir?.putaran_id ?? ''">
+                    <p x-show="selectedButir?.is_closed" data-after-close-form class="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        Surat sudah Close. Tanggapan ini akan ditandai sebagai Tanggapan setelah penutupan dan tidak mengubah bahan atau keputusan reviu.
+                    </p>
                     <x-butir-preview class="mb-5" content-expression="selectedButir?.butir_djsn" id-expression="selectedButir?.id_butir_djsn" context="Rujukan tanggapan DJSN" />
 
                     @if ($errors->any())

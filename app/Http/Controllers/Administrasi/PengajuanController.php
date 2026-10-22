@@ -210,6 +210,9 @@ class PengajuanController extends Controller
             /** @var class-string<Model> $modelClass */
             $modelClass = $config['model'];
             $record = $modelClass::where($config['key'], $deleteRequest->record_key)->firstOrFail();
+            if ($record instanceof SnpRecord || $record instanceof DjsnRecord) {
+                $record = $record->lockForWorkflowMutation();
+            }
 
             $oldRecord = $record->load($config['relations'])->toArray();
             $oldRequest = $deleteRequest->toArray();

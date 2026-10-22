@@ -51,6 +51,9 @@
                                         <p class="mt-2 text-xs font-semibold text-slate-500">Putaran lama (terkunci)</p>
                                     @endif
                                     <p class="mt-2 text-xs text-slate-600">Status Surat: {{ \App\Enums\SuratStatus::labelFor($review->butir?->record?->status) }}</p>
+                                    @if ($review->butir?->record?->closed_at)
+                                        <p class="mt-2 text-xs font-semibold text-blue-700">Close · {{ $review->butir->record->closed_at->format('d/m/Y H:i') }}. Bahan dan keputusan reviu terkunci.</p>
+                                    @endif
                                     <p class="mt-2 text-xs text-slate-600">Komite: {{ $review->komite?->nama_komite ?? 'Belum ditetapkan' }}</p>
                                     <x-butir-preview class="mt-3" :content="$review->butir?->{'butir_'.$module} ?? ''" :butir-id="$review->{'id_butir_'.$module}" />
                                 </td>

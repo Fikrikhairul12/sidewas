@@ -137,7 +137,7 @@ test('compilation permissions mirror SNP SBD requirements without granting revie
     }
 })->with(['snp', 'djsn']);
 
-test('only four new review values are accepted and rejection reopens the letter while closure awaits integration', function (string $module) {
+test('only four new review values are accepted and decisions reopen or close the letter', function (string $module) {
     [$user, $butir, $review] = prepareCompilation($module);
     foreach (['dalam_proses_tindak_lanjut_direksi', 'selesai_tuntas', 'dalam_proses_reviu_dewas', 'invalid'] as $status) {
         $this->patchJson(route($module.'.reviu.update', $review), ['hasil_review' => 'Tidak valid', 'status' => $status])->assertUnprocessable()->assertJsonValidationErrors('status');
@@ -156,6 +156,10 @@ test('only four new review values are accepted and rejection reopens the letter 
         if ($status === 'tindak_lanjut_belum_sesuai') {
             expect($butir->record->fresh()->status)->toBe('proses_tindak_lanjut_belum_sesuai')
                 ->and($butir->record->fresh()->putaranAktif->nomor_putaran)->toBe(1);
+        } elseif (in_array($status, ['tindak_lanjut_sesuai', 'tidak_dapat_ditindaklanjuti'], true)) {
+            expect($butir->record->fresh()->status)->toBe($status)
+                ->and($butir->record->fresh()->closed_review_id)->toBe($review->id)
+                ->and($butir->record->fresh()->closed_at)->not->toBeNull();
         } else {
             expect($butir->record->fresh()->getRawOriginal())->toBe($before);
         }

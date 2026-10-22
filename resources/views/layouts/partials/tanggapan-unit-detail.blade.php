@@ -17,7 +17,7 @@
                             <select id="tanggapan-round" data-tanggapan-round x-model="selectedDetailRoundId" @change="selectDetailRound($event.target.value)"
                                 class="rounded-xl border-slate-300 text-sm">
                                 <template x-for="round in detailRounds" :key="round.id">
-                                    <option :value="round.id" x-text="round.round_label + (round.is_current ? ' (Aktif)' : ' (Terkunci)')"></option>
+                                    <option :value="round.id" x-text="round.round_label + (round.is_closed ? ' (Close)' : (round.is_current ? ' (Aktif)' : ' (Terkunci)'))"></option>
                                 </template>
                             </select>
                         </div>
@@ -61,7 +61,7 @@
                                         <span class="block truncate text-sm font-bold text-slate-800"
                                             x-text="`${pic.initial} - ${pic.jenis_pic}`"></span>
                                         <span class="mt-1 block text-xs text-slate-500"
-                                            x-text="pic.sudah_menanggapi ? 'Sudah mengisi tanggapan' : 'Belum mengisi tanggapan'"></span>
+                                            x-text="pic.submitted_after_close ? 'Tanggapan setelah penutupan' : (pic.sudah_menanggapi ? 'Sudah mengisi tanggapan' : 'Belum mengisi tanggapan')"></span>
                                     </span>
 
                                     <svg x-show="pic.sudah_menanggapi" class="h-5 w-5 shrink-0 text-green-500"
@@ -79,6 +79,11 @@
                     </div>
 
                     <div class="min-w-0 space-y-5 p-6 lg:max-h-[70vh] lg:overflow-y-auto">
+                        <p x-show="detailButir?.closed_at" data-surat-closed class="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                            <strong x-text="'Close: ' + (detailButir?.closed_status_label ?? '')"></strong>
+                            <span class="block" x-text="'Ditutup pada ' + (detailButir?.closed_at ?? '')"></span>
+                            Unit yang belum mengisi dapat melengkapi putaran terakhir. Kelengkapan ini tidak mengubah bahan atau keputusan reviu.
+                        </p>
                         <p x-show="detailRound?.read_only" data-round-readonly class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                             Putaran lama terkunci. Tanggapan baru hanya dapat diisi pada putaran aktif.
                         </p>
@@ -89,6 +94,11 @@
                                 <div>
                                     <p class="text-lg font-bold" style="color: #2377b9;"
                                         x-text="selectedDetailPic.unit_label"></p>
+                                    <p x-show="selectedDetailPic.submitted_after_close" data-after-close class="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                                        <strong>Tanggapan setelah penutupan</strong>
+                                        <span class="block" x-text="selectedDetailPic.submitted_after_close_at"></span>
+                                        Kelengkapan terlambat, tidak termasuk bahan keputusan reviu.
+                                    </p>
                                 </div>
 
                                 <div class="grid gap-4 text-sm md:grid-cols-[130px_minmax(0,1fr)]">

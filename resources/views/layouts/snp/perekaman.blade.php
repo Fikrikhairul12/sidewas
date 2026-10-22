@@ -576,7 +576,7 @@
                                 {{-- Aksi --}}
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        @if (auth()->user()->canCreateSnpPerekaman())
+                                        @if (auth()->user()->canCreateSnpPerekaman() && $record->closed_at === null)
                                             @if ($record->isButirAdditionLocked())
                                                 <button type="button" disabled
                                                     class="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500 shadow-sm"
@@ -603,13 +603,15 @@
                                             Detail
                                         </button>
 
-                                        <button type="button" @click="openEditModalFor(@js($editRecordPayload))"
-                                            class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
-                                            style="background-color: #2377b9;">
-                                            Edit
-                                        </button>
+                                        @if ($record->closed_at === null)
+                                            <button type="button" @click="openEditModalFor(@js($editRecordPayload))"
+                                                class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
+                                                style="background-color: #2377b9;">
+                                                Edit
+                                            </button>
+                                        @endif
 
-                                        @if (auth()->user()->canRequestDeleteSnpPerekaman())
+                                        @if (auth()->user()->canRequestDeleteSnpPerekaman() && $record->closed_at === null)
                                             <form method="POST"
                                                 action="{{ route('snp.perekaman.destroy.request', $record->id) }}"
                                                 onsubmit="return confirm('Ajukan penghapusan perekaman ini?')">

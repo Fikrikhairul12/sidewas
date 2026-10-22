@@ -265,6 +265,7 @@ class PerekamanSnpController extends Controller
         if (! $user || ! $user->canCreateSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman SNP.');
         }
+        abort_if($record->closed_at !== null, 422, 'Surat sudah Close. Butir dan penugasan tidak dapat ditambah.');
 
         if ($record->isButirAdditionLocked()) {
             return back()
@@ -288,6 +289,7 @@ class PerekamanSnpController extends Controller
         $validated['butir_snp'] = app(SnpButirContent::class)->normalize($validated['butir_snp'], (int) $record->id);
 
         DB::connection('mysql_snp')->transaction(function () use ($request, $validated, $record) {
+            $record = $record->lockForWorkflowMutation();
             $butir = SnpButir::create([
                 'id_snp' => $record->id_snp,
                 'butir_snp' => $validated['butir_snp'],
@@ -352,6 +354,7 @@ class PerekamanSnpController extends Controller
         if (! $user || ! $user->canCreateSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman SNP.');
         }
+        abort_if($record->closed_at !== null, 422, 'Surat sudah Close. Perekaman dan penugasan tidak dapat diubah.');
 
         $validated = $request->validate([
             'tanggal_surat' => ['required', 'date'],
@@ -513,6 +516,7 @@ class PerekamanSnpController extends Controller
             $payload['butir']['butir_snp'] = app(SnpButirContent::class)->normalize($payload['butir']['butir_snp'], (int) $record->id);
         }
         DB::connection('mysql_snp')->transaction(function () use ($record, $payload, $user, $request) {
+            $record = $record->lockForWorkflowMutation();
             $oldValues = $record->load([
                 'cluster',
                 'subCluster',
@@ -623,10 +627,12 @@ class PerekamanSnpController extends Controller
         if (! $user || ! $user->canRequestDeleteSnpPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menghapus perekaman SNP.');
         }
+        abort_if($record->closed_at !== null, 422, 'Surat sudah Close dan harus tetap tersimpan sebagai riwayat.');
 
         // Super admin langsung hapus
         if ($user->isSuperAdmin()) {
             DB::connection('mysql_snp')->transaction(function () use ($request, $record, $user) {
+                $record = $record->lockForWorkflowMutation();
                 $oldData = $record->load([
                     'butirSnp.butirPics',
                     'cluster',

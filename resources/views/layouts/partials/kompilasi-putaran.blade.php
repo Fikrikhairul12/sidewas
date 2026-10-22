@@ -32,7 +32,8 @@
                             @php
                                 $compilation = $workflow->current($butir->kompilasis, $butir)->firstWhere('tahap_kompilasi', 'tanggapan');
                                 $unitIds = $butir->butirPics->whereIn('jenis_pic', ['utama', 'pendukung'])->pluck('unit_kerja_id')->filter()->unique();
-                                $answered = $butir->tanggapanAktif->pluck('unit_kerja_id')->filter()->unique();
+                                $responses = $workflow->current($butir->tanggapanAktif, $butir);
+                                $answered = $responses->pluck('unit_kerja_id')->filter()->unique();
                                 $payload = [
                                     'action' => route($module.'.kompilasi.store', $butir), 'putaran_id' => $workflow->roundId($butir),
                                     'butir_id' => $butir->{'id_butir_'.$module}, 'butir' => $butir->{'butir_'.$module},
@@ -45,12 +46,16 @@
                             <tr>
                                 <td class="px-6 py-5 align-top">
                                     <p class="font-bold text-blue-700">{{ $butir->record->nomor_surat }}</p>
+                                    @if ($butir->record->closed_at)
+                                        <p class="mt-2 text-xs font-semibold text-blue-700">Close: {{ \App\Enums\SuratStatus::labelFor($butir->record->status) }} · {{ $butir->record->closed_at->format('d/m/Y H:i') }}.</p>
+                                        <p class="mt-1 text-xs text-slate-500">Bahan kompilasi terkunci. Tanggapan setelah penutupan tersedia melalui Detail di halaman Tanggapan.</p>
+                                    @endif
                                     <p class="mt-2 text-xs text-slate-600">{{ $butir->{'id_butir_'.$module} }} · {{ $workflow->roundLabel($butir) }}</p>
                                     <x-butir-preview class="mt-3" :content="$butir->{'butir_'.$module}" :butir-id="$butir->{'id_butir_'.$module}" />
                                 </td>
                                 <td class="px-6 py-5 align-top text-sm text-slate-700">
                                     <p class="font-semibold">{{ $answered->intersect($unitIds)->count() }} dari {{ $unitIds->count() }} unit telah menanggapi</p>
-                                    @forelse ($butir->tanggapanAktif as $response)
+                                    @forelse ($responses as $response)
                                         <details class="mt-3">
                                             <summary class="cursor-pointer font-semibold">{{ $response->unitKerja?->nama_unit ?? 'Unit pengisi belum teridentifikasi (data lama)' }}</summary>
                                             <p class="mt-2 text-xs text-slate-500">{{ $response->creator?->name ?? '-' }} · {{ $response->created_at?->format('d/m/Y H:i') ?? '-' }}</p>

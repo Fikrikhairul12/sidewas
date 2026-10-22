@@ -58,9 +58,10 @@ class ReviuPutaranService
     {
         $roundId = $this->roundId($butir);
 
-        return $rows->filter(fn ($row) => $row->putaran_id === null
+        return $rows->filter(fn ($row) => ($row->putaran_id === null
             ? $butir->record?->putaran_aktif_id === null
-            : (int) $row->putaran_id === $roundId);
+            : (int) $row->putaran_id === $roundId)
+            && ($row->getTable() !== 'tb_tanggapan' || $row->submitted_after_close_at === null));
     }
 
     public function canCompile(User $user, SnpButir|DjsnButir $butir): bool
@@ -185,6 +186,9 @@ class ReviuPutaranService
                     $nextRound = $review->status === ReviuStatus::TindakLanjutBelumSesuai->value
                         ? $this->reopenForRevision($review, $round, $user, $request)
                         : null;
+                    if (SuratStatus::tryFrom($review->status)?->isClosed()) {
+                        $this->closeLetter($review, $round, $user, $request);
+                    }
                     $this->log($request, $user, $review, 'update_review_putaran', $old);
 
                     return $nextRound;
@@ -194,6 +198,25 @@ class ReviuPutaranService
             Storage::disk('public')->delete($newFiles);
             throw $exception;
         }
+    }
+
+    private function closeLetter(SnpReview|DjsnReview $review, SuratPutaran $round, User $user, Request $request): void
+    {
+        $record = $review->butir->record;
+        $old = $record->getRawOriginal();
+        $record->forceFill([
+            'status' => $review->status, 'closed_at' => now(), 'closed_by' => $user->id,
+            'closed_review_id' => $review->id, 'closed_putaran_id' => $round->id, 'updated_by' => $user->id,
+        ])->save();
+
+        LogActivity::create([
+            'user_id' => $user->id, 'type_code' => $this->module($review), 'database_name' => 'sidewas_'.$this->module($review),
+            'table_name' => 'tb_record', 'record_key' => $record->{'id_'.$this->module($review)},
+            'action' => 'close_surat_putaran',
+            'description' => 'Surat ditutup: '.SuratStatus::from($review->status)->label().'. Kelengkapan terlambat tidak menjadi bahan keputusan reviu.',
+            'old_values' => $old, 'new_values' => $record->getRawOriginal(),
+            'ip_address' => $request->ip(), 'user_agent' => $request->userAgent(),
+        ]);
     }
 
     private function reopenForRevision(SnpReview|DjsnReview $review, SuratPutaran $round, User $user, Request $request): SuratPutaran
@@ -235,7 +258,7 @@ class ReviuPutaranService
     private function roundIsOpen(SnpButir|DjsnButir $butir): bool
     {
         $record = $butir->record;
-        if ($record === null || $record->status === 'tuntas' || (SuratStatus::tryFrom($record->status ?? '')?->isClosed() ?? false)) {
+        if ($record === null || $record->status === 'tuntas' || $record->isWorkflowClosed()) {
             return false;
         }
         $round = $record->putaran->firstWhere('id', $this->roundId($butir));

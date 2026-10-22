@@ -48,14 +48,20 @@ try {
         else request.abort();
     });
     for (const [index, data] of fixture.pages.entries()) {
+        const canCreate = ['pending', 'new-round', 'closed-pending'].includes(data.mode);
         await page.goto(`http://127.0.0.1:${server.address().port}/${index}`, { waitUntil: 'networkidle0' });
         await page.waitForFunction(() => window.Alpine && document.querySelector('[x-data^="tanggapan"]')?._x_dataStack);
         assert.deepEqual(errors, [], `${data.mode}: page must initialize without Alpine errors`);
-        assert.equal((await page.$$('[data-beri-tanggapan]')).length, ['pending', 'new-round'].includes(data.mode) ? 1 : 0);
+        assert.equal((await page.$$('[data-beri-tanggapan]')).length, canCreate ? 1 : 0);
         assert.equal((await page.$$('tbody .snp-butir-read-button')).length, 0);
         await page.click('[data-tanggapan-detail]');
         await page.waitForSelector('[x-show="openDetailModal"]', { visible: true });
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('[x-show="openDetailModal"]')).opacity === '1');
         assert.ok(await page.$eval('[x-show="openDetailModal"] .snp-rich-content', node => node.textContent.includes('Isi butir lama')));
+        if (data.mode.startsWith('closed-')) {
+            await page.waitForSelector('[data-surat-closed]', { visible: true });
+            assert.ok(await page.$eval('[data-surat-closed]', node => node.innerText.includes('Close:')));
+        }
         if (data.historyRounds) {
             await page.waitForSelector('[data-tanggapan-round]', { visible: true });
             assert.equal(await page.$eval('[data-tanggapan-round]', node => node.value), String(data.currentRoundId));
@@ -87,17 +93,27 @@ try {
         } else {
             assert.equal(await page.$eval('[data-edit-tanggapan]', node => getComputedStyle(node).display), 'none');
         }
-        if (data.mode === 'pending') {
+        if (['pending', 'closed-pending', 'closed-late'].includes(data.mode)) {
             await page.click('[data-unit-next]');
             assert.equal(await page.$eval('[x-show="openDetailModal"]', node => node.innerText.includes('B - Unit B')), true);
         }
-        if (['pending', 'new-round'].includes(data.mode)) {
+        if (data.mode === 'closed-late') {
+            await page.waitForSelector('[data-after-close]', { visible: true });
+            assert.ok(await page.$eval('[data-after-close]', node => node.innerText.includes('tidak termasuk bahan keputusan reviu')));
+            assert.equal(await page.$eval('[data-edit-tanggapan]', node => getComputedStyle(node).display), 'none');
+            if (fixture.screenshot) await page.screenshot({ path: fixture.screenshot });
+        }
+        if (canCreate) {
             await page.$eval('[x-show="openDetailModal"]', node => {
                 window.Alpine.$data(node).openDetailModal = false;
             });
             await page.waitForSelector('[x-show="openDetailModal"]', { hidden: true });
             await page.click('[data-beri-tanggapan]');
             await page.waitForSelector('[x-show="openModal"]', { visible: true });
+            if (data.mode === 'closed-pending') {
+                await page.waitForSelector('[data-after-close-form]', { visible: true });
+                assert.ok(await page.$eval('[data-after-close-form]', node => node.innerText.includes('Tanggapan setelah penutupan')));
+            }
             await page.waitForFunction(() => document.querySelectorAll('[data-tanggapan-create] select option').length > 1);
             const options = await page.$$eval('[data-tanggapan-create] select option', nodes => nodes.filter(node => node.value).map(node => Number(node.value)));
             assert.deepEqual(options, [data.picId]);

@@ -114,6 +114,7 @@ function setUpWorkflowTestDatabase(): void
     });
     (require database_path('migrations/2026_10_21_134321_add_surat_putaran_foundation.php'))->up();
     (require database_path('migrations/2026_10_21_141454_enable_snp_djsn_initial_letter_statuses.php'))->up();
+    (require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php'))->up();
     Storage::fake('local');
 }
 

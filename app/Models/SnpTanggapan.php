@@ -18,6 +18,8 @@ class SnpTanggapan extends Model
 
     protected $table = 'tb_tanggapan';
 
+    protected $casts = ['submitted_after_close_at' => 'datetime'];
+
     protected $fillable = [
         'putaran_id',
         'unit_kerja_id',

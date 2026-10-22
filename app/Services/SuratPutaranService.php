@@ -21,6 +21,9 @@ class SuratPutaranService
 
         return DB::connection($connection)->transaction(function () use ($surat, $connection, $actorId): SuratPutaran {
             $record = $surat->newQuery()->lockForUpdate()->findOrFail($surat->getKey());
+            if ($record->isWorkflowClosed() || $record->status === 'tuntas') {
+                throw new LogicException('Surat yang sudah ditutup tidak dapat membuka putaran baru.');
+            }
             $active = $record->putaranAktif;
 
             if ($active !== null && $active->archived_at === null) {
@@ -50,6 +53,9 @@ class SuratPutaranService
     {
         return $putaran->getConnection()->transaction(function () use ($putaran, $actorId): SuratPutaran {
             $record = $putaran->surat()->lockForUpdate()->firstOrFail();
+            if ($record->isWorkflowClosed() || $record->status === 'tuntas') {
+                throw new LogicException('Putaran terakhir surat yang sudah ditutup harus tetap tersedia untuk kelengkapan terlambat.');
+            }
             $current = $putaran->fresh();
 
             if ($current->isLegacy() || (int) $record->putaran_aktif_id !== (int) $current->id || $current->archived_at !== null) {
@@ -116,7 +122,18 @@ class SuratPutaranService
             throw new LogicException('Riwayat putaran yang sudah diarsipkan tidak boleh diubah.');
         }
 
+        if (($record->closed_at ?? null) !== null
+            && ($model->exists || $model->getTable() !== 'tb_tanggapan' || (int) $record->closed_putaran_id !== (int) $putaran->id)) {
+            throw new LogicException('Bahan dan keputusan surat yang sudah ditutup tidak boleh diubah. Hanya unit yang belum mengisi putaran terakhir dapat melengkapi.');
+        }
+
         if ($model->getTable() === 'tb_tanggapan') {
+            if ($model->exists && $model->isDirty('submitted_after_close_at')) {
+                throw new LogicException('Penanda tanggapan setelah penutupan tidak boleh diubah.');
+            }
+            if (! $model->exists && property_exists($record, 'closed_at')) {
+                $model->setAttribute('submitted_after_close_at', $record->closed_at === null ? null : now());
+            }
             $this->prepareResponseUnit($model, $putaran, $module);
 
             if ($model->exists && $model->isDirty(['butir_pic_id', 'unit_kerja_id'])) {

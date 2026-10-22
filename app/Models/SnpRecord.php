@@ -35,6 +35,7 @@ class SnpRecord extends Model
     ];
 
     protected $casts = [
+        'closed_at' => 'datetime',
         'pernah_terbit' => 'boolean',
         'tanggal_surat' => 'date',
         'jth_tempo' => 'date',

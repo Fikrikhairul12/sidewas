@@ -255,6 +255,7 @@ class PerekamanDjsnController extends Controller
         if (! $user || ! $user->canCreateDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menambah perekaman DJSN.');
         }
+        abort_if($record->closed_at !== null, 422, 'Surat sudah Close. Butir dan penugasan tidak dapat ditambah.');
 
         if ($record->isButirAdditionLocked()) {
             return back()
@@ -280,6 +281,7 @@ class PerekamanDjsnController extends Controller
         $validated['butir_djsn'] = app(SnpButirContent::class)->normalize($validated['butir_djsn'], (int) $record->id, 'djsn');
 
         DB::connection('mysql_djsn')->transaction(function () use ($request, $validated, $record) {
+            $record = $record->lockForWorkflowMutation();
             $butir = DjsnButir::create([
                 'id_djsn' => $record->id_djsn,
                 'butir_djsn' => $validated['butir_djsn'],
@@ -346,10 +348,12 @@ class PerekamanDjsnController extends Controller
         if (! $user || ! $user->canRequestDeleteDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk menghapus perekaman DJSN.');
         }
+        abort_if($record->closed_at !== null, 422, 'Surat sudah Close dan harus tetap tersimpan sebagai riwayat.');
 
         // Super admin langsung hapus
         if ($user->isSuperAdmin()) {
             DB::connection('mysql_djsn')->transaction(function () use ($request, $record, $user) {
+                $record = $record->lockForWorkflowMutation();
                 $oldData = $record->load([
                     'butirDjsn.butirPics',
                     'butirDjsn.cluster',
@@ -465,6 +469,7 @@ class PerekamanDjsnController extends Controller
         if (! $user || ! $user->canCreateDjsnPerekaman()) {
             abort(403, 'Anda tidak memiliki akses untuk mengedit perekaman DJSN.');
         }
+        abort_if($record->closed_at !== null, 422, 'Surat sudah Close. Perekaman dan penugasan tidak dapat diubah.');
 
         $existingButir = $record->butirDjsn()->whereKey($request->integer('butir_id'))->first();
 
@@ -601,6 +606,7 @@ class PerekamanDjsnController extends Controller
             $payload['butir']['butir_djsn'] = app(SnpButirContent::class)->normalize($payload['butir']['butir_djsn'], (int) $record->id, 'djsn');
         }
         DB::connection('mysql_djsn')->transaction(function () use ($record, $payload, $user, $request) {
+            $record = $record->lockForWorkflowMutation();
             $oldValues = $record->load(['butirDjsn.butirPics'])->toArray();
             $recordPayload = $payload['record'] ?? [];
             $butirPayload = $payload['butir'] ?? [];

@@ -33,6 +33,9 @@ class SuratPutaran extends Model
     protected static function booted(): void
     {
         static::updating(function (self $putaran): void {
+            if ($putaran->surat()->first()?->getAttribute('closed_at') !== null) {
+                throw new LogicException('Putaran terakhir surat yang sudah ditutup tidak boleh diubah.');
+            }
             if ($putaran->isDirty(['record_id', 'nomor_putaran']) || $putaran->getRawOriginal('archived_at') !== null) {
                 throw new LogicException('Identitas atau arsip putaran tidak boleh diubah.');
             }

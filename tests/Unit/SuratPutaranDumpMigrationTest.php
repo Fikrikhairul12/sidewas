@@ -21,6 +21,15 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
+function awaitWorkflowWorker(Process $process): void
+{
+    $deadline = microtime(true) + 10;
+    while (! str_contains($process->getOutput(), "ready\n") && $process->isRunning() && microtime(true) < $deadline) {
+        usleep(10_000);
+    }
+    expect(str_contains($process->getOutput(), "ready\n"))->toBeTrue($process->getOutput().$process->getErrorOutput());
+}
+
 beforeEach(function () {
     $port = getenv('SIDEWAS_PUTARAN_TEST_MYSQL_PORT');
     if (! $port) {
@@ -83,6 +92,9 @@ test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga
 
     $this->migration->up();
     $this->migration->up();
+    $closure = require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php');
+    $closure->up();
+    $closure->up();
     $reviewChoices = require database_path('migrations/2026_10_22_085515_expand_snp_djsn_review_status_choices.php');
     $reviewChoices->up();
     $reviewChoices->up();
@@ -179,23 +191,28 @@ test('fondasi MySQL dapat dipasang dan dibatalkan pada skema instalasi baru', fu
     (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();
     (require database_path('migrations/2026_06_03_093422_create_djsn_tables.php'))->up();
     $this->migration->up();
+    $closure = require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php');
+    $closure->up();
     foreach (['snp', 'djsn'] as $module) {
         expect(Schema::connection('mysql_'.$module)->hasColumn('tb_tanggapan', 'putaran_id'))->toBeTrue()
             ->and(SuratPutaran::on('mysql_'.$module)->count())->toBe(0);
     }
+    $closure->down();
     $this->migration->down();
     $this->migration->up();
+    $closure->up();
     foreach (['snp', 'djsn'] as $module) {
         expect(Schema::connection('mysql_'.$module)->hasTable('tb_surat_putaran'))->toBeTrue();
     }
 });
 
-test('MySQL opens one correction round when the same letter receives concurrent rejection decisions', function (bool $sameReview) {
+test('MySQL applies only one final or correction decision when reviews of the same letter are submitted concurrently', function (bool $sameReview, string $firstDecision, string $secondDecision) {
     (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();
     (require database_path('migrations/2026_06_03_093422_create_djsn_tables.php'))->up();
     $this->migration->up();
     (require database_path('migrations/2026_10_21_141454_enable_snp_djsn_initial_letter_statuses.php'))->up();
     (require database_path('migrations/2026_10_22_085515_expand_snp_djsn_review_status_choices.php'))->up();
+    (require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php'))->up();
 
     $worker = <<<'PHP'
         require $argv[1].'/vendor/autoload.php';
@@ -217,8 +234,8 @@ test('MySQL opens one correction round when the same letter receives concurrent 
         fwrite(STDOUT, "ready\n");
         fflush(STDOUT);
         try {
-            app(App\Services\ReviuPutaranService::class)->review($review, $user, ['hasil_review' => 'Perbaiki seluruh surat', 'status' => 'tindak_lanjut_belum_sesuai'], Illuminate\Http\Request::create('/test-loop', 'PATCH'));
-            fwrite(STDOUT, "opened\n");
+            $next = app(App\Services\ReviuPutaranService::class)->review($review, $user, ['hasil_review' => 'Keputusan seluruh surat', 'status' => $argv[5]], Illuminate\Http\Request::create('/test-loop', 'PATCH'));
+            fwrite(STDOUT, $next ? "opened\n" : "closed\n");
         } catch (Symfony\Component\HttpKernel\Exception\HttpException $exception) {
             if ($exception->getStatusCode() !== 422) {
                 throw $exception;
@@ -257,26 +274,35 @@ test('MySQL opens one correction round when the same letter receives concurrent 
         $db->beginTransaction();
         try {
             $db->table('tb_record')->where('id', $record->id)->lockForUpdate()->first();
-            foreach ([$reviews[0]->id, $sameReview ? $reviews[0]->id : $reviews[1]->id] as $reviewId) {
-                $process = new Process([PHP_BINARY, '-r', $worker, base_path(), json_encode(config('database.connections.'.$connection)), $module, (string) $reviewId], base_path(), ['APP_ENV' => 'testing', 'LOG_CHANNEL' => 'stderr']);
+            foreach ([$reviews[0]->id, $sameReview ? $reviews[0]->id : $reviews[1]->id] as $index => $reviewId) {
+                $process = new Process([PHP_BINARY, '-r', $worker, base_path(), json_encode(config('database.connections.'.$connection)), $module, (string) $reviewId, $index ? $secondDecision : $firstDecision], base_path(), ['APP_ENV' => 'testing', 'LOG_CHANNEL' => 'stderr']);
                 $process->setTimeout(30)->start();
                 $processes[] = $process;
-                expect($process->waitUntil(fn ($type, $output): bool => str_contains($output, 'ready')))->toBeTrue($process->getErrorOutput());
+                awaitWorkflowWorker($process);
             }
             $db->commit();
             $outcomes = [];
             foreach ($processes as $process) {
                 $process->wait();
                 expect($process->isSuccessful())->toBeTrue($process->getErrorOutput());
-                $outcomes[] = str_contains($process->getOutput(), 'opened') ? 'opened' : 'stale';
+                $outcomes[] = str_contains($process->getOutput(), 'opened') ? 'opened' : (str_contains($process->getOutput(), 'closed') ? 'closed' : 'stale');
             }
             sort($outcomes);
-            expect($outcomes)->toBe(['opened', 'stale'])
-                ->and($record->fresh()->status)->toBe('proses_tindak_lanjut_belum_sesuai')
-                ->and($record->fresh()->putaran()->pluck('nomor_putaran')->all())->toBe([0, 1])
-                ->and($record->fresh()->putaranAktif->created_by)->toBe(999)
-                ->and($db->table('tb_review')->where('status', 'tindak_lanjut_belum_sesuai')->count())->toBe(1)
-                ->and($db->table('tb_log_activity')->where('action', 'buka_putaran_perbaikan')->count())->toBe(1);
+            expect($outcomes)->toBe(in_array('closed', $outcomes) ? ['closed', 'stale'] : ['opened', 'stale']);
+            if (in_array('closed', $outcomes)) {
+                expect($record->fresh()->status)->toBeIn([$firstDecision, $secondDecision])
+                    ->and($record->fresh()->closed_by)->toBe(999)->and($record->fresh()->closed_at)->not->toBeNull()
+                    ->and($record->fresh()->putaran()->pluck('nomor_putaran')->all())->toBe([0])
+                    ->and($db->table('tb_log_activity')->where('action', 'close_surat_putaran')->count())->toBe(1)
+                    ->and($db->table('tb_log_activity')->where('action', 'buka_putaran_perbaikan')->count())->toBe(0);
+            } else {
+                expect($record->fresh()->status)->toBe('proses_tindak_lanjut_belum_sesuai')
+                    ->and($record->fresh()->closed_at)->toBeNull()
+                    ->and($record->fresh()->putaran()->pluck('nomor_putaran')->all())->toBe([0, 1])
+                    ->and($record->fresh()->putaranAktif->created_by)->toBe(999)
+                    ->and($db->table('tb_log_activity')->where('action', 'buka_putaran_perbaikan')->count())->toBe(1);
+            }
+            expect($db->table('tb_review')->where('status', '!=', 'belum_ditanggapi')->count())->toBe(1);
         } finally {
             if ($db->transactionLevel() > 0) {
                 $db->rollBack();
@@ -288,12 +314,18 @@ test('MySQL opens one correction round when the same letter receives concurrent 
             }
         }
     }
-})->with([true, false]);
+})->with([true, false])->with([
+    ['tindak_lanjut_belum_sesuai', 'tindak_lanjut_belum_sesuai'],
+    ['tindak_lanjut_sesuai', 'tidak_dapat_ditindaklanjuti'],
+    ['tidak_dapat_ditindaklanjuti', 'tindak_lanjut_belum_sesuai'],
+]);
 
-test('MySQL serializes concurrent responses by unit even for different PIC assignments', function () {
+test('MySQL serializes concurrent responses by unit including late completion after Close', function (bool $closed) {
     (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();
     (require database_path('migrations/2026_06_03_093422_create_djsn_tables.php'))->up();
     $this->migration->up();
+    (require database_path('migrations/2026_10_22_085515_expand_snp_djsn_review_status_choices.php'))->up();
+    (require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php'))->up();
     $worker = <<<'PHP'
         require $argv[1].'/vendor/autoload.php';
         $app = require $argv[1].'/bootstrap/app.php';
@@ -323,6 +355,14 @@ test('MySQL serializes concurrent responses by unit even for different PIC assig
         foreach (['utama', 'pendukung'] as $jenis) {
             $pics[] = $db->table('tb_butir_pic')->insertGetId(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'jenis_pic' => $jenis, 'unit_kerja_id' => 10]);
         }
+        if ($closed) {
+            $compilationClass = $module === 'snp' ? SnpKompilasi::class : DjsnKompilasi::class;
+            $reviewClass = $module === 'snp' ? SnpReview::class : DjsnReview::class;
+            $compilation = $compilationClass::create(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'hasil_kompilasi' => 'Bahan final', 'tahap_kompilasi' => 'tanggapan', 'created_by' => 999]);
+            $review = $reviewClass::create(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'kompilasi_id' => $compilation->id, 'putaran_id' => $compilation->putaran_id, 'tahap_review' => 'tanggapan', 'status' => 'tindak_lanjut_sesuai', 'hasil_review' => 'Keputusan final', 'created_by' => 999]);
+            $record->forceFill(['status' => 'tindak_lanjut_sesuai', 'closed_at' => now(), 'closed_by' => 999, 'closed_review_id' => $review->id, 'closed_putaran_id' => $review->putaran_id])->save();
+        }
+        $snapshot = $record->fresh()->getRawOriginal();
         $processes = [];
         $db->beginTransaction();
         try {
@@ -331,7 +371,7 @@ test('MySQL serializes concurrent responses by unit even for different PIC assig
                 $process = new Process([PHP_BINARY, '-r', $worker, base_path(), json_encode(config('database.connections.mysql_'.$module)), $module, $butir->{'id_butir_'.$module}, (string) $pic], base_path(), ['APP_ENV' => 'testing', 'LOG_CHANNEL' => 'stderr']);
                 $process->setTimeout(30)->start();
                 $processes[] = $process;
-                expect($process->waitUntil(fn ($type, $output): bool => str_contains($output, 'ready')))->toBeTrue($process->getErrorOutput());
+                awaitWorkflowWorker($process);
             }
             $db->commit();
             $outcomes = [];
@@ -342,6 +382,8 @@ test('MySQL serializes concurrent responses by unit even for different PIC assig
             }
             sort($outcomes);
             expect($outcomes)->toBe(['created', 'duplicate'])->and($db->table('tb_tanggapan')->count())->toBe(1);
+            expect($db->table('tb_tanggapan')->whereNotNull('submitted_after_close_at')->count())->toBe($closed ? 1 : 0)
+                ->and($record->fresh()->getRawOriginal())->toBe($snapshot);
         } finally {
             if ($db->transactionLevel() > 0) {
                 $db->rollBack();
@@ -353,4 +395,4 @@ test('MySQL serializes concurrent responses by unit even for different PIC assig
             }
         }
     }
-});
+})->with([false, true]);

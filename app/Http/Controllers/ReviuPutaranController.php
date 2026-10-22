@@ -114,7 +114,9 @@ class ReviuPutaranController extends Controller
 
         return redirect()->route($this->workflow->module($review).'.reviu.index')->with('success', $nextRound
             ? 'Reviu berhasil disimpan. Putaran '.$nextRound->nomor_putaran.' dibuka untuk seluruh unit pada surat ini. Tanggapan baru diisi melalui halaman Tanggapan.'
-            : 'Reviu berhasil disimpan.');
+            : ($review->fresh()->butir->record->closed_at !== null
+                ? 'Reviu berhasil disimpan. Surat Close. Unit yang belum mengisi dapat melengkapi putaran terakhir tanpa mengubah keputusan.'
+                : 'Reviu berhasil disimpan.'));
     }
 
     public function kompilasiDokumen(Request $request, int $kompilasi, string $module = 'djsn'): StreamedResponse
