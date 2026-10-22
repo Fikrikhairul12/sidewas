@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Djsn;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ReviuPutaranController;
 use App\Models\Direktorat;
 use App\Models\DjsnCluster;
 use App\Models\DjsnReview;
@@ -10,6 +11,7 @@ use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ReviuPutaranService;
 use App\Services\SnpButirContent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +22,10 @@ class ReviuDjsnController extends Controller
 {
     public function index(Request $request)
     {
+        if (ReviuPutaranService::enabled()) {
+            return app(ReviuPutaranController::class)->reviewIndex($request, 'djsn');
+        }
+
         $user = User::find(Auth::id());
 
         if (! $user || ! $user->canAccessDjsnReview()) {
@@ -177,6 +183,10 @@ class ReviuDjsnController extends Controller
 
     public function update(Request $request, DjsnReview $review)
     {
+        if (ReviuPutaranService::enabled()) {
+            return app(ReviuPutaranController::class)->reviewUpdate($request, $review);
+        }
+
         $user = User::find(Auth::id());
 
         if (! $user || ! $user->canReviewDjsnByKomite($review->komite_id)) {
@@ -313,6 +323,10 @@ class ReviuDjsnController extends Controller
 
         if (! $user || ! $user->canReviewDjsnByKomite($review->komite_id)) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen ini.');
+        }
+
+        if (ReviuPutaranService::enabled() && $review->kompilasi_id !== null) {
+            return app(ReviuPutaranController::class)->download($review->kompilasiPutaran?->dokumen);
         }
 
         $review->load(['tanggapan', 'tindakLanjut']);

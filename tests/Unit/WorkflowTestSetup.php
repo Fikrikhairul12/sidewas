@@ -44,6 +44,7 @@ function setUpWorkflowTestDatabase(): void
             foreach (['id_'.$module, 'nomor_surat', 'tanggal_surat', 'jth_tempo', 'perihal_surat', 'dokumen', 'dokumen_memo', 'status'] as $column) {
                 $table->string($column)->nullable();
             }
+            $table->unique('id_'.$module);
             foreach (['cluster_id', 'sub_cluster_id', 'created_by', 'updated_by'] as $column) {
                 $table->integer($column)->nullable();
             }
@@ -52,7 +53,7 @@ function setUpWorkflowTestDatabase(): void
         $schema->create('tb_butir_'.$module, function (Blueprint $table) use ($module): void {
             $table->id();
             $table->string('id_'.$module);
-            $table->string('id_butir_'.$module);
+            $table->string('id_butir_'.$module)->unique();
             $table->text('butir_'.$module);
             $table->string('status')->default('terbit');
             foreach (['cluster_id', 'sub_cluster_id', 'created_by', 'updated_by'] as $column) {
@@ -135,7 +136,8 @@ function workflowButir(string $module): SnpButir|DjsnButir
 {
     $recordClass = $module === 'snp' ? SnpRecord::class : DjsnRecord::class;
     $butirClass = $module === 'snp' ? SnpButir::class : DjsnButir::class;
-    $record = $recordClass::create(['nomor_surat' => 'SURAT-UJI', 'tanggal_surat' => '2026-10-21']);
+    $number = $recordClass::count();
+    $record = $recordClass::create(['nomor_surat' => 'SURAT-UJI'.($number ? '-'.($number + 1) : ''), 'tanggal_surat' => '2026-10-21']);
     $butir = $butirClass::create(['id_'.$module => $record->{'id_'.$module}, 'butir_'.$module => 'Isi butir lama']);
     DB::connection('mysql_'.$module)->table('tb_butir_pic')->insert(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'jenis_pic' => 'komite', 'komite_id' => 1]);
     DB::connection('mysql_'.$module)->table('tb_butir_pic')->insert(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'jenis_pic' => 'utama', 'unit_kerja_id' => 1]);

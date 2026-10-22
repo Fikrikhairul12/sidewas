@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Snp;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ReviuPutaranController;
 use App\Models\Direktorat;
 use App\Models\Komite;
 use App\Models\LogActivity;
@@ -12,6 +13,7 @@ use App\Models\SnpKompilasi;
 use App\Models\SnpReview;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ReviuPutaranService;
 use App\Services\SnpButirContent;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -23,6 +25,10 @@ class KompilasiSnpController extends Controller
 {
     public function index(Request $request)
     {
+        if (ReviuPutaranService::enabled()) {
+            return app(ReviuPutaranController::class)->kompilasiIndex($request, 'snp');
+        }
+
         $user = User::find(Auth::id());
 
         if (! $user || ! $user->canAccessSnpKompilasi()) {
@@ -227,6 +233,10 @@ class KompilasiSnpController extends Controller
 
     public function store(Request $request, SnpButir $butir)
     {
+        if (ReviuPutaranService::enabled()) {
+            return app(ReviuPutaranController::class)->kompilasiStore($request, $butir->id, 'snp');
+        }
+
         $user = User::find(Auth::id());
 
         if (! $user || ! $user->canCreateSnpKompilasi()) {

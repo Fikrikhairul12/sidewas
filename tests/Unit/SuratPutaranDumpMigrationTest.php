@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ReviuStatus;
 use App\Models\DjsnButir;
 use App\Models\DjsnRecord;
 use App\Models\SnpButir;
@@ -77,6 +78,9 @@ test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga
 
     $this->migration->up();
     $this->migration->up();
+    $reviewChoices = require database_path('migrations/2026_10_22_085515_expand_snp_djsn_review_status_choices.php');
+    $reviewChoices->up();
+    $reviewChoices->up();
 
     foreach ($snapshots as $module => $tables) {
         $db = DB::connection('mysql_'.$module);
@@ -120,6 +124,10 @@ test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga
             expect($review->kompilasiPutaran->id)->toBe($compilation->id)
                 ->and($response->putaran->nomor_putaran)->toBe($number)
                 ->and($putaran->tanggapan()->count())->toBe(1);
+            foreach (array_keys(ReviuStatus::options()) as $choice) {
+                $db->table('tb_review')->where('id', $review->id)->update(['status' => $choice]);
+                expect($review->fresh()->status)->toBe($choice);
+            }
             foreach ($previous as [$model, $snapshot]) {
                 expect($model->fresh()->getRawOriginal())->toEqual($snapshot);
                 expect(fn () => $model->update(['tanggapan' => 'Dilarang menimpa']))->toThrow(LogicException::class);
@@ -129,6 +137,7 @@ test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga
         }
 
         expect($record->putaran()->pluck('nomor_putaran')->all())->toBe([0, 1, 2, 3]);
+        expect(fn () => $reviewChoices->down())->toThrow(RuntimeException::class);
         foreach ($tables as $table => $snapshot) {
             if ($table === 'tb_record') {
                 continue;

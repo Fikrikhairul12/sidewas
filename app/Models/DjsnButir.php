@@ -6,6 +6,7 @@ use App\Models\Concerns\HasTanggapanUnit;
 use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DjsnButir extends Model
 {
@@ -84,6 +85,11 @@ class DjsnButir extends Model
     public function reviews()
     {
         return $this->hasMany(DjsnReview::class, 'id_butir_djsn', 'id_butir_djsn');
+    }
+
+    public function kompilasis(): HasMany
+    {
+        return $this->hasMany(DjsnKompilasi::class, 'id_butir_djsn', 'id_butir_djsn');
     }
 
     public function creator()

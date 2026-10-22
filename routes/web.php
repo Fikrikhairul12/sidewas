@@ -34,6 +34,7 @@ use App\Http\Controllers\Rawas\PerekamanRawasController;
 use App\Http\Controllers\Rawas\ReportRawasController;
 use App\Http\Controllers\Rawas\ReviuRawasController;
 use App\Http\Controllers\Rawas\TindakLanjutRawasController;
+use App\Http\Controllers\ReviuPutaranController;
 use App\Http\Controllers\Snp\KompilasiSnpController;
 use App\Http\Controllers\Snp\PerekamanSnpController;
 use App\Http\Controllers\Snp\ReportSnpController;
@@ -536,6 +537,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/djsn/tanggapan', [TanggapanDjsnController::class, 'index'])
         ->name('djsn.tanggapan.index');
 
+    Route::get('/djsn/kompilasi', [ReviuPutaranController::class, 'kompilasiIndex'])
+        ->name('djsn.kompilasi.index');
+    Route::post('/djsn/kompilasi/{butir}', [ReviuPutaranController::class, 'kompilasiStore'])
+        ->whereNumber('butir')->name('djsn.kompilasi.store');
+    Route::post('/djsn/kompilasi/{butir}/gambar', [WorkflowImageController::class, 'djsnKompilasi'])
+        ->whereNumber('butir')->middleware('throttle:30,1')->name('djsn.kompilasi.images.store');
+    Route::get('/djsn/kompilasi/{kompilasi}/dokumen', [ReviuPutaranController::class, 'kompilasiDokumen'])
+        ->whereNumber('kompilasi')->name('djsn.kompilasi.dokumen');
+
     Route::post('/djsn/tanggapan/{butir}', [TanggapanDjsnController::class, 'store'])
         ->name('djsn.tanggapan.store');
 
@@ -546,6 +556,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/djsn/reviu', [ReviuDjsnController::class, 'index'])
         ->name('djsn.reviu.index');
+
+    Route::get('/djsn/reviu/{review}/hasil-dokumen', [ReviuPutaranController::class, 'reviewDokumen'])
+        ->defaults('module', 'djsn')->whereNumber('review')->name('djsn.reviu.hasil-dokumen');
+    Route::get('/snp/reviu/{review}/hasil-dokumen', [ReviuPutaranController::class, 'reviewDokumen'])
+        ->defaults('module', 'snp')->whereNumber('review')->name('snp.reviu.hasil-dokumen');
 
     Route::patch('/djsn/reviu/{review}', [ReviuDjsnController::class, 'update'])
         ->name('djsn.reviu.update');

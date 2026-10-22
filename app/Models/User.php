@@ -913,4 +913,18 @@ class User extends Authenticatable
                 && $this->hasUnitKerjaSbd()
             );
     }
+
+    public function canAccessDjsnKompilasi(): bool
+    {
+        return $this->canAccessType('djsn');
+    }
+
+    public function canCreateDjsnKompilasi(): bool
+    {
+        return $this->isSuperAdmin()
+            || (
+                ($this->hasRoleType('admin_djsn') || $this->hasRoleType('moderator_djsn'))
+                && $this->hasUnitKerjaSbd()
+            );
+    }
 }

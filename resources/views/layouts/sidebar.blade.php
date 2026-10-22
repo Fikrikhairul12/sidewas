@@ -409,6 +409,7 @@
             $canAccessDjsnTanggapan = $authUser?->canAccessDjsnTanggapan() ?? false;
             $canAccessDjsnTindakLanjut = $authUser?->canAccessDjsnTindakLanjut() ?? false;
             $canAccessDjsnReview = $authUser?->canAccessDjsnReview() ?? false;
+            $canAccessDjsnKompilasi = \App\Services\ReviuPutaranService::enabled() && ($authUser?->canAccessDjsnKompilasi() ?? false);
             $canAccessDjsnReport = $authUser?->canAccessDjsnReport() ?? false;
         @endphp
         <div x-data="{ open: false }">
@@ -483,6 +484,14 @@
                     <a href="#"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition cursor-not-allowed opacity-60 text-slate-600 hover:bg-blue-50">
                         Tindak Lanjut
+                    </a>
+                @endif
+
+                @if ($canAccessDjsnKompilasi)
+                    <a href="{{ route('djsn.kompilasi.index') }}"
+                        class="block border-b border-slate-200 px-10 py-3 text-sm transition
+                        {{ request()->routeIs('djsn.kompilasi.*') ? 'bg-blue-50 text-sidewas-blue font-semibold' : 'text-slate-600 hover:bg-blue-50 hover:text-sidewas-blue' }}">
+                        Kompilasi
                     </a>
                 @endif
 

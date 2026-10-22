@@ -296,6 +296,9 @@ class TanggapanUnitService
 
     private function prepareLegacyNextStep(SnpButir|DjsnButir $butir, SnpTanggapan|DjsnTanggapan $response, User $user): void
     {
+        if (ReviuPutaranService::enabled()) {
+            return;
+        }
         if ($this->hasReviewedMaterial($butir)) {
             return;
         }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Snp;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ReviuPutaranController;
 use App\Models\Direktorat;
 use App\Models\Komite;
 use App\Models\LogActivity;
@@ -10,6 +11,7 @@ use App\Models\SnpCluster;
 use App\Models\SnpReview;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ReviuPutaranService;
 use App\Services\SnpButirContent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +22,10 @@ class ReviuSnpController extends Controller
 {
     public function index(Request $request)
     {
+        if (ReviuPutaranService::enabled()) {
+            return app(ReviuPutaranController::class)->reviewIndex($request, 'snp');
+        }
+
         $user = User::find(Auth::id());
 
         if (! $user || ! $user->canAccessSnpReview()) {
@@ -177,6 +183,10 @@ class ReviuSnpController extends Controller
 
     public function update(Request $request, SnpReview $review)
     {
+        if (ReviuPutaranService::enabled()) {
+            return app(ReviuPutaranController::class)->reviewUpdate($request, $review);
+        }
+
         $user = User::find(Auth::id());
 
         if (! $user || ! $user->canReviewSnpByKomite($review->komite_id)) {
@@ -325,6 +335,10 @@ class ReviuSnpController extends Controller
 
         if (! $user || ! $user->canReviewSnpByKomite($review->komite_id)) {
             abort(403, 'Anda tidak memiliki akses untuk mengunduh dokumen ini.');
+        }
+
+        if (ReviuPutaranService::enabled() && $review->kompilasi_id !== null) {
+            return app(ReviuPutaranController::class)->download($review->kompilasiPutaran?->dokumen);
         }
 
         $review->load([
