@@ -203,6 +203,11 @@ class DashboardController extends Controller
             'diusulkan_tuntas' => $this->countButirsByStatus($module, $filters, 'diusulkan_tuntas'),
             'selesai_tuntas' => $this->countButirsByStatus($module, $filters, 'selesai_tuntas'),
         ];
+        $letterStatus = in_array($typeCode, ['snp', 'djsn'], true);
+        $closedLetters = ($statusSurat['tindak_lanjut_sesuai'] ?? 0) + ($statusSurat['tidak_dapat_ditindaklanjuti'] ?? 0) + ($statusSurat['tuntas'] ?? 0);
+        $progress = $letterStatus
+            ? ($totalSurat > 0 ? round($closedLetters / $totalSurat * 100, 1) : 0)
+            : ($totalButir > 0 ? round($statusButir['selesai_tuntas'] / $totalButir * 100, 1) : 0);
 
         return [
             'code' => $typeCode,
@@ -211,7 +216,8 @@ class DashboardController extends Controller
             'total_surat' => $totalSurat,
             'total_butir' => $totalButir,
             'jatuh_tempo' => $this->countOverdueButirs($module, $filters),
-            'progress' => $totalButir > 0 ? round(($statusButir['selesai_tuntas'] / $totalButir) * 100, 1) : 0,
+            'progress' => $progress,
+            'uses_letter_status' => $letterStatus,
             'status_surat' => $statusSurat,
             'status_butir' => $statusButir,
         ];
@@ -273,6 +279,13 @@ class DashboardController extends Controller
      */
     private function countOverdueButirs(array $module, array $filters): int
     {
+        if (in_array($module['record_model'], [SnpRecord::class, DjsnRecord::class], true)) {
+            return $this->butirQuery($module, $filters)->whereHas($module['record_relation'], function ($query): void {
+                $query->whereNotIn('status', ['tindak_lanjut_sesuai', 'tidak_dapat_ditindaklanjuti', 'tuntas'])
+                    ->whereDate('jth_tempo', '<', now()->toDateString());
+            })->count();
+        }
+
         return (clone $this->butirQuery($module, $filters))
             ->where('status', '!=', 'selesai_tuntas')
             ->whereHas($module['record_relation'], function ($recordQuery): void {
@@ -291,17 +304,22 @@ class DashboardController extends Controller
         return collect($activeTypeCodes)
             ->flatMap(function (string $typeCode) use ($modules, $filters, $sender) {
                 $module = $modules[$typeCode];
+                $letterStatus = in_array($typeCode, ['snp', 'djsn'], true);
 
                 return $this->butirQuery($module, $filters)
                     ->with([$module['record_relation'], 'butirPics'])
-                    ->where(function ($query) use ($module): void {
+                    ->where(function ($query) use ($module, $letterStatus): void {
                         $query
                             ->whereHas($module['record_relation'], function ($recordQuery): void {
                                 $recordQuery->whereDate('jth_tempo', '<=', now()->addDays(14)->toDateString());
                             })
-                            ->orWhereIn('status', ['dalam_proses', 'diusulkan_tuntas']);
+                            ->when($letterStatus,
+                                fn ($query) => $query->orWhereHas($module['record_relation'], fn ($recordQuery) => $recordQuery->whereIn('status', ['proses', 'proses_tindak_lanjut_belum_sesuai'])),
+                                fn ($query) => $query->orWhereIn('status', ['dalam_proses', 'diusulkan_tuntas']));
                     })
-                    ->where('status', '!=', 'selesai_tuntas')
+                    ->when($letterStatus,
+                        fn ($query) => $query->whereHas($module['record_relation'], fn ($recordQuery) => $recordQuery->whereNotIn('status', ['tindak_lanjut_sesuai', 'tidak_dapat_ditindaklanjuti', 'tuntas'])),
+                        fn ($query) => $query->where('status', '!=', 'selesai_tuntas'))
                     ->latest()
                     ->limit(5)
                     ->get()
@@ -396,7 +414,7 @@ class DashboardController extends Controller
             'No Surat: '.$record->{$module['record_key']},
             'ID Butir: '.$butir->{$module['butir_key']},
             'Perihal: '.($record->perihal_surat ?? '-'),
-            'Status: '.$this->statusLabel($butir->status),
+            'Status: '.(in_array($module['record_model'], [SnpRecord::class, DjsnRecord::class], true) ? SuratStatus::labelFor($record->status) : $this->statusLabel($butir->status)),
             'Jatuh Tempo: '.(optional($record->jth_tempo)->format('d/m/Y') ?? '-'),
             '',
             'Dikirim oleh: '.$sender->email,
@@ -430,7 +448,7 @@ class DashboardController extends Controller
             'No Surat: '.$record->{$module['record_key']},
             'ID Butir: '.$butir->{$module['butir_key']},
             'Perihal: '.($record->perihal_surat ?? '-'),
-            'Status: '.$this->statusLabel($butir->status),
+            'Status: '.(in_array($module['record_model'], [SnpRecord::class, DjsnRecord::class], true) ? SuratStatus::labelFor($record->status) : $this->statusLabel($butir->status)),
             'Jatuh Tempo: '.(optional($record->jth_tempo)->format('d/m/Y') ?? '-'),
             '',
             'Dikirim oleh: '.$sender->email,

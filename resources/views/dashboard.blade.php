@@ -18,6 +18,18 @@
             'diusulkan_tuntas' => ['label' => 'Diusulkan Tuntas', 'bar' => 'bg-[#6bb17e]', 'dot' => 'bg-[#6bb17e]'],
             'selesai_tuntas' => ['label' => 'Selesai Tuntas', 'bar' => 'bg-[#2377b9]', 'dot' => 'bg-[#2377b9]'],
         ];
+        $letterProgressStatuses = collect(\App\Enums\SuratStatus::options())
+            ->mapWithKeys(fn ($label, $value) => [$value => ['label' => $label, 'bar' => '', 'dot' => '', 'color' => \App\Enums\SuratStatus::colorFor($value)]])->all();
+        if ($moduleStats->sum(fn ($module) => $module['status_surat']['tuntas'] ?? 0) > 0) {
+            $letterProgressStatuses['tuntas'] = ['label' => 'Tuntas (Alur Lama)', 'bar' => '', 'dot' => '', 'color' => '#6bb17e'];
+        }
+        $progressLegend = [];
+        if ($moduleStats->contains(fn ($module) => !($module['uses_letter_status'] ?? false))) {
+            foreach ($butirProgressStatuses as $key => $value) { $progressLegend['butir-'.$key] = $value; }
+        }
+        if ($moduleStats->contains(fn ($module) => $module['uses_letter_status'] ?? false)) {
+            foreach ($letterProgressStatuses as $key => $value) { $progressLegend['surat-'.$key] = $value; }
+        }
     @endphp
 
     <div class="statistics-dashboard mx-auto w-full min-w-0 max-w-[1500px] space-y-5">
@@ -94,11 +106,11 @@
         <div class="statistics-dashboard__middle grid items-stretch gap-5">
             <section aria-labelledby="statistik-tindak-lanjut-heading" class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 id="statistik-tindak-lanjut-heading" class="text-lg font-bold text-slate-900">Statistik Tindak Lanjut Hasil Pengawasan</h2>
-                <p class="mt-1 text-sm text-slate-500">Progress per butir, dibedakan berdasarkan status tindak lanjut.</p>
+                <p class="mt-1 text-sm text-slate-500">Progres SNP/DJSN mengikuti status surat. Modul lainnya mengikuti status tindak lanjut per butir.</p>
                 <div class="mt-4 flex flex-wrap gap-3">
-                    @foreach ($butirProgressStatuses as $config)
+                    @foreach ($progressLegend as $config)
                         <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
-                            <span class="h-2.5 w-2.5 rounded-full {{ $config['dot'] }}"></span>
+                            <span class="h-2.5 w-2.5 rounded-full {{ $config['dot'] }}" @if(isset($config['color'])) style="background-color:{{ $config['color'] }}" @endif></span>
                             {{ $config['label'] }}
                         </span>
                     @endforeach
@@ -106,31 +118,35 @@
                 <div class="mt-5 space-y-5">
                     @forelse ($moduleStats as $module)
                         @php
-                            $totalModuleButir = (int) $module['total_butir'];
+                            $letterProgress = $module['uses_letter_status'] ?? false;
+                            $totalModuleButir = (int) ($letterProgress ? $module['total_surat'] : $module['total_butir']);
+                            $moduleStatusConfigs = $letterProgress ? $letterProgressStatuses : $butirProgressStatuses;
+                            $moduleStatusCounts = $letterProgress ? $module['status_surat'] : $module['status_butir'];
+                            $progressUnit = $letterProgress ? 'surat' : 'butir';
                         @endphp
                         <div>
                             <div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
                                 <div>
                                     <span class="font-bold text-slate-800">{{ $module['label'] }}</span>
-                                    <span class="ml-2 text-xs font-semibold text-slate-500">{{ number_format($totalModuleButir, 0, ',', '.') }} butir</span>
+                                    <span class="ml-2 text-xs font-semibold text-slate-500">{{ number_format($totalModuleButir, 0, ',', '.') }} {{ $progressUnit }}</span>
                                 </div>
-                                <span class="font-bold text-slate-900">{{ number_format($module['progress'], 1, ',', '.') }}% selesai tuntas</span>
+                                <span class="font-bold text-slate-900">{{ number_format($module['progress'], 1, ',', '.') }}% {{ $letterProgress ? 'Close' : 'selesai tuntas' }}</span>
                             </div>
                             <div class="flex h-4 overflow-hidden rounded-full bg-slate-100">
-                                @foreach ($butirProgressStatuses as $statusKey => $config)
+                                @foreach ($moduleStatusConfigs as $statusKey => $config)
                                     @php
-                                        $statusCount = (int) ($module['status_butir'][$statusKey] ?? 0);
+                                        $statusCount = (int) ($moduleStatusCounts[$statusKey] ?? 0);
                                         $statusWidth = $totalModuleButir > 0 ? ($statusCount / $totalModuleButir) * 100 : 0;
                                     @endphp
                                     @if ($statusWidth > 0)
-                                        <div class="{{ $config['bar'] }}" style="width: {{ $statusWidth }}%" title="{{ $config['label'] }}: {{ $statusCount }} butir"></div>
+                                        <div class="{{ $config['bar'] }}" style="width: {{ $statusWidth }}%; {{ isset($config['color']) ? 'background-color:'.$config['color'] : '' }}" title="{{ $config['label'] }}: {{ $statusCount }} {{ $progressUnit }}"></div>
                                     @endif
                                 @endforeach
                             </div>
                             <div class="statistics-dashboard__status-counts mt-2 grid gap-2 text-xs text-slate-500">
-                                @foreach ($butirProgressStatuses as $statusKey => $config)
+                                @foreach ($moduleStatusConfigs as $statusKey => $config)
                                     @php
-                                        $statusCount = (int) ($module['status_butir'][$statusKey] ?? 0);
+                                        $statusCount = (int) ($moduleStatusCounts[$statusKey] ?? 0);
                                     @endphp
                                     <span>{{ $config['label'] }}: <strong class="text-slate-700">{{ number_format($statusCount, 0, ',', '.') }}</strong></span>
                                 @endforeach

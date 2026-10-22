@@ -95,6 +95,9 @@ test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga
     $closure = require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php');
     $closure->up();
     $closure->up();
+    $assignments = require database_path('migrations/2026_10_22_132318_add_unit_assignments_to_surat_putaran.php');
+    $assignments->up();
+    $assignments->up();
     $reviewChoices = require database_path('migrations/2026_10_22_085515_expand_snp_djsn_review_status_choices.php');
     $reviewChoices->up();
     $reviewChoices->up();
@@ -193,14 +196,18 @@ test('fondasi MySQL dapat dipasang dan dibatalkan pada skema instalasi baru', fu
     $this->migration->up();
     $closure = require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php');
     $closure->up();
+    $assignments = require database_path('migrations/2026_10_22_132318_add_unit_assignments_to_surat_putaran.php');
+    $assignments->up();
     foreach (['snp', 'djsn'] as $module) {
         expect(Schema::connection('mysql_'.$module)->hasColumn('tb_tanggapan', 'putaran_id'))->toBeTrue()
             ->and(SuratPutaran::on('mysql_'.$module)->count())->toBe(0);
     }
+    $assignments->down();
     $closure->down();
     $this->migration->down();
     $this->migration->up();
     $closure->up();
+    $assignments->up();
     foreach (['snp', 'djsn'] as $module) {
         expect(Schema::connection('mysql_'.$module)->hasTable('tb_surat_putaran'))->toBeTrue();
     }
@@ -213,6 +220,7 @@ test('MySQL applies only one final or correction decision when reviews of the sa
     (require database_path('migrations/2026_10_21_141454_enable_snp_djsn_initial_letter_statuses.php'))->up();
     (require database_path('migrations/2026_10_22_085515_expand_snp_djsn_review_status_choices.php'))->up();
     (require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php'))->up();
+    (require database_path('migrations/2026_10_22_132318_add_unit_assignments_to_surat_putaran.php'))->up();
 
     $worker = <<<'PHP'
         require $argv[1].'/vendor/autoload.php';
@@ -326,6 +334,7 @@ test('MySQL serializes concurrent responses by unit including late completion af
     $this->migration->up();
     (require database_path('migrations/2026_10_22_085515_expand_snp_djsn_review_status_choices.php'))->up();
     (require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php'))->up();
+    (require database_path('migrations/2026_10_22_132318_add_unit_assignments_to_surat_putaran.php'))->up();
     $worker = <<<'PHP'
         require $argv[1].'/vendor/autoload.php';
         $app = require $argv[1].'/bootstrap/app.php';

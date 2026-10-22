@@ -12,9 +12,9 @@ class ButirReportPdf
     public function __construct(private SnpButirReportContent $content, private ReportPdfPagination $pagination) {}
 
     /** @param iterable<Model> $records */
-    public function render(string $html, iterable $records, string $module): string
+    public function render(string $html, iterable $records, string $module, bool $prepared = false): string
     {
-        if ($module === 'snp') {
+        if ($module === 'snp' || $prepared) {
             return $this->pagination->render(str_replace('</body>', view('layouts.partials.report-page-labels')->render().'</body>', $html));
         }
         $values = [];

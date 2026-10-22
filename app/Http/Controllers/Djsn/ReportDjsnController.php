@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\ButirReportPdfAlignment;
 use App\Services\SnpReportPdfLabels;
 use App\Services\SuratAwalStatusService;
+use App\Services\WorkflowReportHistory;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -157,6 +158,7 @@ class ReportDjsnController extends Controller
             'printedBy',
             'printedAt'
         );
+        $data = app(WorkflowReportHistory::class)->data($data, 'djsn');
 
         if ($request->boolean('_download')) {
             return $this->downloadPdf('layouts.djsn.report.pdf', $data, 'report-djsn-dewas.pdf');
@@ -259,6 +261,7 @@ class ReportDjsnController extends Controller
             'printedBy',
             'printedAt'
         );
+        $data = app(WorkflowReportHistory::class)->data($data, 'djsn');
 
         if ($request->boolean('_download')) {
             return $this->downloadPdf('layouts.djsn.report.pdf-custom', $data, 'report-djsn-dewas-custom.pdf');

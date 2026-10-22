@@ -23,7 +23,7 @@ function justifiedReportRecords(string $module, string $content): Collection
         'tanggal_'.$module => '2026-10-07',
         'agenda_'.$module => 'Uji format paragraf',
     ]);
-    foreach (['butirPics', 'butirDirektorats', 'reviews', 'kompilasis', 'kompilasiTindakLanjuts', 'tindakLanjuts'] as $relation) {
+    foreach (['butirPics', 'butirDirektorats', 'reviews', 'kompilasis', 'kompilasiTindakLanjuts', 'tindakLanjuts', 'tanggapanUnit'] as $relation) {
         $butir->setRelation($relation, collect());
     }
     foreach (['tanggapan', 'kompilasiTanggapan', 'kompilasiTindakLanjut', 'reviewTindakLanjut'] as $relation) {

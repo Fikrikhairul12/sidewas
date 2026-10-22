@@ -150,6 +150,7 @@
                     </a>
                 @endif
 
+                @unless (\App\Services\ReviuPutaranService::enabled())
                 @if ($canAccessSnpTindakLanjut)
                     <a href="{{ route('snp.tindak-lanjut.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
@@ -163,6 +164,7 @@
                     </a>
                 @endif
 
+                @endunless
                 @if ($canAccessSnpKompilasi)
                     <a href="{{ route('snp.kompilasi.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
@@ -474,6 +476,7 @@
                     </a>
                 @endif
 
+                @unless (\App\Services\ReviuPutaranService::enabled())
                 @if ($canAccessDjsnTindakLanjut)
                     <a href="{{ route('djsn.tindak-lanjut.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition
@@ -487,6 +490,7 @@
                     </a>
                 @endif
 
+                @endunless
                 @if ($canAccessDjsnKompilasi)
                     <a href="{{ route('djsn.kompilasi.index') }}"
                         class="block border-b border-slate-200 px-10 py-3 text-sm transition

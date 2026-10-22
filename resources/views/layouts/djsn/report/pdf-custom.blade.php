@@ -1,3 +1,6 @@
+@isset($workflowReport)
+    @include('layouts.partials.workflow-report-pdf')
+@else
 <x-report-butir-pdf :records="$records" module="djsn">
 <!DOCTYPE html>
 <html>
@@ -344,3 +347,4 @@
 
 </html>
 </x-report-butir-pdf>
+@endisset

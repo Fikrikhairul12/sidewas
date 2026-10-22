@@ -4,6 +4,7 @@ use App\Exports\SnpReportExport;
 use App\Http\Controllers\Snp\ReportSnpController;
 use App\Models\SnpButir;
 use App\Models\SnpRecord;
+use App\Models\SnpTanggapan;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Blade;
@@ -21,16 +22,22 @@ test('SNP regular and custom previews reuse the current tab and restore report s
     $records = collect([1, 2])->map(function (int $id): SnpRecord {
         $butirs = collect($id === 1 ? [11, 12] : [21])->map(function (int $id): SnpButir {
             $butir = (new SnpButir)->forceFill(['id' => $id, 'id_butir_snp' => 'SNP.'.$id, 'butir_snp' => 'Isi lengkap butir '.$id]);
-            foreach (['butirPics', 'kompilasis', 'kompilasiTindakLanjuts', 'tanggapan', 'tindakLanjuts', 'reviews'] as $relation) {
+            foreach (['butirPics', 'kompilasis', 'kompilasiTindakLanjuts', 'tanggapan', 'tindakLanjuts', 'reviews', 'tanggapanUnit'] as $relation) {
                 $butir->setRelation($relation, collect());
             }
             $butir->setRelation('kompilasiTanggapan', null)->setRelation('kompilasiTindakLanjut', null);
-            $butir->setRelation('butirPics', collect([7, 8])->map(fn (int $unit): object => (object) ['jenis_pic' => $unit === 7 ? 'utama' : 'pendukung', 'unitKerja' => (object) ['id' => $unit, 'kode_unit' => 'UNIT-'.$unit, 'nama_unit' => 'Unit '.$unit]]));
+            $butir->setRelation('butirPics', collect([7, 8])->map(fn (int $unit): object => (object) ['unit_kerja_id' => $unit, 'jenis_pic' => $unit === 7 ? 'utama' : 'pendukung', 'unitKerja' => (object) ['id' => $unit, 'kode_unit' => 'UNIT-'.$unit, 'nama_unit' => 'Unit '.$unit]]));
+            if ($id === 11) {
+                $unknown = (new SnpTanggapan)->forceFill(['id' => 111, 'id_butir_snp' => 'SNP.11', 'unit_kerja_id' => null]);
+                $unknown->setRelation('unitKerja', null)->setRelation('butirPic', null);
+                $butir->setRelation('tanggapanUnit', collect([$unknown]));
+            }
 
             return $butir;
         });
         $record = (new SnpRecord)->forceFill(['id' => $id, 'id_snp' => 'SNP-'.$id, 'nomor_surat' => 'SURAT-'.$id, 'perihal_surat' => 'Uji navigasi laporan', 'tanggal_surat' => '2026-10-07', 'status' => 'proses', 'butir_snp_count' => $butirs->count()]);
         $record->setRelation('butirSnp', $butirs);
+        $record->setRelation('putaran', collect());
 
         return $record;
     });

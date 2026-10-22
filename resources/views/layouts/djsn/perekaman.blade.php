@@ -887,6 +887,7 @@
                                     </div>
                                 </div>
 
+                                @unless (\App\Services\ReviuPutaranService::enabled())
                                 <div>
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">Status Butir</label>
                                     <select name="butir_status" x-model="selectedEditButir.status" required
@@ -897,6 +898,7 @@
                                         <option value="selesai_tuntas">Selesai Tuntas</option>
                                     </select>
                                 </div>
+                                @endunless
 
                                 <div>
                                     <label class="mb-2 block text-sm font-semibold text-slate-700">Komite Dewas</label>

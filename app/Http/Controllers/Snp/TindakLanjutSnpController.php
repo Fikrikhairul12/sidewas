@@ -13,9 +13,9 @@ use App\Models\SnpReview;
 use App\Models\SnpTindakLanjut;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ReviuPutaranService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -68,9 +68,12 @@ class TindakLanjutSnpController extends Controller
 
     public function index(Request $request)
     {
+        if (ReviuPutaranService::enabled()) {
+            return redirect()->route('snp.tanggapan.index')->with('info', 'Tindak lanjut dikelola melalui Tanggapan, Kompilasi, dan Reviu. Riwayat lama tersedia melalui Detail dan laporan.');
+        }
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessSnpTindakLanjut()) {
+        if (! $user || ! $user->canAccessSnpTindakLanjut()) {
             abort(403, 'Anda tidak memiliki akses ke halaman tindak lanjut SNP.');
         }
 
@@ -155,7 +158,7 @@ class TindakLanjutSnpController extends Controller
             $query->where('status', $request->status);
         }
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_snp')) {
+        if (! $user->isSuperAdmin() && ! $user->hasRoleType('admin_snp')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
             $query->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
@@ -212,13 +215,13 @@ class TindakLanjutSnpController extends Controller
             $tlPicIds = $tindakLanjutPutaranAktif
                 ->pluck('butir_pic_id')
                 ->filter()
-                ->map(fn($id) => (int) $id)
+                ->map(fn ($id) => (int) $id)
                 ->unique()
                 ->toArray();
 
             $availablePicUnits = $canInputTl
                 ? $picUnits
-                    ->reject(fn($pic) => in_array((int) $pic->id, $tlPicIds, true))
+                    ->reject(fn ($pic) => in_array((int) $pic->id, $tlPicIds, true))
                     ->values()
                 : collect();
 
@@ -247,8 +250,6 @@ class TindakLanjutSnpController extends Controller
             ]
         );
 
-
-
         $butirSiapTindakLanjutQuery = SnpButir::with([
             'record',
             'butirPics.unitKerja',
@@ -268,7 +269,7 @@ class TindakLanjutSnpController extends Controller
                     });
             });
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_snp')) {
+        if (! $user->isSuperAdmin() && ! $user->hasRoleType('admin_snp')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
             $butirSiapTindakLanjutQuery->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
@@ -320,6 +321,7 @@ class TindakLanjutSnpController extends Controller
 
     public function store(Request $request)
     {
+        abort_if(ReviuPutaranService::enabled(), 410, 'Alur Tindak Lanjut lama sudah digantikan oleh putaran tanggapan dan keputusan reviu.');
         $validated = $request->validate([
             'butir_id' => ['required', 'integer', 'exists:mysql_snp.tb_butir_snp,id'],
             'butir_pic_id' => ['required', 'integer'],
@@ -337,7 +339,7 @@ class TindakLanjutSnpController extends Controller
             'tindakLanjuts',
         ])->findOrFail($validated['butir_id']);
 
-        if (!$user || !$user->canCreateSnpTindakLanjutForButir($butir)) {
+        if (! $user || ! $user->canCreateSnpTindakLanjutForButir($butir)) {
             abort(403, 'Anda tidak memiliki akses untuk membuat tindak lanjut pada butir ini.');
         }
 
@@ -346,7 +348,7 @@ class TindakLanjutSnpController extends Controller
             ->where('status', 'dalam_proses_tindak_lanjut_direksi')
             ->exists();
 
-        if (!$hasReadyReview) {
+        if (! $hasReadyReview) {
             return back()->with('error', 'Butir SNP ini belum masuk tahap tindak lanjut direksi.');
         }
 
@@ -366,14 +368,14 @@ class TindakLanjutSnpController extends Controller
             ->where('id', $validated['butir_pic_id'])
             ->first();
 
-        if (!$butirPic) {
+        if (! $butirPic) {
             return back()->with('error', 'PIC Unit yang dipilih tidak valid untuk butir SNP ini.');
         }
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_snp')) {
+        if (! $user->isSuperAdmin() && ! $user->hasRoleType('admin_snp')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
-            if (!in_array((int) $butirPic->unit_kerja_id, array_map('intval', $userUnitKerjaIds), true)) {
+            if (! in_array((int) $butirPic->unit_kerja_id, array_map('intval', $userUnitKerjaIds), true)) {
                 return back()->with('error', 'Anda tidak memiliki akses untuk menginput tindak lanjut atas PIC Unit tersebut.');
             }
         }
@@ -410,14 +412,14 @@ class TindakLanjutSnpController extends Controller
                 ->whereIn('jenis_pic', ['utama', 'pendukung'])
                 ->whereNotNull('unit_kerja_id')
                 ->pluck('id')
-                ->map(fn($id) => (int) $id)
+                ->map(fn ($id) => (int) $id)
                 ->toArray();
 
             $tindakLanjutPicIds = $butir->tindakLanjuts()
                 ->where('putaran_tl', $putaranAktif)
                 ->whereNotNull('butir_pic_id')
                 ->pluck('butir_pic_id')
-                ->map(fn($id) => (int) $id)
+                ->map(fn ($id) => (int) $id)
                 ->unique()
                 ->toArray();
 
@@ -471,6 +473,7 @@ class TindakLanjutSnpController extends Controller
 
     public function update(Request $request, SnpTindakLanjut $tindakLanjut)
     {
+        abort_if(ReviuPutaranService::enabled(), 410, 'Riwayat Tindak Lanjut lama hanya dapat dibaca melalui Detail dan laporan.');
         $user = User::find(Auth::id());
         $tindakLanjut->load(['butir.reviews', 'butirPic']);
 
@@ -537,5 +540,4 @@ class TindakLanjutSnpController extends Controller
             && $user->canCreateSnpTindakLanjutForButir($tindakLanjut->butir)
             && in_array((int) $tindakLanjut->butirPic?->unit_kerja_id, array_map('intval', $user->unitKerjaIds()), true);
     }
-
 }

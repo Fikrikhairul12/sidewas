@@ -29,7 +29,7 @@
 
                     if (!empty($tanggapanUnitKerjaIds)) {
                         $tanggapans = $tanggapans->filter(function ($item) use ($tanggapanUnitKerjaIds) {
-                            return in_array((int) $item->butirPic?->unit_kerja_id, $tanggapanUnitKerjaIds, true);
+                            return in_array((int) ($item->unit_kerja_id ?? $item->butirPic?->unit_kerja_id), $tanggapanUnitKerjaIds, true);
                         });
                     }
 
@@ -41,7 +41,7 @@
 
                     if (!empty($tindakLanjutUnitKerjaIds)) {
                         $tindakLanjuts = $tindakLanjuts->filter(function ($item) use ($tindakLanjutUnitKerjaIds) {
-                            return in_array((int) $item->butirPic?->unit_kerja_id, $tindakLanjutUnitKerjaIds, true);
+                            return in_array((int) ($item->unit_kerja_id ?? $item->butirPic?->unit_kerja_id), $tindakLanjutUnitKerjaIds, true);
                         });
                     }
 

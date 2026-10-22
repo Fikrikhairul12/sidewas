@@ -147,7 +147,7 @@ class ReviuPutaranService
     }
 
     /**
-     * Rejection reopens the entire letter. Closure is integrated separately before stage 7 activation.
+     * A decision either reopens the entire letter or freezes its final round for late completion.
      *
      * @param  array<string, mixed>  $data
      */
@@ -164,6 +164,9 @@ class ReviuPutaranService
                 $permission = 'canReview'.ucfirst($this->module($review)).'ByKomite';
                 abort_unless($user->{$permission}($review->komite_id), 403);
                 abort_unless($this->canReview($user, $review), 422, 'Reviu ini merupakan riwayat, sudah diputuskan, atau belum memiliki kompilasi yang valid.');
+                if ($data['status'] !== ReviuStatus::BelumDitanggapi->value) {
+                    app(SuratPutaranPenugasan::class)->capture($round);
+                }
                 $old = $review->getRawOriginal();
                 $review->fill([
                     'hasil_review' => app(SnpButirContent::class)->normalize($data['hasil_review'], $butir->record->id, $this->module($review), 'hasil_review', 'Hasil reviu'),

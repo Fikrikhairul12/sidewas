@@ -27,12 +27,17 @@ class SuratPutaran extends Model
             'nomor_putaran' => 'integer',
             'opened_at' => 'datetime',
             'archived_at' => 'datetime',
+            'penugasan_unit' => 'array',
+            'penugasan_dicatat_at' => 'datetime',
         ];
     }
 
     protected static function booted(): void
     {
         static::updating(function (self $putaran): void {
+            if ($putaran->getRawOriginal('penugasan_unit') !== null && $putaran->isDirty(['penugasan_unit', 'penugasan_dicatat_at'])) {
+                throw new LogicException('Penugasan unit yang sudah dicatat untuk riwayat putaran tidak boleh diubah.');
+            }
             if ($putaran->surat()->first()?->getAttribute('closed_at') !== null) {
                 throw new LogicException('Putaran terakhir surat yang sudah ditutup tidak boleh diubah.');
             }

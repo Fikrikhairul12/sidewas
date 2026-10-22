@@ -117,7 +117,7 @@ class TanggapanUnitService
         ];
     }
 
-    private function responseCards(SnpButir|DjsnButir $butir, User $user, Collection $responses, bool $active): Collection
+    private function responseCards(SnpButir|DjsnButir $butir, User $user, Collection $responses, bool $active, ?Collection $historicalUnits = null): Collection
     {
         $module = $this->module($butir);
         foreach ($responses as $response) {
@@ -166,6 +166,18 @@ class TanggapanUnitService
             }
         }
 
+        foreach ($historicalUnits ?? [] as $unit) {
+            if (! $responses->contains(fn ($response): bool => (int) $response->unit_kerja_id === (int) $unit['id'])) {
+                $cards->push([
+                    'id' => 'unit-'.$unit['id'], 'can_edit' => false,
+                    'unit_label' => ($unit['code'] ? $unit['code'].' - ' : '').$unit['name'],
+                    'initial' => $unit['code'] ?? '-',
+                    'jenis_pic' => $unit['role'] === 'utama' ? 'PIC Utama' : 'PIC Pendukung',
+                    'id_butir' => $butir->{'id_butir_'.$module}, 'sudah_menanggapi' => false,
+                ]);
+            }
+        }
+
         return $cards;
     }
 
@@ -184,7 +196,8 @@ class TanggapanUnitService
         return $butir->record->putaran->sortByDesc('nomor_putaran')->map(function ($round) use ($butir, $user, $activeCards, $module, $canReadCompilations, $canReadReviews, $superAdmin, $komiteIds): array {
             $active = (int) $round->id === $this->currentRoundId($butir) && $round->archived_at === null;
             $inRound = fn ($row): bool => (int) $row->putaran_id === (int) $round->id || ($round->isLegacy() && $row->putaran_id === null);
-            $cards = $active ? $activeCards : $this->responseCards($butir, $user, $butir->tanggapanUnit->filter($inRound), false);
+            $units = $round->penugasan_unit === null ? null : collect($round->penugasan_unit[$butir->{'id_butir_'.$module}] ?? []);
+            $cards = $active ? $activeCards : $this->responseCards($butir, $user, $butir->tanggapanUnit->filter($inRound), false, $units);
             $compilations = $canReadCompilations ? $butir->kompilasis->filter($inRound) : collect();
             $reviews = $canReadReviews ? $butir->reviews->filter(fn ($row): bool => $inRound($row) && ($superAdmin || in_array($row->komite_id, $komiteIds))) : collect();
 
@@ -197,6 +210,13 @@ class TanggapanUnitService
                 'opened_at' => $round->opened_at?->format('d/m/Y H:i'),
                 'archived_at' => $round->archived_at?->format('d/m/Y H:i'),
                 'pic_tanggapans' => $cards->values()->all(),
+                'assignments_unknown' => ! $active && $units === null,
+                'legacy_followups' => $user->{'canAccess'.ucfirst($module).'TindakLanjut'}()
+                    ? $butir->tindakLanjuts->filter($inRound)->sortBy('id')->map(fn ($row): array => [
+                        'id' => $row->id, 'content' => $row->tindak_lanjut, 'deliverables' => $row->deliverables,
+                        'creator' => $row->creator?->name ?? '-', 'created_at' => $row->created_at?->format('d/m/Y H:i') ?? '-',
+                        'document_url' => $row->dokumen ? asset('storage/'.$row->dokumen) : null,
+                    ])->values()->all() : [],
                 'compilations' => $compilations->map(fn ($row): array => [
                     'id' => $row->id, 'content' => $row->hasil_kompilasi, 'deliverables' => $row->deliverables,
                     'creator' => $row->creator?->name ?? '-', 'created_at' => $row->created_at?->format('d/m/Y H:i') ?? '-',

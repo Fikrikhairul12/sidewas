@@ -87,6 +87,9 @@
                         <p x-show="detailRound?.read_only" data-round-readonly class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                             Putaran lama terkunci. Tanggapan baru hanya dapat diisi pada putaran aktif.
                         </p>
+                        <p x-show="detailRound?.assignments_unknown" class="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                            Penugasan unit pada putaran lama tidak tercatat. Unit yang belum mengisi tidak dapat dipastikan.
+                        </p>
                         <x-butir-preview content-expression="detailButir?.butir_content" id-expression="detailButir?.id_butir"
                             :expanded="true" context="Detail Tanggapan" />
                         <template x-if="selectedDetailPic">
@@ -94,6 +97,7 @@
                                 <div>
                                     <p class="text-lg font-bold" style="color: #2377b9;"
                                         x-text="selectedDetailPic.unit_label"></p>
+                                    <p x-show="!selectedDetailPic.sudah_menanggapi" class="mt-2 text-sm text-slate-500">Belum memberikan tanggapan pada putaran ini.</p>
                                     <p x-show="selectedDetailPic.submitted_after_close" data-after-close class="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
                                         <strong>Tanggapan setelah penutupan</strong>
                                         <span class="block" x-text="selectedDetailPic.submitted_after_close_at"></span>
@@ -163,6 +167,15 @@
                                 <x-rich-content content-expression="item.content" class="mt-3" />
                                 <p class="mt-3 whitespace-pre-line text-sm" x-text="'Deliverables: ' + (item.deliverables || '-')"></p>
                                 <a x-show="item.document_url" :href="item.document_url" class="mt-3 inline-block text-sm text-blue-700 underline">Dokumen Kompilasi</a>
+                            </section>
+                        </template>
+                        <template x-for="item in (detailRound?.legacy_followups ?? [])" :key="'tindak-lanjut-lama-' + item.id">
+                            <section data-history-tindak-lanjut class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <h3 class="font-bold text-slate-700">Riwayat Tindak Lanjut Lama</h3>
+                                <p class="mt-1 text-xs text-slate-500" x-text="item.creator + ' · ' + item.created_at"></p>
+                                <p class="mt-3 whitespace-pre-line text-sm" x-text="item.content || '-'"></p>
+                                <p class="mt-3 whitespace-pre-line text-sm" x-text="'Deliverables: ' + (item.deliverables || '-')"></p>
+                                <a x-show="item.document_url" :href="item.document_url" class="mt-3 inline-block text-sm text-blue-700 underline">Dokumen Tindak Lanjut Lama</a>
                             </section>
                         </template>
                         <template x-for="item in (detailRound?.reviews ?? [])" :key="'reviu-' + item.id">

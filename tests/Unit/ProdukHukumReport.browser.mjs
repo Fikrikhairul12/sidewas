@@ -56,10 +56,18 @@ try {
     await page.waitForSelector('dialog[open]');
     const count = () => page.$eval('[aria-live="polite"] strong', element => Number(element.textContent));
     const search = async text => {
+        const response = page.waitForResponse(response => {
+            const url = new URL(response.url());
+            return url.pathname.endsWith('/rekap/pilihan') && url.searchParams.get('keyword') === text;
+        });
         await page.$eval('#report-search', element => { element.value = ''; element.dispatchEvent(new Event('input', { bubbles: true })); });
         await page.type('#report-search', text);
-        await page.keyboard.press('Enter');
-        await page.waitForNetworkIdle({ idleTime: 400 });
+        await response;
+        await page.waitForFunction(keyword => {
+            const state = window.Alpine.$data(document.querySelector('dialog'));
+            return state.keyword === keyword && !state.loading
+                && (keyword === 'gagal' ? state.searchError.includes('gagal dimuat') : state.products.length > 0);
+        }, {}, text);
     };
     assert.equal(await count(), 36);
     await page.select('#report-status', 'tidak_berlaku');

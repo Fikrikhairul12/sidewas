@@ -20,6 +20,7 @@ use App\Models\SnpTindakLanjut;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ClusterSelection;
+use App\Services\ReviuPutaranService;
 use App\Services\SnpButirContent;
 use App\Services\SuratAwalStatusService;
 use Illuminate\Http\Request;
@@ -365,7 +366,7 @@ class PerekamanSnpController extends Controller
 
             'butir_id' => ['required', 'integer', 'exists:mysql_snp.tb_butir_snp,id'],
             'butir_snp' => ['required', 'string', 'max:500000'],
-            'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
+            'butir_status' => [Rule::excludeIf(ReviuPutaranService::enabled()), 'required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
             'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
             'unit_kerja_pendukung_id' => ['nullable', 'array'],
             'unit_kerja_pendukung_id.*' => ['nullable', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
@@ -474,7 +475,7 @@ class PerekamanSnpController extends Controller
                 'id' => (int) $butir->id,
                 'id_butir_snp' => $butir->id_butir_snp,
                 'butir_snp' => $validated['butir_snp'],
-                'status' => $validated['butir_status'],
+                'status' => ReviuPutaranService::enabled() ? $butir->status : $validated['butir_status'],
                 'unit_kerja_utama_id' => (int) $validated['unit_kerja_utama_id'],
                 'unit_kerja_pendukung_ids' => collect($validated['unit_kerja_pendukung_id'] ?? [])
                     ->filter()

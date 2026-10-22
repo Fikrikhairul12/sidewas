@@ -43,6 +43,7 @@ class TanggapanSnpController extends Controller
             $query->with([
                 'tanggapanUnit.creator', 'tanggapanUnit.updater', 'tanggapanUnit.unitKerja',
                 'kompilasis.creator', 'reviews.creator', 'reviews.updater',
+                'tindakLanjuts.creator',
             ]);
         }
 

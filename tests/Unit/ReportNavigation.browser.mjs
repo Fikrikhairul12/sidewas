@@ -117,6 +117,10 @@ try {
     assert.equal(await page.$eval('#reportFormatModal', modal => modal.classList.contains('hidden')), true);
 
     await page.click('#openCustomReportModalBtn');
+    if (module === 'snp') {
+        await page.waitForSelector('#customReportForm input[name="tanggapan_unit_kerja_ids[]"][value="0"]');
+        assert.ok((await page.$eval('#customReportTanggapanUnitList', element => element.textContent)).includes('Unit tidak tercatat (data lama)'));
+    }
     await page.click('#customReportForm input[name="butir_ids[]"][value="11"]');
     if (module === 'snp') {
         await page.click('#customReportForm input[name="tanggapan_unit_kerja_ids[]"][value="8"]');

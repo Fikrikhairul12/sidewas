@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\ButirReportPdfAlignment;
 use App\Services\SnpReportPdfLabels;
 use App\Services\SuratAwalStatusService;
+use App\Services\WorkflowReportHistory;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -37,6 +38,10 @@ class ReportSnpController extends Controller
             'cluster',
             'subCluster',
             'butirSnp.butirPics.unitKerja',
+            'putaran',
+            'butirSnp.tanggapanUnit.unitKerja',
+            'butirSnp.tanggapanUnit.butirPic.unitKerja',
+            'butirSnp.tindakLanjuts.butirPic.unitKerja',
         ])
             ->withCount('butirSnp');
 
@@ -244,11 +249,11 @@ class ReportSnpController extends Controller
             ->orderBy('id_snp')
             ->get();
 
-        return [
+        return app(WorkflowReportHistory::class)->data([
             'records' => $records,
             'printedBy' => $user->name ?? $user->email ?? 'User',
             'printedAt' => now()->format('d/m/Y H:i'),
-        ];
+        ], 'snp');
     }
 
     /**
@@ -295,7 +300,7 @@ class ReportSnpController extends Controller
             ->orderBy('id_snp')
             ->get();
 
-        return [
+        return app(WorkflowReportHistory::class)->data([
             'records' => $records,
             'selectedFields' => $selectedFields,
             'fieldLabels' => $this->pdfFieldLabels(),
@@ -303,7 +308,7 @@ class ReportSnpController extends Controller
             'printedAt' => now()->format('d/m/Y H:i'),
             'tanggapanUnitKerjaIds' => $tanggapanUnitKerjaIds,
             'tindakLanjutUnitKerjaIds' => $tindakLanjutUnitKerjaIds,
-        ];
+        ], 'snp');
     }
 
     /**

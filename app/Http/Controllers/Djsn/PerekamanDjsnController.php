@@ -16,6 +16,7 @@ use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ClusterSelection;
+use App\Services\ReviuPutaranService;
 use App\Services\SnpButirContent;
 use App\Services\SuratAwalStatusService;
 use Carbon\Carbon;
@@ -482,7 +483,7 @@ class PerekamanDjsnController extends Controller
 
             'butir_id' => ['required', 'integer', 'exists:mysql_djsn.tb_butir_djsn,id'],
             'butir_djsn' => ['required', 'string', 'max:500000'],
-            'butir_status' => ['required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
+            'butir_status' => [Rule::excludeIf(ReviuPutaranService::enabled()), 'required', 'string', 'in:terbit,dalam_proses,diusulkan_tuntas,selesai_tuntas'],
             'cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_cluster,id', new ClusterSelection('djsn', $existingButir)],
             'sub_cluster_id' => ['required', 'integer', 'exists:mysql_djsn.tb_sub_cluster,id', new ClusterSelection('djsn', $existingButir)],
             'unit_kerja_utama_id' => ['required', 'integer', 'exists:mysql.tb_unit_kerja,id,status,active'],
@@ -575,7 +576,7 @@ class PerekamanDjsnController extends Controller
                 'id' => (int) $butir->id,
                 'id_butir_djsn' => $butir->id_butir_djsn,
                 'butir_djsn' => $validated['butir_djsn'],
-                'status' => $validated['butir_status'],
+                'status' => ReviuPutaranService::enabled() ? $butir->status : $validated['butir_status'],
                 'cluster_id' => (int) $validated['cluster_id'],
                 'sub_cluster_id' => (int) $validated['sub_cluster_id'],
                 'unit_kerja_utama_id' => (int) $validated['unit_kerja_utama_id'],

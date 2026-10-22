@@ -737,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectedButirs.forEach((checkbox) => {
             parseUnits(checkbox.dataset[datasetKey]).forEach((unit) => {
-                if (!unit?.id || unitMap.has(String(unit.id))) {
+                if (unit?.id === null || unit?.id === undefined || unitMap.has(String(unit.id))) {
                     return;
                 }
 

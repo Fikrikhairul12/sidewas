@@ -12,19 +12,23 @@ use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ReviuPutaranService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
 
 class TindakLanjutDjsnController extends Controller
 {
     public function index(Request $request)
     {
+        if (ReviuPutaranService::enabled()) {
+            return redirect()->route('djsn.tanggapan.index')->with('info', 'Tindak lanjut dikelola melalui Tanggapan, Kompilasi, dan Reviu. Riwayat lama tersedia melalui Detail dan laporan.');
+        }
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnTindakLanjut()) {
+        if (! $user || ! $user->canAccessDjsnTindakLanjut()) {
             abort(403, 'Anda tidak memiliki akses ke halaman tindak lanjut DJSN.');
         }
 
@@ -86,7 +90,7 @@ class TindakLanjutDjsnController extends Controller
             });
         }
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_djsn')) {
+        if (! $user->isSuperAdmin() && ! $user->hasRoleType('admin_djsn')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
             $butirsRiwayatQuery->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
@@ -123,7 +127,7 @@ class TindakLanjutDjsnController extends Controller
             $rows = $rows->filter(function ($row) use ($request) {
                 $item = $row['item'];
 
-                if (!$item) {
+                if (! $item) {
                     return false;
                 }
 
@@ -135,7 +139,7 @@ class TindakLanjutDjsnController extends Controller
             $rows = $rows->filter(function ($row) use ($request) {
                 $item = $row['item'];
 
-                if (!$item) {
+                if (! $item) {
                     return false;
                 }
 
@@ -197,7 +201,7 @@ class TindakLanjutDjsnController extends Controller
                 $item = $row['item'];
                 $butir = $row['butir'];
 
-                return $item?->id ?? ('0.' . $butir?->id);
+                return $item?->id ?? ('0.'.$butir?->id);
             })
             ->values();
 
@@ -227,7 +231,7 @@ class TindakLanjutDjsnController extends Controller
                     ->where('status', 'dalam_proses_tindak_lanjut_direksi');
             });
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_djsn')) {
+        if (! $user->isSuperAdmin() && ! $user->hasRoleType('admin_djsn')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
             $butirSiapTindakLanjutQuery->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
@@ -270,6 +274,7 @@ class TindakLanjutDjsnController extends Controller
 
     public function store(Request $request)
     {
+        abort_if(ReviuPutaranService::enabled(), 410, 'Alur Tindak Lanjut lama sudah digantikan oleh putaran tanggapan dan keputusan reviu.');
         $validated = $request->validate([
             'butir_id' => ['required', 'integer', 'exists:mysql_djsn.tb_butir_djsn,id'],
             'tindak_lanjut' => ['required', 'string'],
@@ -286,7 +291,7 @@ class TindakLanjutDjsnController extends Controller
         ])
             ->findOrFail($validated['butir_id']);
 
-        if (!$user || !$user->canCreateDjsnTindakLanjutForButir($butir)) {
+        if (! $user || ! $user->canCreateDjsnTindakLanjutForButir($butir)) {
             abort(403, 'Anda tidak memiliki akses untuk membuat tindak lanjut pada butir ini.');
         }
 
@@ -295,7 +300,7 @@ class TindakLanjutDjsnController extends Controller
             ->where('status', 'dalam_proses_tindak_lanjut_direksi')
             ->exists();
 
-        if (!$hasReadyReview) {
+        if (! $hasReadyReview) {
             return back()->with('error', 'Butir DJSN ini belum masuk tahap tindak lanjut direksi.');
         }
 

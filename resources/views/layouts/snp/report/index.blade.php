@@ -199,22 +199,9 @@
                                     <td class="px-6 py-5 text-center align-top">
                                         @php
                                             $butirsForReport = $record->butirSnp
-                                                ->map(function ($butir) {
-                                                    $unitOptions = $butir->butirPics
-                                                        ->whereIn('jenis_pic', ['utama', 'pendukung'])
-                                                        ->map(function ($pic) {
-                                                            return [
-                                                                'id' => $pic->unitKerja?->id,
-                                                                'label' => trim(
-                                                                    ($pic->unitKerja?->kode_unit ?? '-') .
-                                                                        ' - ' .
-                                                                        ($pic->unitKerja?->nama_unit ?? '-'),
-                                                                ),
-                                                            ];
-                                                        })
-                                                        ->filter(fn ($unit) => !empty($unit['id']))
-                                                        ->unique('id')
-                                                        ->values();
+                                                ->map(function ($butir) use ($record) {
+                                                    $butir->setRelation('record', $record);
+                                                    $unitOptions = app(\App\Services\WorkflowReportHistory::class)->unitOptions($butir);
 
                                                     return [
                                                         'id' => $butir->id,
@@ -353,6 +340,7 @@
 
                                 <p class="mt-1 text-xs text-slate-500">
                                     Dipakai kalau memilih kolom Tanggapan Unit Kerja.
+                                    Mencakup unit dari seluruh putaran, termasuk data lama tanpa identitas unit.
                                 </p>
                             </div>
 

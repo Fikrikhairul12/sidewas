@@ -791,6 +791,7 @@
                                             </select>
                                         </div>
 
+                                        @unless (\App\Services\ReviuPutaranService::enabled())
                                         <div>
                                             <label class="mb-2 block text-sm font-semibold text-slate-700">
                                                 Status Butir
@@ -804,6 +805,7 @@
                                                 <option value="selesai_tuntas">Selesai Tuntas</option>
                                             </select>
                                         </div>
+                                        @endunless
 
                                         <div class="lg:col-span-2">
                                             <label class="mb-2 block text-sm font-semibold text-slate-700">

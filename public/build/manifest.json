@@ -34,7 +34,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-DdRHDeXf.js",
+    "file": "assets/app-POnFmlam.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -55,7 +55,7 @@
     ]
   },
   "resources/js/snp-butir-editor.js": {
-    "file": "assets/snp-butir-editor-DpmXq7N9.js",
+    "file": "assets/snp-butir-editor-CpzB8eut.js",
     "name": "snp-butir-editor",
     "src": "resources/js/snp-butir-editor.js",
     "isDynamicEntry": true,
