@@ -48,6 +48,8 @@ function multiReportRecords(string $module, string $content): Collection
             }
             $butir->setRelation('reviewTindakLanjut', (object) ['hasil_review' => 'HASIL-REVIU-'.$id, 'status' => 'dalam_proses_reviu_dewan_pengawas']);
             $butir->setRelation('tanggapan', (object) ['tanggapan' => 'TANGGAPAN-'.$id, 'deliverables' => 'DEL-TANGGAPAN-'.$id, 'dokumen' => null, 'status_pengajuan_tgl' => 'disetujui', 'ubah_tgl' => '2026-12-01', 'review' => (object) ['status' => 'dalam_proses_tindak_lanjut_direksi', 'hasil_review' => 'REVIU-TANGGAPAN-'.$id]]);
+            $butir->tanggapan->unitKerja = null;
+            $butir->setRelation('tanggapanUnit', collect([$butir->tanggapan]));
             $butir->setRelation('tindakLanjuts', collect([1, 2])->map(fn (int $stage): object => (object) ['id' => $stage, 'tindak_lanjut' => 'TL-'.$id.'-'.$stage, 'deliverables' => 'DEL-'.$id.'-'.$stage, 'jth_tempo' => '2026-12-01', 'dokumen' => 'dokumen-'.$id.'-'.$stage.'.pdf', 'unitKerja' => null, 'butirPic' => null, 'reviews' => collect([(object) ['id' => 1, 'tahap_review' => 'tindak_lanjut', 'hasil_review' => 'REVIU-'.$id.'-'.$stage, 'status' => 'selesai_tuntas']])]));
             $butirs->push($butir);
         }

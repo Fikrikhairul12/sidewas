@@ -114,8 +114,12 @@ test('all seventeen module pages provide full reading without disturbing drafts 
             $tanggapanSource = file_get_contents(resource_path('views/layouts/djsn/tanggapan.blade.php'));
             preg_match('/<button\b[^>]*data-djsn-tanggapan-detail\b.*?<\/button>/s', $tanggapanSource, $detailButton);
             expect($detailButton)->not->toBeEmpty();
+            expect($detailButton[0])->toContain('openDetailModalFor');
+            $detailSource = file_get_contents(resource_path('views/layouts/partials/tanggapan-unit-detail.blade.php'));
+            preg_match('/<x-butir-preview\b.*?\/>/s', $detailSource, $detailPreview);
             $sections[] = 'tanggapan-detail';
-            $html .= '<section id="tanggapan-detail">'.Blade::render($detailButton[0], compact('butir')).'</section>';
+            $detailPayload = ['butir_content' => $content, 'id_butir' => $butir->id_butir_djsn];
+            $html .= Blade::render('<section id="tanggapan-detail" x-data="{ detailButir: @js($detailPayload) }">'.$detailPreview[0].'</section>', compact('detailPayload'));
         }
         $html .= '</form></div></div>';
         $perekamanSource = file_get_contents(resource_path('views/layouts/'.$module.'/perekaman.blade.php'));

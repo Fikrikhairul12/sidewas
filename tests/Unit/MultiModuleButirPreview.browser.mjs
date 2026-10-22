@@ -92,7 +92,7 @@ try {
                 assert.equal(await page.$eval(`#${section} .snp-butir-preview__text`, element => element.textContent), fixture.content);
                 continue;
             }
-            const readerTrigger = section === 'tanggapan-detail' ? '[data-djsn-tanggapan-detail]' : '.snp-butir-read-button';
+            const readerTrigger = '.snp-butir-read-button';
             await page.click(`#${section} ${readerTrigger}`);
             await open();
             assert.equal(await page.$eval('[data-snp-reader-content]', element => element.textContent), fixture.content, `${module} ${section} must receive full text`);
@@ -147,7 +147,12 @@ try {
         await page.waitForSelector('#actualEdit form', { visible: true });
         assert.equal(await page.$eval('#actualEdit input[name="nomor_surat"]', element => element.value), 'Surat asli');
         assert.equal(await page.$eval('#actualEdit textarea[name="perihal_surat"]', element => element.value), 'Perihal asli');
-        assert.equal(await page.$eval('#actualEdit select[name="status"]', element => element.value), 'dalam_proses');
+        if (module === 'djsn') {
+            assert.equal(await page.$eval('#actualEdit input[readonly]', element => element.value), 'Proses');
+            assert.equal(await page.$('#actualEdit select[name="status"]'), null);
+        } else {
+            assert.equal(await page.$eval('#actualEdit select[name="status"]', element => element.value), 'dalam_proses');
+        }
         assert.equal(await page.$eval('#actualEdit form', element => new URL(element.action).pathname), '/existing-workflow/1');
         assert.equal(await page.$eval('#actualEdit input[name="_method"]', element => element.value), 'PATCH');
         await page.$eval('#actualEdit textarea[name="perihal_surat"]', element => {

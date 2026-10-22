@@ -538,6 +538,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/djsn/tanggapan/{butir}', [TanggapanDjsnController::class, 'store'])
         ->name('djsn.tanggapan.store');
+
+    Route::patch('/djsn/tanggapan/{tanggapan}', [TanggapanDjsnController::class, 'update'])
+        ->name('djsn.tanggapan.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

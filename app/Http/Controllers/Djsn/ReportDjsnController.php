@@ -141,7 +141,8 @@ class ReportDjsnController extends Controller
             'butirDjsn.subCluster',
             'butirDjsn.butirPics.unitKerja',
             'butirDjsn.butirPics.komite',
-            'butirDjsn.tanggapan.review',
+            'butirDjsn.tanggapanUnit.review',
+            'butirDjsn.tanggapanUnit.unitKerja',
             'butirDjsn.tindakLanjuts.reviews',
         ])
             ->whereIn('id', $validated['record_ids'])
@@ -223,7 +224,8 @@ class ReportDjsnController extends Controller
             'butirDjsn.subCluster',
             'butirDjsn.butirPics.unitKerja',
             'butirDjsn.butirPics.komite',
-            'butirDjsn.tanggapan.review',
+            'butirDjsn.tanggapanUnit.review',
+            'butirDjsn.tanggapanUnit.unitKerja',
             'butirDjsn.tindakLanjuts.reviews',
         ])
             ->whereIn('id', $validated['record_ids'])
@@ -359,7 +361,8 @@ class ReportDjsnController extends Controller
             'butirDjsn.subCluster',
             'butirDjsn.butirPics.unitKerja',
             'butirDjsn.butirPics.komite',
-            'butirDjsn.tanggapan.review',
+            'butirDjsn.tanggapanUnit.review',
+            'butirDjsn.tanggapanUnit.unitKerja',
             'butirDjsn.tindakLanjuts.reviews',
         ])
             ->whereIn('id', $validated['record_ids'])
@@ -446,7 +449,8 @@ class ReportDjsnController extends Controller
             'butirDjsn.subCluster',
             'butirDjsn.butirPics.unitKerja',
             'butirDjsn.butirPics.komite',
-            'butirDjsn.tanggapan.review',
+            'butirDjsn.tanggapanUnit.review',
+            'butirDjsn.tanggapanUnit.unitKerja',
             'butirDjsn.tindakLanjuts.reviews',
         ])
             ->whereIn('id', $validated['record_ids'])

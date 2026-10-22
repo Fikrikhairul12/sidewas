@@ -15,6 +15,7 @@ test('tanggapan dan tindak lanjut snp menyediakan update yang dikunci setelah di
     $routes = file_get_contents(dirname(__DIR__, 2).'/routes/web.php');
     $tanggapan = file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/Snp/TanggapanSnpController.php');
     $tindakLanjut = file_get_contents(dirname(__DIR__, 2).'/app/Http/Controllers/Snp/TindakLanjutSnpController.php');
+    $tanggapanService = file_get_contents(dirname(__DIR__, 2).'/app/Services/TanggapanUnitService.php');
 
     expect($routes)
         ->toContain("->name('snp.tanggapan.update')")
@@ -22,15 +23,18 @@ test('tanggapan dan tindak lanjut snp menyediakan update yang dikunci setelah di
 
     expect($tanggapan)
         ->toContain('public function update(Request $request, SnpTanggapan $tanggapan)')
-        ->toContain("filled(\$review->hasil_review)")
+        ->toContain('TanggapanUnitService::class)->update');
+
+    expect($tanggapanService)
+        ->toContain('filled($review->hasil_review)')
         ->toContain("hasRoleType('admin_snp')");
 
     expect($tindakLanjut)
         ->toContain('public function update(Request $request, SnpTindakLanjut $tindakLanjut)')
         ->toContain('$kompilasiTindakLanjutSudahDireviu')
         ->toContain("->where('tahap_review', 'tindak_lanjut')")
-        ->toContain("filled(\$review->hasil_review)")
-        ->toContain("Kompilasi tindak lanjut putaran ini sudah direviu.")
+        ->toContain('filled($review->hasil_review)')
+        ->toContain('Kompilasi tindak lanjut putaran ini sudah direviu.')
         ->toContain("hasRoleType('admin_snp')");
 });
 

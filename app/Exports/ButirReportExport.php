@@ -77,7 +77,9 @@ abstract class ButirReportExport extends StringValueBinder implements FromView, 
             $nextRow = 2;
             foreach ($butirs as $offset => $butir) {
                 $starts[$offset] = $nextRow;
-                $baseCounts[$offset] = $this->module === 'djsn' ? 1 + $butir->tindakLanjuts->count() : max(1, $butir->tindakLanjuts->count());
+                $baseCounts[$offset] = $this->module === 'djsn'
+                    ? max(1, $butir->tanggapanUnit->count()) + $butir->tindakLanjuts->count()
+                    : max(1, $butir->tindakLanjuts->count());
                 $nextRow += $baseCounts[$offset];
             }
             $constantFields = $this->module === 'djsn'

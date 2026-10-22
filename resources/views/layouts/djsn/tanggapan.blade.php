@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div x-data="{ openModal: false, selectedButir: null }" class="space-y-6">
+    <div x-data="tanggapanDjsnPage()" class="space-y-6">
         {{-- HEADER --}}
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -17,6 +17,8 @@
                         PIC.
                     </p>
                 </div>
+
+
             </div>
         </div>
 
@@ -32,6 +34,14 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                @foreach ($errors->all() as $error)
+                    <p>{{ $error }}</p>
+                @endforeach
+            </div>
+        @endif
+
         {{-- FILTER --}}
         @include('layouts.djsn.partials.filter-lanjutan', [
             'action' => route('djsn.tanggapan.index'),
@@ -39,7 +49,7 @@
                 'belum' => 'Belum Ditanggapi',
                 'sudah' => 'Sudah Ditanggapi',
             ],
-            'keywordPlaceholder' => 'Cari ID Rekomendasi DJSN, ID butir, nomor surat, perihal, isi butir, atau tanggapan...',
+            'keywordPlaceholder' => 'Cari ID DJSN, ID butir, nomor surat, perihal, isi butir, atau tanggapan...',
         ])
 
         {{-- TABLE --}}
@@ -51,7 +61,7 @@
                         Daftar Butir Rekomendasi DJSN
                     </h2>
                     <p class="mt-1 text-sm text-slate-500">
-                        Setiap butir hanya bisa memiliki satu tanggapan.
+                        Satu tanggapan per unit, per butir, per putaran. Edit tanggapan melalui Detail.
                     </p>
                 </div>
             </div>
@@ -61,10 +71,10 @@
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Informasi Rekomendasi DJSN
+                                Informasi DJSN
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
-                                Butir Rekomendasi DJSN
+                                Butir DJSN
                             </th>
                             <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
                                 PIC
@@ -81,11 +91,13 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($butirs as $butir)
                             @php
+                                $responseState = $responseStates[$butir->id];
                                 $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
                                 $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
-                                $canRespond =
-                                    \App\Models\User::find(auth()->id())?->canCreateDjsnTanggapanForButir($butir) ??
-                                    false;
+                                $tanggapanList = $responseState['responses'];
+                                $availablePicUnits = $responseState['available_pics'];
+                                $semuaPicSudahTanggapan = $responseState['complete'];
+                                $detailTanggapanPayload = $responseState['detail'];
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -132,7 +144,7 @@
                                         {{ $butir->id_butir_djsn }}
                                     </p>
 
-                                    <x-butir-preview class="mt-3" :content="$butir->butir_djsn ?? ''" :butir-id="$butir->id_butir_djsn ?? ''" :show-read-button="false" label="Isi Butir Rekomendasi DJSN" context="Tanggapan DJSN" />
+                                    <x-butir-preview class="mt-3" :content="$butir->butir_djsn" :butir-id="$butir->id_butir_djsn" :show-read-button="false" context="Tanggapan DJSN" />
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
@@ -145,8 +157,7 @@
                                             <span
                                                 class="mt-2 inline-flex rounded-xl px-3 py-1 text-xs font-bold text-white"
                                                 style="background-color: #6bb17e;">
-                                                {{ $picUtama->unitKerja->kode_unit }} -
-                                                {{ $picUtama->unitKerja->nama_unit }}
+                                                {{ $picUtama->unitKerja->kode_unit }} - {{ $picUtama->unitKerja->nama_unit }}
                                             </span>
                                         @else
                                             <p class="mt-1 text-sm text-slate-400">-</p>
@@ -165,7 +176,7 @@
                                                         <span
                                                             class="inline-flex rounded-full px-3 py-1 text-xs font-bold text-slate-700"
                                                             style="background-color: #c8e079;">
-                                                            {{ $pic->unitKerja->kode_unit }}
+                                                            {{ $pic->unitKerja->kode_unit }} - {{ $pic->unitKerja->nama_unit }}
                                                         </span>
                                                     @endif
                                                 @endforeach
@@ -177,20 +188,48 @@
                                 </td>
 
                                 <td class="px-6 py-6 align-top">
-                                    @if ($butir->tanggapan)
-                                        <span
-                                            class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
-                                            style="background-color: #6bb17e;">
-                                            Sudah Ditanggapi
-                                        </span>
+                                    @if ($tanggapanList->count() > 0)
+                                        @if ($semuaPicSudahTanggapan)
+                                            <span
+                                                class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-white"
+                                                style="background-color: #2377b9;">
+                                                Tanggapan PIC Lengkap
+                                            </span>
+                                        @else
+                                            <span
+                                                class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-slate-700"
+                                                style="background-color: #c8e079;">
+                                                Tanggapan Belum Lengkap
+                                            </span>
+                                        @endif
 
-                                        <p class="whitespace-pre-line mt-3 text-xs text-slate-700">
-                                            {{ $butir->tanggapan->tanggapan }}
-                                        </p>
+                                        <div class="mt-4 space-y-3">
+                                            @foreach ($tanggapanList->take(2) as $item)
+                                                <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                                                    <p class="text-xs font-bold uppercase tracking-wide"
+                                                        style="color: #2377b9;">
+                                                        {{ $item->unitKerja?->kode_unit ?? '-' }}
+                                                        -
+                                                        {{ $item->unitKerja?->nama_unit ?? '-' }}
+                                                    </p>
 
-                                        <p class="mt-2 text-xs text-slate-500">
-                                            Oleh: {{ $butir->tanggapan->creator?->name ?? '-' }}
-                                        </p>
+                                                    <p class="mt-2 text-xs leading-relaxed text-slate-700">
+                                                        {{ \Illuminate\Support\Str::limit($item->tanggapan ?? '-', 120) }}
+                                                    </p>
+
+                                                    <p class="mt-2 text-xs text-slate-500">
+                                                        Deliverables:
+                                                        {{ \Illuminate\Support\Str::limit($item->deliverables ?? '-', 80) }}
+                                                    </p>
+                                                </div>
+                                            @endforeach
+
+                                            @if ($tanggapanList->count() > 2)
+                                                <p class="text-xs font-semibold text-slate-500">
+                                                    + {{ $tanggapanList->count() - 2 }} tanggapan lainnya
+                                                </p>
+                                            @endif
+                                        </div>
                                     @else
                                         <span
                                             class="inline-flex text-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
@@ -201,39 +240,36 @@
 
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        <button type="button" data-djsn-tanggapan-detail
-                                            x-on:click.stop="$dispatch('snp-read-butir', {
-                                                id: @js($butir->id_butir_djsn),
-                                                content: @js($butir->butir_djsn ?? ''),
-                                                items: [],
-                                                label: 'Isi Butir Rekomendasi DJSN',
-                                                context: 'Detail Tanggapan DJSN',
-                                                format: 'rich'
-                                            })"
+                                        <button type="button" data-djsn-tanggapan-detail data-tanggapan-detail="{{ $butir->id }}"
+                                            @click="openDetailModalFor(@js($detailTanggapanPayload))"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
                                             style="background-color: #6bb17e;">
                                             Detail
                                         </button>
-                                        @if (!$butir->tanggapan && $canRespond)
-                                            <button type="button"
+
+                                        @if ($availablePicUnits->count() > 0)
+                                            <button type="button" data-beri-tanggapan="{{ $butir->id }}"
                                                 @click="selectedButir = {
-                                                        id: {{ $butir->id }},
-                                                        id_butir_djsn: @js($butir->id_butir_djsn),
-                                                        butir_djsn: @js($butir->butir_djsn ?? ''),
-                                                        id_djsn: @js($butir->record?->id_djsn)
-                                                    }; openModal = true"
+                                                    id: {{ $butir->id }},
+                                                    putaran_id: @js($responseState['round_id']),
+                                                    id_butir_djsn: @js($butir->id_butir_djsn),
+                                                    butir_djsn: @js($butir->butir_djsn),
+                                                    id_djsn: @js($butir->record?->id_djsn),
+                                                    pic_units: @js(
+                                                        $availablePicUnits
+                                                            ->map(function ($pic) {
+                                                                return [
+                                                                    'id' => $pic->id,
+                                                                    'label' => strtoupper($pic->jenis_pic) . ' - ' . ($pic->unitKerja?->kode_unit ?? '-') . ' - ' . ($pic->unitKerja?->nama_unit ?? '-'),
+                                                                ];
+                                                            })
+                                                            ->values(),
+                                                    )
+                                                }; openModal = true"
                                                 class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
-                                                style="background-color: #2377b9;">
+                                                style="background-color: #FFA500;">
                                                 Beri Tanggapan
                                             </button>
-                                        @elseif ($butir->tanggapan)
-                                            <span class="text-xs font-semibold text-slate-400">
-                                                Tanggapan sudah ada
-                                            </span>
-                                        @else
-                                            <span class="text-xs font-semibold text-slate-400">
-                                                Tidak memiliki akses
-                                            </span>
                                         @endif
                                     </div>
                                 </td>
@@ -242,7 +278,7 @@
                             <tr>
                                 <td colspan="5" class="px-6 py-12 text-center">
                                     <p class="text-sm font-semibold text-slate-600">
-                                        Belum ada butir Rekomendasi DJSN yang dapat ditanggapi.
+                                        Belum ada butir DJSN yang dapat ditanggapi.
                                     </p>
                                 </td>
                             </tr>
@@ -267,6 +303,8 @@
             </div>
         </div>
 
+        @include('layouts.partials.tanggapan-unit-detail', ['module' => 'djsn', 'moduleLabel' => 'DJSN'])
+
         {{-- Modal Tanggapan --}}
         <div x-show="openModal" x-transition.opacity
             class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
@@ -277,7 +315,7 @@
                 <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide" style="color: #2377b9;">
-                            Form Tanggapan Rekomendasi DJSN
+                            Form Tanggapan DJSN
                         </p>
 
                         <h2 class="mt-1 text-2xl font-bold text-slate-800">
@@ -285,7 +323,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            Satu butir Rekomendasi DJSN hanya dapat memiliki satu tanggapan.
+                            Setiap unit hanya dapat memberi satu tanggapan pada putaran aktif.
                         </p>
                     </div>
 
@@ -295,9 +333,11 @@
                     </button>
                 </div>
 
-                <form method="POST" enctype="multipart/form-data" :action="`/djsn/tanggapan/${selectedButir?.id}`"
+                <form data-tanggapan-create method="POST" enctype="multipart/form-data" :action="`/djsn/tanggapan/${selectedButir?.id}`"
                     class="px-6 py-6">
                     @csrf
+                    <input type="hidden" name="putaran_id" :value="selectedButir?.putaran_id ?? ''">
+                    <x-butir-preview class="mb-5" content-expression="selectedButir?.butir_djsn" id-expression="selectedButir?.id_butir_djsn" context="Rujukan tanggapan DJSN" />
 
                     @if ($errors->any())
                         <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -310,12 +350,29 @@
                         </div>
                     @endif
 
-                    <x-butir-preview class="mb-5" content-expression="selectedButir?.butir_djsn" id-expression="selectedButir?.id_butir_djsn" label="Isi Butir Rekomendasi DJSN" context="Rujukan tanggapan DJSN" />
-
                     <div class="grid gap-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Tanggapan Rekomendasi DJSN
+                                PIC Unit yang Memberi Tanggapan
+                            </label>
+
+                            <select name="butir_pic_id" required
+                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Pilih PIC Unit</option>
+
+                                <template x-for="pic in selectedButir?.pic_units ?? []" :key="pic.id">
+                                    <option :value="pic.id" x-text="pic.label"></option>
+                                </template>
+                            </select>
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Pilih unit kerja PIC yang tanggapannya sedang diinput.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                Tanggapan DJSN
                             </label>
                             <textarea name="tanggapan" rows="4" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -343,15 +400,11 @@
                         </div>
 
                         <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Ubah Tanggal Jatuh Tempo
-                            </label>
-                            <input type="date" name="ubah_tgl" value="{{ old('ubah_tgl') }}"
-                                class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <p class="mt-1 text-xs text-slate-500">
-                                Opsional jika mengajukan perubahan tanggal.
-                            </p>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Pengajuan Ubah Tanggal Jatuh Tempo</label>
+                            <input type="date" name="ubah_tgl" value="{{ old('ubah_tgl') }}" class="w-full rounded-xl border-slate-300 text-sm">
+                            <p class="mt-1 text-xs text-slate-500">Opsional jika mengajukan perubahan tanggal.</p>
                         </div>
+
                     </div>
 
                     <div class="mt-8 flex justify-end gap-3 border-t border-slate-100 pt-5">

@@ -147,13 +147,15 @@ try {
     }
     await page.click('[data-open-kompilasi]');
     await page.waitForFunction(() => document.querySelector('#kompilasiForm [x-show="openModal"]').getAnimations({ subtree: true }).length === 0 && getComputedStyle(document.querySelector('#kompilasiForm [x-show="openModal"]')).display !== 'none');
-    await page.type('#kompilasiForm textarea[name="hasil_kompilasi"]', 'Draf kompilasi masih dikerjakan.');
+    await page.waitForFunction(() => document.querySelector('#kompilasiForm .tiptap')?.editor);
+    await page.type('#kompilasiForm .tiptap', 'Draf kompilasi masih dikerjakan.');
     await page.click('#kompilasiForm .snp-butir-read-button');
     await readerOpen();
     assert.equal(await page.$eval('[data-snp-reader-content]', element => element.textContent), fixture.content);
     await page.click('[data-snp-reader-close]');
     await readerClosed();
-    assert.equal(await page.$eval('#kompilasiForm textarea[name="hasil_kompilasi"]', element => element.value), 'Draf kompilasi masih dikerjakan.');
+    assert.equal(await page.$eval('#kompilasiForm .tiptap', element => element.textContent), 'Draf kompilasi masih dikerjakan.');
+    assert.ok((await page.$eval('#kompilasiForm [name="hasil_kompilasi"]', element => element.value)).includes('Draf kompilasi masih dikerjakan.'));
     assert.equal(await page.$eval('#kompilasiForm [x-show="openModal"]', element => getComputedStyle(element).display !== 'none'), true);
     assert.deepEqual(errors, []);
     console.log('Passed: complete text, escaped markup, focus, form preservation, navigation, responsive reading, report selection, and pending-edit context.');

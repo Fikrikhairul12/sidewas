@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTanggapanUnit;
 use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
 
 class SnpButir extends Model
 {
+    use HasTanggapanUnit;
     use SyncsSuratAwalStatus;
     use TracksUser;
 

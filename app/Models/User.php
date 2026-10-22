@@ -347,7 +347,7 @@ class User extends Authenticatable
 
     public function canCreateSnpTanggapanForButir(SnpButir $butir): bool
     {
-        if ($this->isSuperAdmin()) {
+        if ($this->isSuperAdmin() || $this->hasRoleType('admin_snp')) {
             return true;
         }
 
@@ -365,7 +365,7 @@ class User extends Authenticatable
         }
 
         $picUnitKerjaIds = $butir->butirPics()
-            ->where('jenis_pic', 'unit')
+            ->whereIn('jenis_pic', ['utama', 'pendukung'])
             ->whereNotNull('unit_kerja_id')
             ->pluck('unit_kerja_id')
             ->toArray();

@@ -260,7 +260,7 @@ window.tanggapanSnpPage = function () {
         openEditModal: false,
         selectedButir: null,
         detailButir: null,
-        editTanggapan: null,
+        editTanggapan: { tanggapan: '', deliverables: '', ubah_tgl: '' },
         selectedDetailPicId: null,
         detailSearch: '',
 
@@ -298,7 +298,7 @@ window.tanggapanSnpPage = function () {
         },
 
         get selectedDetailPic() {
-            const selected = this.detailPics.find(pic => String(pic.id) === String(this.selectedDetailPicId));
+            const selected = this.filteredDetailPics.find(pic => String(pic.id) === String(this.selectedDetailPicId));
 
             if (selected) {
                 return selected;
@@ -331,11 +331,13 @@ window.tanggapanSnpPage = function () {
 
         openEditModalFor(tanggapan) {
             this.editTanggapan = JSON.parse(JSON.stringify(tanggapan));
+            this.editTanggapan.ubah_tgl ??= '';
             this.openEditModal = true;
         },
     };
 };
 
+window.tanggapanDjsnPage = window.tanggapanSnpPage;
 
 /**
  * ============================================================

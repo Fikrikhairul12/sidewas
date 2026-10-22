@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\DjsnButir;
 use App\Models\DjsnRecord;
+use App\Models\SnpButir;
 use App\Models\SnpRecord;
 use App\Models\SuratPutaran;
 use App\Services\SuratAwalStatusService;
@@ -8,6 +10,7 @@ use App\Services\SuratPutaranBackfill;
 use App\Services\SuratPutaranService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -170,5 +173,70 @@ test('fondasi MySQL dapat dipasang dan dibatalkan pada skema instalasi baru', fu
     $this->migration->up();
     foreach (['snp', 'djsn'] as $module) {
         expect(Schema::connection('mysql_'.$module)->hasTable('tb_surat_putaran'))->toBeTrue();
+    }
+});
+
+test('MySQL serializes concurrent responses by unit even for different PIC assignments', function () {
+    (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();
+    (require database_path('migrations/2026_06_03_093422_create_djsn_tables.php'))->up();
+    $this->migration->up();
+    $worker = <<<'PHP'
+        require $argv[1].'/vendor/autoload.php';
+        $app = require $argv[1].'/bootstrap/app.php';
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        $module = $argv[3];
+        $connection = 'mysql_'.$module;
+        config(['database.connections.'.$connection => json_decode($argv[2], true), 'database.default' => $connection]);
+        Illuminate\Support\Facades\DB::purge($connection);
+        $class = $module === 'snp' ? App\Models\SnpTanggapan::class : App\Models\DjsnTanggapan::class;
+        fwrite(STDOUT, "ready\n");
+        fflush(STDOUT);
+        try {
+            $class::create(['id_butir_'.$module => $argv[4], 'butir_pic_id' => (int) $argv[5], 'tanggapan' => 'Concurrent response', 'deliverables' => 'Hasil', 'created_by' => 999]);
+            fwrite(STDOUT, "created\n");
+        } catch (LogicException $exception) {
+            fwrite(STDOUT, "duplicate\n");
+        }
+        PHP;
+
+    foreach (['snp', 'djsn'] as $module) {
+        $recordClass = $module === 'snp' ? SnpRecord::class : DjsnRecord::class;
+        $butirClass = $module === 'snp' ? SnpButir::class : DjsnButir::class;
+        $record = $recordClass::create(['nomor_surat' => 'CONCURRENT', 'tanggal_surat' => '2026-10-22', 'perihal_surat' => 'Surat uji']);
+        $butir = $butirClass::create(['id_'.$module => $record->{'id_'.$module}, 'butir_'.$module => 'Butir uji']);
+        $db = DB::connection('mysql_'.$module);
+        $pics = [];
+        foreach (['utama', 'pendukung'] as $jenis) {
+            $pics[] = $db->table('tb_butir_pic')->insertGetId(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'jenis_pic' => $jenis, 'unit_kerja_id' => 10]);
+        }
+        $processes = [];
+        $db->beginTransaction();
+        try {
+            $db->table('tb_record')->where('id', $record->id)->lockForUpdate()->first();
+            foreach ($pics as $pic) {
+                $process = new Process([PHP_BINARY, '-r', $worker, base_path(), json_encode(config('database.connections.mysql_'.$module)), $module, $butir->{'id_butir_'.$module}, (string) $pic], base_path(), ['APP_ENV' => 'testing', 'LOG_CHANNEL' => 'stderr']);
+                $process->setTimeout(30)->start();
+                $processes[] = $process;
+                expect($process->waitUntil(fn ($type, $output): bool => str_contains($output, 'ready')))->toBeTrue($process->getErrorOutput());
+            }
+            $db->commit();
+            $outcomes = [];
+            foreach ($processes as $process) {
+                $process->wait();
+                expect($process->isSuccessful())->toBeTrue($process->getErrorOutput());
+                $outcomes[] = str_contains($process->getOutput(), 'created') ? 'created' : 'duplicate';
+            }
+            sort($outcomes);
+            expect($outcomes)->toBe(['created', 'duplicate'])->and($db->table('tb_tanggapan')->count())->toBe(1);
+        } finally {
+            if ($db->transactionLevel() > 0) {
+                $db->rollBack();
+            }
+            foreach ($processes as $process) {
+                if ($process->isRunning()) {
+                    $process->stop();
+                }
+            }
+        }
     }
 });

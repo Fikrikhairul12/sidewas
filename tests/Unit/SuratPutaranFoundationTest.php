@@ -192,7 +192,7 @@ test('penyimpanan alur lama sesudah migrasi tetap masuk riwayat lama', function 
     $class = $module === 'snp' ? SnpTanggapan::class : DjsnTanggapan::class;
     $user = User::factory()->create();
     $this->actingAs($user);
-    $response = $class::create(['id_butir_'.$module => 'BUTIR-2', 'tanggapan' => 'Jawaban baru alur lama', ...($module === 'snp' ? ['butir_pic_id' => 2] : [])]);
+    $response = $class::create(['id_butir_'.$module => 'BUTIR-2', 'tanggapan' => 'Jawaban baru alur lama', 'butir_pic_id' => 2]);
     $response->update(['tanggapan' => 'Jawaban diedit']);
 
     expect($response->putaran->nomor_putaran)->toBe(0)

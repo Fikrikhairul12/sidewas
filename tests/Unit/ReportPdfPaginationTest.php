@@ -23,7 +23,7 @@ function paginatedReportRecords(string $module, array $contents): Collection
             'tanggal_'.$module => '2026-10-16',
             'agenda_'.$module => 'Agenda pengawasan',
         ]);
-        foreach (['butirPics', 'butirDirektorats', 'reviews', 'kompilasis', 'kompilasiTindakLanjuts', 'tindakLanjuts'] as $relation) {
+        foreach (['butirPics', 'butirDirektorats', 'reviews', 'kompilasis', 'kompilasiTindakLanjuts', 'tindakLanjuts', 'tanggapanUnit'] as $relation) {
             $butir->setRelation($relation, collect());
         }
         foreach (['tanggapan', 'kompilasiTanggapan', 'kompilasiTindakLanjut', 'reviewTindakLanjut'] as $relation) {
@@ -138,6 +138,8 @@ test('long responses and reviews split safely even when the main butir is short 
         $fields = ['kompilasi_tanggapan', 'hasil_reviu', 'dokumen'];
     } elseif ($module === 'djsn') {
         $butir->setRelation('tanggapan', (object) ['tanggapan' => $longText, 'deliverables' => 'DELIVERABLE', 'dokumen' => 'tanggapan.pdf', 'ubah_tgl' => null, 'status_pengajuan_tgl' => null, 'review' => (object) ['hasil_review' => $review, 'status' => 'selesai_tuntas']]);
+        $butir->tanggapan->unitKerja = null;
+        $butir->setRelation('tanggapanUnit', collect([$butir->tanggapan]));
         $fields = ['tanggapan_tl', 'hasil_reviu', 'dokumen'];
     } else {
         $butir->setRelation('tindakLanjuts', collect([(object) ['id' => 1, 'tindak_lanjut' => $longText, 'deliverables' => 'DELIVERABLE', 'dokumen' => 'tindak-lanjut.pdf', 'jth_tempo' => null, 'unitKerja' => null]]));

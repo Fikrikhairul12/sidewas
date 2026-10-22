@@ -29,6 +29,7 @@ test('module previews reuse the current tab and restore filters and custom choic
                 $butir->setRelation($relation, collect());
             }
             $butir->setRelation('reviewTindakLanjut', null)->setRelation('tanggapan', null);
+            $butir->setRelation('tanggapanUnit', collect());
 
             return $butir;
         });

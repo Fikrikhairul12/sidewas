@@ -34,6 +34,14 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                @foreach ($errors->all() as $error)
+                    <p>{{ $error }}</p>
+                @endforeach
+            </div>
+        @endif
+
         {{-- FILTER --}}
         @include('layouts.snp.partials.filter-lanjutan', [
             'action' => route('snp.tanggapan.index'),
@@ -53,7 +61,7 @@
                         Daftar Butir SNP
                     </h2>
                     <p class="mt-1 text-sm text-slate-500">
-                        Setiap PIC Unit hanya bisa memberi satu tanggapan untuk setiap butir SNP.
+                        Satu tanggapan per unit, per butir, per putaran. Edit tanggapan melalui Detail.
                     </p>
                 </div>
             </div>
@@ -83,81 +91,13 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($butirs as $butir)
                             @php
-                                $user = \App\Models\User::find(auth()->id());
-
+                                $responseState = $responseStates[$butir->id];
                                 $picUtama = $butir->butirPics->where('jenis_pic', 'utama')->first();
                                 $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
-
-                                $picUnits = $butir->butirPics->whereIn('jenis_pic', ['utama', 'pendukung']);
-                                $tanggapanList = $butir->tanggapan ?? collect();
-
-                                $tanggapanPicIds = $tanggapanList
-                                    ->pluck('butir_pic_id')
-                                    ->filter()
-                                    ->map(fn($id) => (int) $id)
-                                    ->toArray();
-
-                                $availablePicUnits = $picUnits
-                                    ->reject(fn($pic) => in_array((int) $pic->id, $tanggapanPicIds, true))
-                                    ->values();
-
-                                $semuaPicSudahTanggapan = $picUnits->count() > 0 && $availablePicUnits->count() === 0;
-
-                                $canRespond = $user?->canAccessSnpTanggapan() ?? false;
-
-                                $picTanggapanPayload = $picUnits
-                                    ->map(function ($pic) use ($tanggapanList, $butir, $user) {
-                                        $tanggapan = $tanggapanList->firstWhere('butir_pic_id', $pic->id);
-                                        $sudahDireviu = $butir->reviews
-                                            ->where('tahap_review', 'tanggapan')
-                                            ->contains(fn ($review) => filled($review->hasil_review));
-                                        $canEdit = $tanggapan && ($user?->isSuperAdmin() || $user?->hasRoleType('admin_snp') ||
-                                            (! $sudahDireviu && in_array((int) $pic->unit_kerja_id, array_map('intval', $user?->unitKerjaIds() ?? []), true)));
-                                        $unitLabel = ($pic->unitKerja?->kode_unit ?? '-') .
-                                            ' - ' .
-                                            ($pic->unitKerja?->nama_unit ?? '-');
-                                        $jenisPic =
-                                            $pic->jenis_pic === 'utama'
-                                                ? 'PIC Utama'
-                                                : 'PIC Pendukung';
-
-                                        return [
-                                            'id' => $pic->id,
-                                            'tanggapan_id' => $tanggapan?->id,
-                                            'can_edit' => (bool) $canEdit,
-                                            'unit_label' => $unitLabel,
-                                            'initial' => $pic->unitKerja?->kode_unit ?? '-',
-                                            'jenis_pic' => $jenisPic,
-                                            'id_butir_snp' => $butir->id_butir_snp,
-                                            'butir_snp' => $butir->butir_snp,
-                                            'sudah_menanggapi' => (bool) $tanggapan,
-                                            'tanggapan' => $tanggapan?->tanggapan,
-                                            'tanggapan_singkat' => $tanggapan
-                                                ? \Illuminate\Support\Str::limit($tanggapan->tanggapan, 110)
-                                                : null,
-                                            'deliverables' => $tanggapan?->deliverables,
-                                            'deliverables_singkat' => $tanggapan
-                                                ? \Illuminate\Support\Str::limit($tanggapan->deliverables, 90)
-                                                : null,
-                                            'dokumen_url' => $tanggapan?->dokumen
-                                                ? asset('storage/' . $tanggapan->dokumen)
-                                                : null,
-                                            'creator' => $tanggapan?->creator?->name ?? '-',
-                                            'created_at' => $tanggapan?->created_at
-                                                ? \Carbon\Carbon::parse($tanggapan->created_at)->format('d/m/Y')
-                                                : '-',
-                                        ];
-                                    })
-                                    ->values()
-                                    ->all();
-
-                                $detailTanggapanPayload = [
-                                    'id' => $butir->id,
-                                    'id_snp' => $butir->record?->id_snp,
-                                    'id_butir_snp' => $butir->id_butir_snp,
-                                    'butir_snp' => $butir->butir_snp,
-                                    'pic_tanggapans' => $picTanggapanPayload,
-                                ];
+                                $tanggapanList = $responseState['responses'];
+                                $availablePicUnits = $responseState['available_pics'];
+                                $semuaPicSudahTanggapan = $responseState['complete'];
+                                $detailTanggapanPayload = $responseState['detail'];
                             @endphp
 
                             <tr class="hover:bg-blue-50/40">
@@ -259,7 +199,7 @@
                                             <span
                                                 class="inline-flex text-center rounded-full px-3 py-1 text-xs font-bold text-slate-700"
                                                 style="background-color: #c8e079;">
-                                                Tanggapan PIC Opsional
+                                                Tanggapan Belum Lengkap
                                             </span>
                                         @endif
 
@@ -268,9 +208,9 @@
                                                 <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
                                                     <p class="text-xs font-bold uppercase tracking-wide"
                                                         style="color: #2377b9;">
-                                                        {{ $item->butirPic?->unitKerja?->kode_unit ?? '-' }}
+                                                        {{ $item->unitKerja?->kode_unit ?? '-' }}
                                                         -
-                                                        {{ $item->butirPic?->unitKerja?->nama_unit ?? '-' }}
+                                                        {{ $item->unitKerja?->nama_unit ?? '-' }}
                                                     </p>
 
                                                     <p class="mt-2 text-xs leading-relaxed text-slate-700">
@@ -300,17 +240,18 @@
 
                                 <td class="px-6 py-6 align-top">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        <button type="button"
+                                        <button type="button" data-tanggapan-detail="{{ $butir->id }}"
                                             @click="openDetailModalFor(@js($detailTanggapanPayload))"
                                             class="rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
                                             style="background-color: #6bb17e;">
                                             Detail
                                         </button>
 
-                                        @if ($availablePicUnits->count() > 0 && $canRespond)
-                                            <button type="button"
+                                        @if ($availablePicUnits->count() > 0)
+                                            <button type="button" data-beri-tanggapan="{{ $butir->id }}"
                                                 @click="selectedButir = {
                                                     id: {{ $butir->id }},
+                                                    putaran_id: @js($responseState['round_id']),
                                                     id_butir_snp: @js($butir->id_butir_snp),
                                                     butir_snp: @js($butir->butir_snp),
                                                     id_snp: @js($butir->record?->id_snp),
@@ -362,178 +303,7 @@
             </div>
         </div>
 
-        {{-- Modal Detail Tanggapan --}}
-        <div x-show="openDetailModal" x-transition.opacity
-            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
-            style="display: none;">
-            <div @click.outside="openDetailModal = false" x-transition
-                class="w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-                <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
-                    <div>
-                        <h2 class="text-2xl font-bold text-slate-800">
-                            Detail Tanggapan SNP
-                        </h2>
-                        <p class="mt-1 text-sm font-semibold text-slate-500" x-text="detailButir?.id_snp ?? '-'"></p>
-                    </div>
-
-                    <button type="button" @click="openDetailModal = false"
-                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                <div class="grid max-h-[70vh] overflow-y-auto lg:grid-cols-[260px_minmax(0,1fr)] lg:overflow-hidden">
-                    <div class="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
-                        <div class="relative">
-                            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
-                                fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
-                            </svg>
-                            <input type="text" x-model="detailSearch" placeholder="Cari unit / isi tanggapan..."
-                                class="w-full rounded-xl border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-
-                        <div class="mt-4 max-h-[52vh] space-y-3 overflow-y-auto pr-1">
-                            <template x-for="pic in filteredDetailPics" :key="pic.id">
-                                <button type="button" @click="selectDetailPic(pic)"
-                                    class="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition hover:bg-blue-50"
-                                    :class="String(selectedDetailPic?.id) === String(pic.id)
-                                        ? 'border-blue-300 bg-blue-50'
-                                        : 'border-slate-200 bg-white'">
-                                    <span
-                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                                        :class="pic.sudah_menanggapi ? 'bg-blue-100 text-blue-700' :
-                                            'bg-slate-100 text-slate-500'"
-                                        x-text="pic.initial"></span>
-
-                                    <span class="min-w-0 flex-1">
-                                        <span class="block truncate text-sm font-bold text-slate-800"
-                                            x-text="`${pic.initial} - ${pic.jenis_pic}`"></span>
-                                        <span class="mt-1 block text-xs text-slate-500"
-                                            x-text="pic.sudah_menanggapi ? 'Sudah mengisi tanggapan' : 'Belum mengisi tanggapan'"></span>
-                                    </span>
-
-                                    <svg x-show="pic.sudah_menanggapi" class="h-5 w-5 shrink-0 text-green-500"
-                                        fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                                    </svg>
-                                </button>
-                            </template>
-
-                            <div x-show="filteredDetailPics.length === 0"
-                                class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
-                                Unit/tanggapan tidak ditemukan.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="min-w-0 space-y-5 p-6 lg:max-h-[70vh] lg:overflow-y-auto">
-                        <x-snp-butir-preview content-expression="detailButir?.butir_snp" id-expression="detailButir?.id_butir_snp"
-                            :expanded="true" context="Tanggapan SNP" />
-                        <template x-if="selectedDetailPic">
-                            <div class="space-y-5">
-                                <div>
-                                    <p class="text-lg font-bold" style="color: #2377b9;"
-                                        x-text="selectedDetailPic.unit_label"></p>
-                                </div>
-
-                                <div class="grid gap-4 text-sm md:grid-cols-[130px_minmax(0,1fr)]">
-                                    <p class="font-bold text-slate-600">Tipe PIC</p>
-                                    <p class="text-slate-700" x-text="selectedDetailPic.jenis_pic"></p>
-
-                                    <p class="font-bold text-slate-600">Butir SNP</p>
-                                    <p class="text-slate-700" x-text="selectedDetailPic.id_butir_snp"></p>
-
-                                    <p class="font-bold text-slate-600">Tanggapan</p>
-                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
-                                        x-text="selectedDetailPic.tanggapan ?? '-'"></p>
-
-                                    <p class="font-bold text-slate-600">Deliverables</p>
-                                    <p class="whitespace-pre-line leading-relaxed text-slate-700"
-                                        x-text="selectedDetailPic.deliverables ?? '-'"></p>
-
-                                    <p class="font-bold text-slate-600">Dokumen PIC</p>
-                                    <div>
-                                        <template x-if="selectedDetailPic.dokumen_url">
-                                            <a :href="selectedDetailPic.dokumen_url" target="_blank"
-                                                class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-white hover:opacity-90"
-                                                style="background-color: #2377b9;">
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor"
-                                                    stroke-width="1.8" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" />
-                                                </svg>
-                                                Download Dokumen
-                                            </a>
-                                        </template>
-                                        <p class="text-slate-400" x-show="!selectedDetailPic.dokumen_url">-</p>
-                                    </div>
-
-                                    <p class="font-bold text-slate-600">Diinput oleh</p>
-                                    <p class="text-slate-700" x-text="selectedDetailPic.creator"></p>
-
-                                    <p class="font-bold text-slate-600">Tanggal Input</p>
-                                    <p class="text-slate-700" x-text="selectedDetailPic.created_at"></p>
-
-                                    <button type="button" x-show="selectedDetailPic.can_edit"
-                                        @click="openEditModalFor(selectedDetailPic)"
-                                        class="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-xs font-bold text-white">
-                                        Edit Tanggapan
-                                    </button>
-                                </div>
-                            </div>
-                        </template>
-
-                        <div x-show="!selectedDetailPic"
-                            class="rounded-xl border border-dashed border-slate-200 px-4 py-14 text-center text-sm text-slate-400">
-                            Belum ada PIC pada butir ini.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
-                    <button type="button" @click="openDetailModal = false"
-                        class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                        Tutup
-                    </button>
-
-                    <button type="button" @click="selectNextDetailPic()"
-                        class="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold hover:bg-blue-50"
-                        style="color: #2377b9;">
-                        Unit Berikutnya
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div x-show="openEditModal" x-transition.opacity
-            class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 py-8"
-            style="display: none;">
-            <div @click.outside="openEditModal = false" class="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
-                <h2 class="text-xl font-bold text-slate-800">Edit Tanggapan SNP</h2>
-                <x-snp-butir-preview class="mt-4" content-expression="editTanggapan?.butir_snp" id-expression="editTanggapan?.id_butir_snp" context="Rujukan tanggapan SNP" />
-                <form method="POST" enctype="multipart/form-data" :action="`/snp/tanggapan/${editTanggapan?.tanggapan_id}`" class="mt-5 space-y-4">
-                    @csrf
-                    @method('PATCH')
-                    <textarea name="tanggapan" rows="5" required x-model="editTanggapan.tanggapan" class="w-full rounded-xl border-slate-300"></textarea>
-                    <textarea name="deliverables" rows="3" required x-model="editTanggapan.deliverables" class="w-full rounded-xl border-slate-300"></textarea>
-                    <input type="file" name="dokumen" class="w-full rounded-xl border border-slate-300 p-3 text-sm">
-                    <div class="flex justify-end gap-3">
-                        <button type="button" @click="openEditModal = false" class="rounded-xl border px-4 py-2">Batal</button>
-                        <button type="submit" class="rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white">Simpan Perubahan</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        @include('layouts.partials.tanggapan-unit-detail', ['module' => 'snp', 'moduleLabel' => 'SNP'])
 
         {{-- Modal Tanggapan --}}
         <div x-show="openModal" x-transition.opacity
@@ -553,7 +323,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            Setiap PIC Unit hanya dapat memberi satu tanggapan untuk butir SNP ini.
+                            Setiap unit hanya dapat memberi satu tanggapan pada putaran aktif.
                         </p>
                     </div>
 
@@ -563,9 +333,10 @@
                     </button>
                 </div>
 
-                <form method="POST" enctype="multipart/form-data" :action="`/snp/tanggapan/${selectedButir?.id}`"
+                <form data-tanggapan-create method="POST" enctype="multipart/form-data" :action="`/snp/tanggapan/${selectedButir?.id}`"
                     class="px-6 py-6">
                     @csrf
+                    <input type="hidden" name="putaran_id" :value="selectedButir?.putaran_id ?? ''">
                     <x-snp-butir-preview class="mb-5" content-expression="selectedButir?.butir_snp" id-expression="selectedButir?.id_butir_snp" context="Rujukan tanggapan SNP" />
 
                     @if ($errors->any())

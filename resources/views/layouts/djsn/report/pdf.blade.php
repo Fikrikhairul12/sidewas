@@ -164,7 +164,7 @@
                     $totalRowsRecord = 0;
 
                     foreach ($record->butirDjsn as $butirHitung) {
-                        $totalRowsRecord += max(1, 1 + $butirHitung->tindakLanjuts->count());
+                        $totalRowsRecord += max(1, $butirHitung->tanggapanUnit->count()) + $butirHitung->tindakLanjuts->count();
                     }
 
                     $isFirstRecordRow = true;
@@ -176,8 +176,9 @@
                         $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
                         $komitePic = $butir->butirPics->where('jenis_pic', 'komite')->first();
 
-                        $tanggapan = $butir->tanggapan;
-                        $reviewTanggapan = $tanggapan?->review;
+                        $tanggapanRows = $butir->tanggapanUnit->isEmpty() ? collect([null]) : $butir->tanggapanUnit;
+                        $tanggapan = $tanggapanRows->first();
+
                         $tindakLanjuts = $butir->tindakLanjuts;
 
                         $jatuhTempoAwal = $record->tanggal_surat
@@ -194,10 +195,17 @@
                             $jatuhTempoFinal = \Carbon\Carbon::parse($tanggapan->ubah_tgl);
                         }
 
-                        $jumlahBarisButir = max(1, 1 + $tindakLanjuts->count());
+                        $jumlahBarisButir = max(1, $tanggapanRows->count()) + $tindakLanjuts->count();
                     @endphp
 
-                    {{-- Baris Tanggapan --}}
+                    @foreach ($tanggapanRows as $tanggapan)
+                        @php
+                            $isFirstTanggapanRow = $loop->first;
+                            $reviewTanggapan = $tanggapan?->review;
+                            $statusTanggapan = $reviewTanggapan?->status ?? 'belum_ditanggapi';
+
+                        @endphp
+                        {{-- Baris Tanggapan --}}
                     <tr data-report-butir="{{ $butir->id_butir_djsn }}">
                         @if ($isFirstRecordRow)
                             <td rowspan="{{ $totalRowsRecord }}" class="top pre-line">
@@ -212,15 +220,20 @@
                             @endphp
                         @endif
 
-                        <td class="center pre-line" rowspan="{{ $jumlahBarisButir }}" data-report-label>
+                        @if ($isFirstTanggapanRow)
+                            <td class="center pre-line" rowspan="{{ $jumlahBarisButir }}" data-report-label>
                             {{ $butir->id_butir_djsn }}
                         </td>
+                        @endif
 
-                        <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
+                        @if ($isFirstTanggapanRow)
+                            <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
                             -
                         </td>
+                        @endif
 
-                        <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
+                        @if ($isFirstTanggapanRow)
+                            <td class="pre-line top" rowspan="{{ $jumlahBarisButir }}">
                             PIC UNIT KERJA UTAMA:
                             {{ $picUtama?->unitKerja?->kode_unit ?? '-' }}
 
@@ -231,10 +244,12 @@
                                 -
                             @endif
                         </td>
+                        @endif
 
                         <td class="pre-line top">
                             @if ($tanggapan)
-                                {{ $tanggapan->tanggapan }}
+                                {{ $tanggapan->unitKerja?->kode_unit ?? 'Unit tidak tercatat (data lama)' }}
+                                        {{ $tanggapan->tanggapan }}
                             @else
                                 -
                             @endif
@@ -266,9 +281,11 @@
                             @endif
                         </td>
 
-                        <td class="center pre-line" rowspan="{{ $jumlahBarisButir }}">
+                        @if ($isFirstTanggapanRow)
+                            <td class="center pre-line" rowspan="{{ $jumlahBarisButir }}">
                             {{ $komitePic?->komite?->kode_komite ?? '-' }}
                         </td>
+                        @endif
 
                         <td class="pre-line top">
                             <x-rich-content data-report-rich :content="$reviewTanggapan?->hasil_review" />
@@ -292,6 +309,8 @@
                             </span>
                         </td>
                     </tr>
+
+                    @endforeach
 
                     {{-- Baris Tindak Lanjut --}}
                     @foreach ($tindakLanjuts as $tl)

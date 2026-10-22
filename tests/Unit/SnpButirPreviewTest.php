@@ -29,8 +29,10 @@ test('SNP expanded previews use the complete dynamic butir instead of a shortene
     expect($html)->toContain('snp-butir-preview--expanded', 'detailButir?.butir_snp', 'Perbesar bacaan');
 
     foreach (['tanggapan', 'tindak-lanjut'] as $page) {
-        expect(file_get_contents(resource_path('views/layouts/snp/'.$page.'.blade.php')))
-            ->toContain('content-expression="detailButir?.butir_snp"')
+        $path = $page === 'tanggapan' ? 'views/layouts/partials/tanggapan-unit-detail.blade.php' : 'views/layouts/snp/'.$page.'.blade.php';
+        $field = $page === 'tanggapan' ? 'butir_content' : 'butir_snp';
+        expect(file_get_contents(resource_path($path)))
+            ->toContain('content-expression="detailButir?.'.$field.'"')
             ->not->toContain('isi_butir_singkat');
     }
 });
@@ -75,18 +77,22 @@ test('SNP reading room works with Alpine forms reports and pending edits in a br
         $source = file_get_contents(resource_path('views/layouts/snp/'.$page.'.blade.php'));
         $opening = Str::before(Str::after($source, '<x-app-layout>'), '<div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">');
         $body = Str::between($source, $start, $end);
+        if ($page === 'tanggapan') {
+            $body = Str::between(file_get_contents(resource_path('views/layouts/partials/tanggapan-unit-detail.blade.php')), $start, $end);
+        }
         $payload = [
             'id_snp' => 'SNP', 'id_butir_snp' => 'SNP.01', 'butir_snp' => $content,
+            'id_surat' => 'SNP', 'id_butir' => 'SNP.01', 'butir_content' => $content,
             'butirs' => $items, 'pic_tanggapans' => [], 'tindak_lanjuts' => [],
         ];
         $html .= '<section id="detail-'.$page.'">'.Blade::render(
             $opening.'<button type="button" data-open-detail @click="openDetailModalFor(@js($payload), 1)">Buka detail</button>'.$body.'</div>',
-            ['payload' => $payload, 'clusters' => [], 'direktorats' => [], 'butirSiapTindakLanjut' => collect()],
+            ['payload' => $payload, 'clusters' => [], 'direktorats' => [], 'butirSiapTindakLanjut' => collect(), 'moduleLabel' => 'SNP', 'module' => 'snp'],
         ).'</section>';
     }
     $kompilasiView = file_get_contents(resource_path('views/layouts/snp/kompilasi.blade.php'));
     $kompilasiForm = Str::beforeLast(Str::afterLast($kompilasiView, '@if ($canCreateKompilasi)'), '@endif');
-    $selectedItem = $items[0] + ['tahap' => 'tanggapan', 'tahap_label' => 'Kompilasi Tanggapan', 'hasil_kompilasi' => '', 'deliverables' => '', 'ubah_tgl' => ''];
+    $selectedItem = $items[0] + ['record_id' => 1, 'image_upload_url' => '/snp/kompilasi/1/gambar', 'tahap' => 'tanggapan', 'tahap_label' => 'Kompilasi Tanggapan', 'hasil_kompilasi' => '', 'deliverables' => '', 'ubah_tgl' => ''];
     $html .= Blade::render('<section id="kompilasiForm" x-data="{ openModal: false, selectedItem: @js($selectedItem) }"><button type="button" data-open-kompilasi @click="openModal = true">Kompilasi</button>'.$kompilasiForm.'</section>', compact('selectedItem'));
     $html .= view('components.snp-butir-reader')->render();
 

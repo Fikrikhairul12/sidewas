@@ -6,16 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Direktorat;
 use App\Models\DjsnButir;
 use App\Models\DjsnCluster;
-use App\Models\DjsnReview;
 use App\Models\DjsnTanggapan;
 use App\Models\Komite;
-use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\TanggapanUnitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class TanggapanDjsnController extends Controller
 {
@@ -23,17 +20,20 @@ class TanggapanDjsnController extends Controller
     {
         $user = User::find(Auth::id());
 
-        if (!$user || !$user->canAccessDjsnTanggapan()) {
+        if (! $user || ! $user->canAccessDjsnTanggapan()) {
             abort(403, 'Anda tidak memiliki akses ke halaman tanggapan DJSN.');
         }
 
         $query = DjsnButir::with([
-            'record',
+            'record.putaran',
             'cluster',
             'subCluster',
             'butirPics.unitKerja.direktorat',
             'butirPics.komite',
-            'tanggapan.creator',
+            'tanggapanAktif.creator',
+            'tanggapanAktif.updater',
+            'tanggapanAktif.unitKerja',
+            'reviews',
         ])
             ->whereHas('record');
 
@@ -85,7 +85,7 @@ class TanggapanDjsnController extends Controller
             });
         }
 
-        if (!$user->isSuperAdmin() && !$user->hasRoleType('admin_djsn')) {
+        if (! $user->isSuperAdmin() && ! $user->hasRoleType('admin_djsn')) {
             $userUnitKerjaIds = $user->unitKerjaIds();
 
             $query->whereHas('butirPics', function ($picQuery) use ($userUnitKerjaIds) {
@@ -94,15 +94,8 @@ class TanggapanDjsnController extends Controller
             });
         }
 
-        if ($request->filled('status')) {
-            if ($request->status === 'sudah') {
-                $query->whereHas('tanggapan');
-            }
-
-            if ($request->status === 'belum') {
-                $query->whereDoesntHave('tanggapan');
-            }
-        }
+        $responses = app(TanggapanUnitService::class);
+        $responses->applyStatusFilter($query, $user, (string) $request->input('status'));
 
         if ($request->filled('keyword')) {
             $keyword = $request->keyword;
@@ -115,7 +108,7 @@ class TanggapanDjsnController extends Controller
                             ->orWhere('nomor_surat', 'like', "%{$keyword}%")
                             ->orWhere('perihal_surat', 'like', "%{$keyword}%");
                     })
-                    ->orWhereHas('tanggapan', function ($tanggapanQuery) use ($keyword) {
+                    ->orWhereHas('tanggapanAktif', function ($tanggapanQuery) use ($keyword) {
                         $tanggapanQuery->where('tanggapan', 'like', "%{$keyword}%")
                             ->orWhere('deliverables', 'like', "%{$keyword}%");
                     });
@@ -126,6 +119,8 @@ class TanggapanDjsnController extends Controller
             ->latest('id')
             ->paginate(2)
             ->withQueryString();
+
+        $responseStates = $butirs->getCollection()->mapWithKeys(fn ($butir): array => [$butir->id => $responses->presentation($butir, $user)]);
 
         $clusters = DjsnCluster::with('subClusters')
             ->orderBy('nama_cluster')
@@ -144,6 +139,7 @@ class TanggapanDjsnController extends Controller
 
         return view('layouts.djsn.tanggapan', compact(
             'butirs',
+            'responseStates',
             'clusters',
             'direktorats',
             'unitKerjas',
@@ -151,81 +147,37 @@ class TanggapanDjsnController extends Controller
             'statusOptions'
         ));
 
-        // return view('layouts.djsn.tanggapan', compact('butirs'));
     }
 
     public function store(Request $request, DjsnButir $butir)
     {
         $user = User::find(Auth::id());
+        abort_unless($user && $user->canAccessDjsnTanggapan(), 403);
+        $validated = $request->validate([
+            'butir_pic_id' => ['required', 'integer'],
+            'putaran_id' => ['nullable', 'integer'],
+            'tanggapan' => ['required', 'string'],
+            'deliverables' => ['required', 'string'],
+            'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
+            'ubah_tgl' => ['nullable', 'date'],
+        ]);
+        app(TanggapanUnitService::class)->create($butir, $user, $validated, $request);
 
-        if (!$user || !$user->canCreateDjsnTanggapanForButir($butir)) {
-            abort(403, 'Anda tidak memiliki akses untuk memberi tanggapan pada butir ini.');
-        }
+        return redirect()->route('djsn.tanggapan.index')->with('success', 'Tanggapan DJSN berhasil disimpan.');
+    }
 
-        if ($butir->tanggapan()->exists()) {
-            return back()->with('error', 'Butir DJSN ini sudah memiliki tanggapan.');
-        }
-
+    public function update(Request $request, DjsnTanggapan $tanggapan)
+    {
+        $user = User::find(Auth::id());
+        abort_unless($user && $user->canAccessDjsnTanggapan(), 403);
         $validated = $request->validate([
             'tanggapan' => ['required', 'string'],
             'deliverables' => ['required', 'string'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
             'ubah_tgl' => ['nullable', 'date'],
         ]);
+        app(TanggapanUnitService::class)->update($tanggapan, $user, $validated, $request);
 
-        DB::connection('mysql_djsn')->transaction(function () use ($request, $validated, $butir, $user) {
-            $dokumenPath = null;
-
-            if ($request->hasFile('dokumen')) {
-                $dokumenPath = $request->file('dokumen')->store('dokumen/tanggapan-djsn', 'public');
-            }
-
-            $tanggapan = DjsnTanggapan::create([
-                'id_butir_djsn' => $butir->id_butir_djsn,
-                'tanggapan' => $validated['tanggapan'],
-                'deliverables' => $validated['deliverables'],
-                'dokumen' => $dokumenPath,
-                'ubah_tgl' => $validated['ubah_tgl'] ?? null,
-                'status_pengajuan_tgl' => 'pending',
-            ]);
-
-            $komitePic = $butir->butirPics()
-                ->where('jenis_pic', 'komite')
-                ->whereNotNull('komite_id')
-                ->first();
-
-            $review = DjsnReview::create([
-                'id_butir_djsn' => $butir->id_butir_djsn,
-                'id_tanggapan' => $tanggapan->id,
-                'id_tindak_lanjut' => null,
-                'tahap_review' => 'tanggapan',
-                'komite_id' => $komitePic?->komite_id,
-                'hasil_review' => null,
-                'deliverables' => null,
-                'status' => 'belum_ditanggapi',
-            ]);
-
-            LogActivity::create([
-                'user_id' => $user->id,
-                'type_code' => 'djsn',
-                'database_name' => 'sidewas_djsn',
-                'table_name' => 'tb_tanggapan',
-                'record_key' => $tanggapan->id_butir_djsn,
-                'action' => 'create',
-                'description' => 'User membuat tanggapan DJSN dan sistem membuat review awal.',
-                'old_values' => null,
-                'new_values' => [
-                    'butir' => $butir->load('record')->toArray(),
-                    'tanggapan' => $tanggapan->toArray(),
-                    'review' => $review->toArray(),
-                ],
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
-        });
-
-        return redirect()
-            ->route('djsn.tanggapan.index')
-            ->with('success', 'Tanggapan DJSN berhasil disimpan.');
+        return redirect()->route('djsn.tanggapan.index')->with('success', 'Tanggapan DJSN berhasil diperbarui.');
     }
 }

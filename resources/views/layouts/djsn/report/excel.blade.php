@@ -15,8 +15,9 @@
                     $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
                     $komitePic = $butir->butirPics->where('jenis_pic', 'komite')->first();
 
-                    $tanggapan = $butir->tanggapan;
-                    $reviewTanggapan = $tanggapan?->review;
+                    $tanggapanRows = $butir->tanggapanUnit->isEmpty() ? collect([null]) : $butir->tanggapanUnit;
+                    $tanggapan = $tanggapanRows->first();
+
                     $tindakLanjuts = $butir->tindakLanjuts;
 
                     $jatuhTempoAwal = $record->tanggal_surat
@@ -33,10 +34,15 @@
                         $jatuhTempoFinal = \Carbon\Carbon::parse($tanggapan->ubah_tgl);
                     }
 
-                    $statusTanggapan = $reviewTanggapan?->status ?? 'belum_ditanggapi';
                 @endphp
 
-                {{-- Baris tanggapan --}}
+                @foreach ($tanggapanRows as $tanggapan)
+                        @php
+                            $reviewTanggapan = $tanggapan?->review;
+                            $statusTanggapan = $reviewTanggapan?->status ?? 'belum_ditanggapi';
+
+                        @endphp
+                    {{-- Baris tanggapan --}}
                 <tr>
                     @foreach ($selectedFields as $field)
                         @if ($field === 'surat')
@@ -65,7 +71,14 @@
                             </td>
 
                         @elseif ($field === 'tanggapan')
-                            <td>{{ $tanggapan?->tanggapan ?? '-' }}</td>
+                            <td>
+                                @if ($tanggapan)
+                                    {{ $tanggapan->unitKerja?->kode_unit ?? 'Unit tidak tercatat (data lama)' }}
+                                    {{ $tanggapan->tanggapan }}
+                                @else
+                                    -
+                                @endif
+                            </td>
 
                         @elseif ($field === 'tindak_lanjut')
                             <td>-</td>
@@ -110,6 +123,8 @@
                         @endif
                     @endforeach
                 </tr>
+
+                @endforeach
 
                 {{-- Baris tindak lanjut --}}
                 @foreach ($tindakLanjuts as $tl)

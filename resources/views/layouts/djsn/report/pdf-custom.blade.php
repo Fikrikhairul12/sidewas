@@ -132,7 +132,7 @@
                     $totalRowsRecord = 0;
 
                     foreach ($record->butirDjsn as $butirHitung) {
-                        $totalRowsRecord += max(1, 1 + $butirHitung->tindakLanjuts->count());
+                        $totalRowsRecord += max(1, $butirHitung->tanggapanUnit->count()) + $butirHitung->tindakLanjuts->count();
                     }
 
                     $isFirstRecordRow = true;
@@ -144,8 +144,9 @@
                         $picPendukung = $butir->butirPics->where('jenis_pic', 'pendukung');
                         $komitePic = $butir->butirPics->where('jenis_pic', 'komite')->first();
 
-                        $tanggapan = $butir->tanggapan;
-                        $reviewTanggapan = $tanggapan?->review;
+                        $tanggapanRows = $butir->tanggapanUnit->isEmpty() ? collect([null]) : $butir->tanggapanUnit;
+                        $tanggapan = $tanggapanRows->first();
+
 
                         $tindakLanjuts = $butir->tindakLanjuts;
 
@@ -163,21 +164,25 @@
                             $jatuhTempoFinal = \Carbon\Carbon::parse($tanggapan->ubah_tgl);
                         }
 
-                        $jumlahBarisButir = max(1, 1 + $tindakLanjuts->count());
+                        $jumlahBarisButir = max(1, $tanggapanRows->count()) + $tindakLanjuts->count();
 
-                        $statusTanggapan = $reviewTanggapan?->status ?? 'belum_ditanggapi';
-
-                        $statusTanggapanClass = match ($statusTanggapan) {
-                            'belum_ditanggapi' => 'status-belum',
-                            'dalam_proses_reviu_dewan_pengawas' => 'status-reviu',
-                            'dalam_proses_tindak_lanjut_direksi' => 'status-tl',
-                            'selesai_tuntas' => 'status-selesai',
-                            default => 'status-belum',
-                        };
                     @endphp
 
+                    @foreach ($tanggapanRows as $tanggapan)
+                        @php
+                            $isFirstTanggapanRow = $loop->first;
+                            $reviewTanggapan = $tanggapan?->review;
+                            $statusTanggapan = $reviewTanggapan?->status ?? 'belum_ditanggapi';
+                            $statusTanggapanClass = match ($statusTanggapan) {
+                                'dalam_proses_reviu_dewan_pengawas' => 'status-reviu',
+                                'dalam_proses_tindak_lanjut_direksi' => 'status-tl',
+                                'selesai_tuntas' => 'status-selesai',
+                                default => 'status-belum',
+                            };
+                        @endphp
                     <tr data-report-butir="{{ $butir->id_butir_djsn }}">
                         @foreach ($selectedFields as $field)
+                            @continue(! $isFirstTanggapanRow && in_array($field, ['surat', 'id_butir', 'isi_butir', 'pic_unit', 'komite'], true))
                             @if ($field === 'surat')
                                 @if ($isFirstRecordRow)
                                     <td rowspan="{{ $totalRowsRecord }}" class="pre-line">
@@ -215,6 +220,7 @@
                                 <td class="pre-line">
                                     @if ($tanggapan)
                                         [ISI TANGGAPAN DJSN]
+                                        {{ $tanggapan->unitKerja?->kode_unit ?? 'Unit tidak tercatat (data lama)' }}
                                         {{ $tanggapan->tanggapan }}
                                     @else
                                         -
@@ -264,6 +270,8 @@
                             @endif
                         @endforeach
                     </tr>
+
+                    @endforeach
 
                     @foreach ($tindakLanjuts as $tl)
                         @php

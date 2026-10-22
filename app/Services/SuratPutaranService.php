@@ -68,7 +68,7 @@ class SuratPutaranService
         $attributes = (new SuratPutaranBackfill)->legacyAttributes($record);
         DB::connection($connection)->table('tb_surat_putaran')->insertOrIgnore($attributes);
 
-        return SuratPutaran::on($connection)->where('record_id', $record['id'])->where('nomor_putaran', 0)->firstOrFail();
+        return SuratPutaran::on($connection)->where('record_id', $record['id'])->where('nomor_putaran', 0)->lockForUpdate()->firstOrFail();
     }
 
     public function prepareForSave(Model $model): void
@@ -106,7 +106,7 @@ class SuratPutaranService
             $model->setAttribute('putaran_id', $record->putaran_aktif_id ?? $this->legacyFor($connection, (array) $record)->id);
         }
 
-        $putaran = SuratPutaran::on($connection)->findOrFail($model->getAttribute('putaran_id'));
+        $putaran = SuratPutaran::on($connection)->lockForUpdate()->findOrFail($model->getAttribute('putaran_id'));
 
         if ((int) $putaran->record_id !== (int) $record->id) {
             throw new InvalidArgumentException('Putaran dan butir harus berasal dari surat yang sama.');
@@ -118,6 +118,14 @@ class SuratPutaranService
 
         if ($model->getTable() === 'tb_tanggapan') {
             $this->prepareResponseUnit($model, $putaran, $module);
+
+            if ($model->exists && $model->isDirty(['butir_pic_id', 'unit_kerja_id'])) {
+                throw new LogicException('Identitas unit tanggapan yang tersimpan tidak boleh diganti.');
+            }
+
+            if ($model->getAttribute('unit_kerja_id') !== null) {
+                $this->assertNewEntryIsUnique($model, $butirColumn);
+            }
         }
 
         if (! $putaran->isLegacy()) {
@@ -126,7 +134,9 @@ class SuratPutaranService
             }
 
             $this->assertRoundLinks($model, $putaran, $butirColumn);
-            $this->assertNewEntryIsUnique($model, $butirColumn);
+            if ($model->getTable() !== 'tb_tanggapan') {
+                $this->assertNewEntryIsUnique($model, $butirColumn);
+            }
         }
     }
 
@@ -145,12 +155,12 @@ class SuratPutaranService
                 }
 
                 $model->setAttribute('unit_kerja_id', $pic->unit_kerja_id);
-            } elseif (! $putaran->isLegacy()) {
+            } elseif (! $model->exists || ! $putaran->isLegacy()) {
                 throw new InvalidArgumentException('PIC unit pengisi tidak ditemukan pada butir ini.');
             }
         }
 
-        if (! $putaran->isLegacy()) {
+        if (! $model->exists || ! $putaran->isLegacy()) {
             $unitId = $model->getAttribute('unit_kerja_id');
 
             if ($unitId === null || ! $db->table('tb_butir_pic')->where($butirColumn, $model->getAttribute($butirColumn))
@@ -188,7 +198,7 @@ class SuratPutaranService
             $query->where('unit_kerja_id', $model->getAttribute('unit_kerja_id'));
         }
 
-        if ($query->exists()) {
+        if ($query->lockForUpdate()->first(['id']) !== null) {
             throw new LogicException('Data butir dan unit pada putaran ini sudah ada; perbarui data yang tersimpan.');
         }
     }
