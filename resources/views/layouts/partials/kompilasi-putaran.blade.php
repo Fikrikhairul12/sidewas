@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div data-workflow-page x-data="{ openModal: false, selected: { deliverables: '', ubah_tgl: '' } }" @keydown.escape.window="openModal = false" class="space-y-6">
+    <div data-workflow-page x-data="reviuBahanPage({ deliverables: '', ubah_tgl: '' })" @keydown.escape.window="openModal = false" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold text-blue-700">{{ $moduleLabel }}</p>
             <h1 class="mt-2 text-3xl font-bold text-slate-800">Kompilasi Tanggapan {{ strtoupper($module) }}</h1>
@@ -35,6 +35,7 @@
                                 $responses = $workflow->current($butir->tanggapanAktif, $butir);
                                 $answered = $responses->pluck('unit_kerja_id')->filter()->unique();
                                 $payload = [
+                                    'preview' => $previewBahan[$butir->id],
                                     'action' => route($module.'.kompilasi.store', $butir), 'putaran_id' => $workflow->roundId($butir),
                                     'butir_id' => $butir->{'id_butir_'.$module}, 'butir' => $butir->{'butir_'.$module},
                                     'round_label' => $workflow->roundLabel($butir), 'record_id' => $butir->record->id,
@@ -76,7 +77,7 @@
                                 </td>
                                 <td class="px-6 py-5 align-top">
                                     @if ($workflow->canCompile(auth()->user(), $butir))
-                                        <button type="button" data-kompilasi-putaran @click="selected = @js($payload); openModal = true" class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white">Kompilasi</button>
+                                        <button type="button" data-kompilasi-putaran @click="openMaterialModal(@js($payload))" class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white">Kompilasi</button>
                                     @else
                                         <span class="text-xs text-slate-500">Hanya dapat dibaca</span>
                                     @endif
@@ -95,11 +96,12 @@
                 <div class="mb-5 flex justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-slate-800">Kompilasi Tanggapan</h2>
-                        <p class="mt-1 text-sm text-slate-500" x-text="selected.butir_id + ' · ' + selected.round_label"></p>
+                        <p data-workflow-context class="mt-1 text-sm text-slate-500" x-text="selected.butir_id + ' · ' + selected.round_label"></p>
                         <p class="mt-2 text-sm text-slate-500">Setelah dikirim, hasil kompilasi dikunci sebagai bahan reviu.</p>
                     </div>
                     <button type="button" @click="openModal = false" aria-label="Tutup modal" class="text-2xl text-slate-500">&times;</button>
                 </div>
+                @include('layouts.partials.reviu-bahan-preview', ['showCompilation' => false])
                 <form method="POST" :action="selected.action" enctype="multipart/form-data" data-kompilasi-form>
                     @csrf
                     <input type="hidden" name="tahap_kompilasi" value="tanggapan">

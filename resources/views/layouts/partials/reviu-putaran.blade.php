@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div data-workflow-page x-data="{ openModal: false, selected: { status: 'belum_ditanggapi', deliverables: '', status_pengajuan_tgl: 'pending' } }" @keydown.escape.window="openModal = false" class="space-y-6">
+    <div data-workflow-page x-data="reviuBahanPage({ status: 'belum_ditanggapi', deliverables: '', status_pengajuan_tgl: 'pending' })" @keydown.escape.window="openModal = false" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold text-blue-700">{{ $moduleLabel }}</p>
             <h1 class="mt-2 text-3xl font-bold text-slate-800">Reviu Tanggapan {{ strtoupper($module) }}</h1>
@@ -28,11 +28,12 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($reviews as $review)
                             @php
-                                $compilation = $review->kompilasiPutaran;
+                                $compilation = $previewBahan[$review->id]['compilation'] !== null ? $review->kompilasiPutaran : null;
                                 $legacySource = $review->tahap_review === 'tindak_lanjut' ? $review->tindakLanjut : $review->tanggapan;
                                 $number = $review->putaran?->nomor_putaran;
                                 $roundLabel = $number ? 'Putaran '.$number : 'Putaran awal';
                                 $payload = [
+                                    'preview' => $previewBahan[$review->id],
                                     'id' => $review->id, 'action' => route($module.'.reviu.update', $review),
                                     'butir_id' => $review->{'id_butir_'.$module}, 'butir' => $review->butir?->{'butir_'.$module} ?? '',
                                     'round_label' => $roundLabel, 'record_id' => $review->butir?->record?->id,
@@ -91,7 +92,7 @@
                                 </td>
                                 <td class="px-6 py-5 align-top">
                                     @if ($workflow->canReview(auth()->user(), $review))
-                                        <button type="button" data-reviu-putaran @click="selected = @js($payload); openModal = true" class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white">Detail / Reviu</button>
+                                        <button type="button" data-reviu-putaran @click="openMaterialModal(@js($payload))" class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white">Detail / Reviu</button>
                                     @else
                                         <span class="text-xs text-slate-500">Hanya dapat dibaca</span>
                                     @endif
@@ -110,19 +111,15 @@
                 <div class="mb-5 flex justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-slate-800">Reviu Tanggapan</h2>
-                        <p class="mt-1 text-sm text-slate-500" x-text="selected.butir_id + ' · ' + selected.round_label"></p>
+                        <p data-workflow-context class="mt-1 text-sm text-slate-500" x-text="selected.butir_id + ' · ' + selected.round_label"></p>
                     </div>
                     <button type="button" @click="openModal = false" aria-label="Tutup modal" class="text-2xl text-slate-500">&times;</button>
                 </div>
+                @include('layouts.partials.reviu-bahan-preview', ['showCompilation' => true])
                 <form method="POST" :action="selected.action" enctype="multipart/form-data" data-reviu-form>
                     @csrf
                     @method('PATCH')
                     <x-butir-preview class="mb-5" content-expression="selected.butir" id-expression="selected.butir_id" />
-                    <div class="mb-5 rounded-xl border bg-slate-50 p-4">
-                        <p class="mb-2 font-semibold text-slate-700">Hasil Kompilasi</p>
-                        <x-rich-content content-expression="selected.compilation" />
-                        <p class="mt-3 whitespace-pre-line text-sm" x-text="'Deliverables: ' + (selected.compilation_deliverables || '-')"></p>
-                    </div>
                     <label class="mb-2 block text-sm font-semibold">Hasil Reviu</label>
                     <x-snp-butir-editor name="hasil_review" label="Hasil Reviu" :module="$module"
                         content-expression="selected.hasil_review" record-expression="selected.record_id"

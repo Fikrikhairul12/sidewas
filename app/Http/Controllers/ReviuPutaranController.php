@@ -12,6 +12,7 @@ use App\Models\SnpCluster;
 use App\Models\SnpKompilasi;
 use App\Models\SnpReview;
 use App\Models\UnitKerja;
+use App\Services\ReviuBahanPreviewService;
 use App\Services\ReviuPutaranService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReviuPutaranController extends Controller
 {
-    public function __construct(private ReviuPutaranService $workflow) {}
+    public function __construct(private ReviuPutaranService $workflow, private ReviuBahanPreviewService $preview) {}
 
     public function kompilasiIndex(Request $request, string $module = 'djsn'): View
     {
@@ -45,6 +46,7 @@ class ReviuPutaranController extends Controller
 
         return view('layouts.partials.kompilasi-putaran', $this->viewData($module) + [
             'butirs' => $butirs, 'workflow' => $this->workflow,
+            'previewBahan' => $butirs->getCollection()->mapWithKeys(fn ($butir): array => [$butir->id => $this->preview->forCompilation($butir, $request->user())])->all(),
             'statusOptions' => ['belum_dikompilasi' => 'Belum Dikompilasi', 'dalam_proses_reviu_dewas' => 'Dalam Proses Reviu Dewas'],
         ]);
     }
@@ -73,7 +75,10 @@ class ReviuPutaranController extends Controller
         $permission = 'canAccess'.ucfirst($module).'Review';
         abort_unless($request->user()?->{$permission}(), 403);
         $class = $this->workflow->reviewClass($module);
-        $query = $class::with(['butir.record.putaran', 'kompilasiPutaran', 'putaran', 'komite', 'creator', 'updater', 'tanggapan', 'tindakLanjut'])->whereHas('butir.record');
+        $query = $class::with([
+            'butir.record.putaran', 'butir.tanggapanUnit.unitKerja', 'butir.tanggapanUnit.creator',
+            'kompilasiPutaran.creator', 'kompilasiPutaran.updater', 'putaran', 'komite', 'creator', 'updater', 'tanggapan', 'tindakLanjut',
+        ])->whereHas('butir.record');
         if (! $request->user()->isSuperAdmin()) {
             $query->whereIn('komite_id', $request->user()->komiteIds());
         }
@@ -89,8 +94,11 @@ class ReviuPutaranController extends Controller
             }
         }
 
+        $reviews = $query->latest('id')->paginate(2)->withQueryString();
+
         return view('layouts.partials.reviu-putaran', $this->viewData($module) + [
-            'reviews' => $query->latest('id')->paginate(2)->withQueryString(),
+            'reviews' => $reviews,
+            'previewBahan' => $reviews->getCollection()->mapWithKeys(fn ($review): array => [$review->id => $this->preview->forReview($review, $request->user())])->all(),
             'workflow' => $this->workflow, 'statusOptions' => ReviuStatus::options(),
         ]);
     }

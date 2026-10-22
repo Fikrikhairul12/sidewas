@@ -50,7 +50,7 @@ try {
         if (data.kind === 'reviu') {
             assert.deepEqual(await page.$$eval('#status-reviu option', nodes => nodes.map(node => node.value)), fixture.statuses);
             await page.select('#status-reviu', 'tindak_lanjut_belum_sesuai');
-            assert.ok(await page.$eval(form, node => node.innerText.includes('Kompilasi sumber')));
+            assert.ok(await page.$eval('[data-compilation-preview]', node => node.innerText.includes('Kompilasi sumber')));
         }
         const posted = await page.$eval(form, node => {
             let result;
