@@ -15,6 +15,11 @@ const server = createServer((request, response) => {
         response.end(fixture.pages[Number(pageIndex)].html.replace('</head>', `<link rel="stylesheet" href="/build/${fixture.css}"><script type="module" src="/build/${fixture.js}"></script></head>`));
         return;
     }
+    if (fixture.images?.[request.url]) {
+        response.setHeader('Content-Type', 'image/png');
+        response.end(Buffer.from(fixture.images[request.url], 'base64'));
+        return;
+    }
     const file = resolve(buildRoot, decodeURIComponent(request.url).replace(/^\/build\//, ''));
     if (!file.startsWith(buildRoot + sep) || !existsSync(file)) {
         response.writeHead(404).end();
@@ -51,6 +56,27 @@ try {
         await page.click('[data-tanggapan-detail]');
         await page.waitForSelector('[x-show="openDetailModal"]', { visible: true });
         assert.ok(await page.$eval('[x-show="openDetailModal"] .snp-rich-content', node => node.textContent.includes('Isi butir lama')));
+        if (data.historyRounds) {
+            await page.waitForSelector('[data-tanggapan-round]', { visible: true });
+            assert.equal(await page.$eval('[data-tanggapan-round]', node => node.value), String(data.currentRoundId));
+            assert.equal((await page.$$('[data-tanggapan-round] option')).length, 3);
+            for (const round of data.historyRounds) {
+                await page.select('[data-tanggapan-round]', String(round.id));
+                await page.waitForFunction(id => String(window.Alpine.$data(document.querySelector('[x-show="openDetailModal"]')).detailRound.id) === String(id), {}, round.id);
+                await page.waitForSelector('[data-round-readonly]', { visible: true });
+                await page.waitForFunction(text => document.querySelector('[x-show="openDetailModal"]').innerText.includes(text), {}, round.response);
+                assert.equal(await page.$eval('[data-edit-tanggapan]', node => getComputedStyle(node).display), 'none');
+                assert.ok(await page.$eval('[data-history-kompilasi] strong', node => node.textContent.includes('Kompilasi lama')));
+                assert.ok(await page.$eval('[data-history-reviu] em', node => node.textContent.includes('Perbaikan lama')));
+                await page.waitForFunction(() => [...document.querySelectorAll('[data-history-kompilasi] img')].every(node => node.complete && node.naturalWidth > 0));
+                assert.ok((await page.$$('[data-history-kompilasi] img[data-width="50"]')).length > 0);
+                if (fixture.screenshot) await page.screenshot({ path: fixture.screenshot });
+            }
+            await page.select('[data-tanggapan-round]', String(data.currentRoundId));
+            await page.waitForSelector('[data-round-readonly]', { hidden: true });
+            assert.equal((await page.$$('[data-history-kompilasi]')).length, 0);
+            assert.equal((await page.$$('[data-history-reviu]')).length, 0);
+        }
         if (data.mode === 'answered') {
             await page.waitForSelector('[data-edit-tanggapan]', { visible: true });
             await page.click('[data-edit-tanggapan]');

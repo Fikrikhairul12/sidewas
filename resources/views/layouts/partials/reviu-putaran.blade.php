@@ -47,6 +47,10 @@
                                 <td class="px-6 py-5 align-top">
                                     <p class="font-bold text-blue-700">{{ $review->butir?->record?->nomor_surat }}</p>
                                     <p class="mt-2 text-xs text-slate-600">{{ $review->{'id_butir_'.$module} }} · {{ $roundLabel }}</p>
+                                    @if ($review->putaran?->archived_at)
+                                        <p class="mt-2 text-xs font-semibold text-slate-500">Putaran lama (terkunci)</p>
+                                    @endif
+                                    <p class="mt-2 text-xs text-slate-600">Status Surat: {{ \App\Enums\SuratStatus::labelFor($review->butir?->record?->status) }}</p>
                                     <p class="mt-2 text-xs text-slate-600">Komite: {{ $review->komite?->nama_komite ?? 'Belum ditetapkan' }}</p>
                                     <x-butir-preview class="mt-3" :content="$review->butir?->{'butir_'.$module} ?? ''" :butir-id="$review->{'id_butir_'.$module}" />
                                 </td>

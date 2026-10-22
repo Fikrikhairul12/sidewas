@@ -262,13 +262,31 @@ window.tanggapanSnpPage = function () {
         detailButir: null,
         editTanggapan: { tanggapan: '', deliverables: '', ubah_tgl: '' },
         selectedDetailPicId: null,
+        selectedDetailRoundId: null,
         detailSearch: '',
 
         openDetailModalFor(butir) {
             this.detailButir = butir;
             this.detailSearch = '';
-            this.selectedDetailPicId = butir.pic_tanggapans?.[0]?.id ?? null;
+            this.selectedDetailRoundId = butir.rounds?.find(round => round.is_current)?.id ?? null;
+            this.selectedDetailPicId = this.detailPics[0]?.id ?? null;
             this.openDetailModal = true;
+        },
+
+        get detailRounds() {
+            return this.detailButir?.rounds ?? [];
+        },
+
+        get detailRound() {
+            return this.detailRounds.find(round => String(round.id) === String(this.selectedDetailRoundId))
+                ?? this.detailRounds.find(round => round.is_current)
+                ?? null;
+        },
+
+        selectDetailRound(id) {
+            this.selectedDetailRoundId = id;
+            this.detailSearch = '';
+            this.selectedDetailPicId = this.detailPics[0]?.id ?? null;
         },
 
         selectDetailPic(pic) {
@@ -276,7 +294,7 @@ window.tanggapanSnpPage = function () {
         },
 
         get detailPics() {
-            return this.detailButir?.pic_tanggapans ?? [];
+            return this.detailRound?.pic_tanggapans ?? this.detailButir?.pic_tanggapans ?? [];
         },
 
         get filteredDetailPics() {

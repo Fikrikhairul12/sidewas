@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ReviuStatus;
 use App\Enums\SuratStatus;
 use App\Models\DjsnButir;
 use App\Models\DjsnReview;
@@ -93,14 +94,41 @@ class TanggapanUnitService
         $pics = $butir->butirPics->whereIn('jenis_pic', ['utama', 'pendukung'])->whereNotNull('unit_kerja_id')->unique('unit_kerja_id');
         $round = $butir->record?->putaran->firstWhere('id', $this->currentRoundId($butir));
         $label = $round === null || $round->isLegacy() ? 'Putaran awal' : 'Putaran '.$round->nomor_putaran;
-        $cards = $responses->map(function ($response) use ($butir, $user, $module): array {
+        $cards = $this->responseCards($butir, $user, $responses, true);
+
+        return [
+            'responses' => $responses,
+            'available_pics' => $this->availablePics($butir, $user),
+            'complete' => $pics->isNotEmpty() && $pics->every(fn ($pic): bool => $responses->contains(fn ($response): bool => (int) $response->unit_kerja_id === (int) $pic->unit_kerja_id)),
+            'round_id' => $this->currentRoundId($butir),
+            'round_label' => $label,
+            'detail' => [
+                'id' => $butir->id,
+                'id_surat' => $butir->record?->{'id_'.$module},
+                'id_butir' => $butir->{'id_butir_'.$module},
+                'butir_content' => $butir->{'butir_'.$module},
+                'round_label' => $label,
+                'pic_tanggapans' => $cards->values()->all(),
+                'rounds' => $this->detailRounds($butir, $user, $cards),
+            ],
+        ];
+    }
+
+    private function responseCards(SnpButir|DjsnButir $butir, User $user, Collection $responses, bool $active): Collection
+    {
+        $module = $this->module($butir);
+        foreach ($responses as $response) {
+            $response->setRelation('butir', $butir);
+        }
+        $pics = $butir->butirPics->whereIn('jenis_pic', ['utama', 'pendukung'])->whereNotNull('unit_kerja_id')->unique('unit_kerja_id');
+        $cards = $responses->map(function ($response) use ($butir, $user, $module, $active): array {
             $pic = $butir->butirPics->firstWhere('id', $response->butir_pic_id);
 
             return [
                 'id' => 'tanggapan-'.$response->id,
                 'tanggapan_id' => $response->id,
                 'update_url' => route($module.'.tanggapan.update', $response),
-                'can_edit' => $this->canEdit($user, $response),
+                'can_edit' => $active && $this->canEdit($user, $response),
                 'unit_label' => $response->unitKerja ? $response->unitKerja->kode_unit.' - '.$response->unitKerja->nama_unit : 'Unit tidak tercatat (data lama)',
                 'initial' => $response->unitKerja?->kode_unit ?? '-',
                 'jenis_pic' => $pic ? ($pic->jenis_pic === 'utama' ? 'PIC Utama' : 'PIC Pendukung') : 'Data lama',
@@ -120,7 +148,7 @@ class TanggapanUnitService
         });
 
         foreach ($pics as $pic) {
-            if (! $responses->contains(fn ($response): bool => (int) $response->unit_kerja_id === (int) $pic->unit_kerja_id)) {
+            if ($active && ! $responses->contains(fn ($response): bool => (int) $response->unit_kerja_id === (int) $pic->unit_kerja_id)) {
                 $cards->push([
                     'id' => 'unit-'.$pic->unit_kerja_id,
                     'can_edit' => false,
@@ -133,21 +161,49 @@ class TanggapanUnitService
             }
         }
 
-        return [
-            'responses' => $responses,
-            'available_pics' => $this->availablePics($butir, $user),
-            'complete' => $pics->isNotEmpty() && $pics->every(fn ($pic): bool => $responses->contains(fn ($response): bool => (int) $response->unit_kerja_id === (int) $pic->unit_kerja_id)),
-            'round_id' => $this->currentRoundId($butir),
-            'round_label' => $label,
-            'detail' => [
-                'id' => $butir->id,
-                'id_surat' => $butir->record?->{'id_'.$module},
-                'id_butir' => $butir->{'id_butir_'.$module},
-                'butir_content' => $butir->{'butir_'.$module},
-                'round_label' => $label,
+        return $cards;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function detailRounds(SnpButir|DjsnButir $butir, User $user, Collection $activeCards): array
+    {
+        if (! ReviuPutaranService::enabled() || $butir->record === null) {
+            return [];
+        }
+        $module = $this->module($butir);
+        $canReadCompilations = $user->{'canAccess'.ucfirst($module).'Kompilasi'}();
+        $canReadReviews = $user->{'canAccess'.ucfirst($module).'Review'}();
+        $superAdmin = $user->isSuperAdmin();
+        $komiteIds = $user->komiteIds();
+
+        return $butir->record->putaran->sortByDesc('nomor_putaran')->map(function ($round) use ($butir, $user, $activeCards, $module, $canReadCompilations, $canReadReviews, $superAdmin, $komiteIds): array {
+            $active = (int) $round->id === $this->currentRoundId($butir) && $round->archived_at === null;
+            $inRound = fn ($row): bool => (int) $row->putaran_id === (int) $round->id || ($round->isLegacy() && $row->putaran_id === null);
+            $cards = $active ? $activeCards : $this->responseCards($butir, $user, $butir->tanggapanUnit->filter($inRound), false);
+            $compilations = $canReadCompilations ? $butir->kompilasis->filter($inRound) : collect();
+            $reviews = $canReadReviews ? $butir->reviews->filter(fn ($row): bool => $inRound($row) && ($superAdmin || in_array($row->komite_id, $komiteIds))) : collect();
+
+            return [
+                'id' => $round->id,
+                'round_label' => $round->isLegacy() ? 'Putaran awal' : 'Putaran '.$round->nomor_putaran,
+                'is_current' => $active,
+                'read_only' => ! $active,
+                'opened_at' => $round->opened_at?->format('d/m/Y H:i'),
+                'archived_at' => $round->archived_at?->format('d/m/Y H:i'),
                 'pic_tanggapans' => $cards->values()->all(),
-            ],
-        ];
+                'compilations' => $compilations->map(fn ($row): array => [
+                    'id' => $row->id, 'content' => $row->hasil_kompilasi, 'deliverables' => $row->deliverables,
+                    'creator' => $row->creator?->name ?? '-', 'created_at' => $row->created_at?->format('d/m/Y H:i') ?? '-',
+                    'document_url' => $row->dokumen && $user->{'canAccess'.ucfirst($module).'Kompilasi'}() ? route($module.'.kompilasi.dokumen', $row) : null,
+                ])->values()->all(),
+                'reviews' => $reviews->map(fn ($row): array => [
+                    'id' => $row->id, 'content' => $row->hasil_review, 'deliverables' => $row->deliverables,
+                    'status_label' => ReviuStatus::labelFor($row->status),
+                    'creator' => $row->updater?->name ?? $row->creator?->name ?? '-', 'created_at' => $row->updated_at?->format('d/m/Y H:i') ?? '-',
+                    'document_url' => $row->dokumen && $user->{'canReview'.ucfirst($module).'ByKomite'}($row->komite_id) ? route($module.'.reviu.hasil-dokumen', $row) : null,
+                ])->values()->all(),
+            ];
+        })->values()->all();
     }
 
     /** @param array<string, mixed> $data */

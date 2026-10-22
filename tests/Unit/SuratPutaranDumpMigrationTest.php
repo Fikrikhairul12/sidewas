@@ -2,13 +2,18 @@
 
 use App\Enums\ReviuStatus;
 use App\Models\DjsnButir;
+use App\Models\DjsnKompilasi;
 use App\Models\DjsnRecord;
+use App\Models\DjsnReview;
 use App\Models\SnpButir;
+use App\Models\SnpKompilasi;
 use App\Models\SnpRecord;
+use App\Models\SnpReview;
 use App\Models\SuratPutaran;
 use App\Services\SuratAwalStatusService;
 use App\Services\SuratPutaranBackfill;
 use App\Services\SuratPutaranService;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\Process\Process;
@@ -184,6 +189,106 @@ test('fondasi MySQL dapat dipasang dan dibatalkan pada skema instalasi baru', fu
         expect(Schema::connection('mysql_'.$module)->hasTable('tb_surat_putaran'))->toBeTrue();
     }
 });
+
+test('MySQL opens one correction round when the same letter receives concurrent rejection decisions', function (bool $sameReview) {
+    (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();
+    (require database_path('migrations/2026_06_03_093422_create_djsn_tables.php'))->up();
+    $this->migration->up();
+    (require database_path('migrations/2026_10_21_141454_enable_snp_djsn_initial_letter_statuses.php'))->up();
+    (require database_path('migrations/2026_10_22_085515_expand_snp_djsn_review_status_choices.php'))->up();
+
+    $worker = <<<'PHP'
+        require $argv[1].'/vendor/autoload.php';
+        $app = require $argv[1].'/bootstrap/app.php';
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        $module = $argv[3];
+        $connection = 'mysql_'.$module;
+        $settings = json_decode($argv[2], true);
+        config(['database.connections.'.$connection => $settings, 'database.connections.mysql' => $settings, 'database.default' => $connection, 'sidewas.reviu_putaran_enabled' => true]);
+        Illuminate\Support\Facades\DB::purge($connection);
+        Illuminate\Support\Facades\DB::purge('mysql');
+        Illuminate\Support\Facades\Auth::shouldReceive('check')->andReturn(true);
+        Illuminate\Support\Facades\Auth::shouldReceive('id')->andReturn(999);
+        $user = Mockery::mock(App\Models\User::class)->makePartial();
+        $user->id = 999;
+        $user->shouldReceive('canReview'.ucfirst($module).'ByKomite')->andReturn(true);
+        $class = $module === 'snp' ? App\Models\SnpReview::class : App\Models\DjsnReview::class;
+        $review = $class::findOrFail((int) $argv[4]);
+        fwrite(STDOUT, "ready\n");
+        fflush(STDOUT);
+        try {
+            app(App\Services\ReviuPutaranService::class)->review($review, $user, ['hasil_review' => 'Perbaiki seluruh surat', 'status' => 'tindak_lanjut_belum_sesuai'], Illuminate\Http\Request::create('/test-loop', 'PATCH'));
+            fwrite(STDOUT, "opened\n");
+        } catch (Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            if ($exception->getStatusCode() !== 422) {
+                throw $exception;
+            }
+            fwrite(STDOUT, "stale\n");
+        }
+        PHP;
+
+    foreach (['snp', 'djsn'] as $module) {
+        $connection = 'mysql_'.$module;
+        Schema::connection($connection)->create('tb_log_activity', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('user_id')->nullable();
+            foreach (['type_code', 'database_name', 'table_name', 'record_key', 'action', 'ip_address'] as $column) {
+                $table->string($column)->nullable();
+            }
+            $table->text('description')->nullable();
+            $table->text('user_agent')->nullable();
+            $table->json('old_values')->nullable();
+            $table->json('new_values')->nullable();
+            $table->timestamps();
+        });
+        $recordClass = $module === 'snp' ? SnpRecord::class : DjsnRecord::class;
+        $butirClass = $module === 'snp' ? SnpButir::class : DjsnButir::class;
+        $compilationClass = $module === 'snp' ? SnpKompilasi::class : DjsnKompilasi::class;
+        $reviewClass = $module === 'snp' ? SnpReview::class : DjsnReview::class;
+        $record = $recordClass::create(['nomor_surat' => 'CONCURRENT-REVIEW', 'tanggal_surat' => '2026-10-22']);
+        $reviews = [];
+        foreach ([1, 2] as $number) {
+            $butir = $butirClass::create(['id_'.$module => $record->{'id_'.$module}, 'butir_'.$module => 'Butir '.$number]);
+            $compilation = $compilationClass::create(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'hasil_kompilasi' => 'Kompilasi '.$number, 'tahap_kompilasi' => 'tanggapan', 'status' => 'dalam_proses_reviu_dewas', 'created_by' => 999]);
+            $reviews[] = $reviewClass::create(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'kompilasi_id' => $compilation->id, 'putaran_id' => $compilation->putaran_id, 'tahap_review' => 'tanggapan', 'komite_id' => 1, 'status' => 'belum_ditanggapi', 'created_by' => 999]);
+        }
+        $db = DB::connection($connection);
+        $processes = [];
+        $db->beginTransaction();
+        try {
+            $db->table('tb_record')->where('id', $record->id)->lockForUpdate()->first();
+            foreach ([$reviews[0]->id, $sameReview ? $reviews[0]->id : $reviews[1]->id] as $reviewId) {
+                $process = new Process([PHP_BINARY, '-r', $worker, base_path(), json_encode(config('database.connections.'.$connection)), $module, (string) $reviewId], base_path(), ['APP_ENV' => 'testing', 'LOG_CHANNEL' => 'stderr']);
+                $process->setTimeout(30)->start();
+                $processes[] = $process;
+                expect($process->waitUntil(fn ($type, $output): bool => str_contains($output, 'ready')))->toBeTrue($process->getErrorOutput());
+            }
+            $db->commit();
+            $outcomes = [];
+            foreach ($processes as $process) {
+                $process->wait();
+                expect($process->isSuccessful())->toBeTrue($process->getErrorOutput());
+                $outcomes[] = str_contains($process->getOutput(), 'opened') ? 'opened' : 'stale';
+            }
+            sort($outcomes);
+            expect($outcomes)->toBe(['opened', 'stale'])
+                ->and($record->fresh()->status)->toBe('proses_tindak_lanjut_belum_sesuai')
+                ->and($record->fresh()->putaran()->pluck('nomor_putaran')->all())->toBe([0, 1])
+                ->and($record->fresh()->putaranAktif->created_by)->toBe(999)
+                ->and($db->table('tb_review')->where('status', 'tindak_lanjut_belum_sesuai')->count())->toBe(1)
+                ->and($db->table('tb_log_activity')->where('action', 'buka_putaran_perbaikan')->count())->toBe(1);
+        } finally {
+            if ($db->transactionLevel() > 0) {
+                $db->rollBack();
+            }
+            foreach ($processes as $process) {
+                if ($process->isRunning()) {
+                    $process->stop();
+                }
+            }
+        }
+    }
+})->with([true, false]);
 
 test('MySQL serializes concurrent responses by unit even for different PIC assignments', function () {
     (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();

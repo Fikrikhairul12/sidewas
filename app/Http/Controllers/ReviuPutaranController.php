@@ -110,9 +110,11 @@ class ReviuPutaranController extends Controller
         if ($review instanceof SnpReview) {
             $rules['dokumen_memo'] = $rules['dokumen'];
         }
-        $this->workflow->review($review, $request->user(), $request->validate($rules), $request);
+        $nextRound = $this->workflow->review($review, $request->user(), $request->validate($rules), $request);
 
-        return redirect()->route($this->workflow->module($review).'.reviu.index')->with('success', 'Reviu berhasil disimpan.');
+        return redirect()->route($this->workflow->module($review).'.reviu.index')->with('success', $nextRound
+            ? 'Reviu berhasil disimpan. Putaran '.$nextRound->nomor_putaran.' dibuka untuk seluruh unit pada surat ini. Tanggapan baru diisi melalui halaman Tanggapan.'
+            : 'Reviu berhasil disimpan.');
     }
 
     public function kompilasiDokumen(Request $request, int $kompilasi, string $module = 'djsn'): StreamedResponse

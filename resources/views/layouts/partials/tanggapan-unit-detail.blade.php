@@ -11,7 +11,16 @@
                             Detail Tanggapan {{ $moduleLabel }}
                         </h2>
                         <p class="mt-1 text-sm font-semibold text-slate-500" x-text="detailButir?.id_surat ?? '-'"></p>
-                        <p class="mt-1 text-xs text-slate-500" x-text="detailButir?.round_label"></p>
+                        <p class="mt-1 text-xs text-slate-500" x-text="detailRound?.round_label ?? detailButir?.round_label"></p>
+                        <div x-show="detailRounds.length > 1" class="mt-3">
+                            <label class="mb-1 block text-xs font-semibold text-slate-600" for="tanggapan-round">Putaran Tanggapan</label>
+                            <select id="tanggapan-round" data-tanggapan-round x-model="selectedDetailRoundId" @change="selectDetailRound($event.target.value)"
+                                class="rounded-xl border-slate-300 text-sm">
+                                <template x-for="round in detailRounds" :key="round.id">
+                                    <option :value="round.id" x-text="round.round_label + (round.is_current ? ' (Aktif)' : ' (Terkunci)')"></option>
+                                </template>
+                            </select>
+                        </div>
                     </div>
 
                     <button type="button" @click="openDetailModal = false"
@@ -70,6 +79,9 @@
                     </div>
 
                     <div class="min-w-0 space-y-5 p-6 lg:max-h-[70vh] lg:overflow-y-auto">
+                        <p x-show="detailRound?.read_only" data-round-readonly class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                            Putaran lama terkunci. Tanggapan baru hanya dapat diisi pada putaran aktif.
+                        </p>
                         <x-butir-preview content-expression="detailButir?.butir_content" id-expression="detailButir?.id_butir"
                             :expanded="true" context="Detail Tanggapan" />
                         <template x-if="selectedDetailPic">
@@ -132,8 +144,27 @@
 
                         <div x-show="!selectedDetailPic"
                             class="rounded-xl border border-dashed border-slate-200 px-4 py-14 text-center text-sm text-slate-400">
-                            Belum ada PIC pada butir ini.
+                            <span x-text="detailRound?.read_only ? 'Belum ada tanggapan tersimpan pada putaran ini.' : 'Belum ada PIC pada butir ini.'"></span>
                         </div>
+                        <template x-for="item in (detailRound?.compilations ?? [])" :key="'kompilasi-' + item.id">
+                            <section data-history-kompilasi class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <h3 class="font-bold text-slate-700">Hasil Kompilasi</h3>
+                                <p class="mt-1 text-xs text-slate-500" x-text="item.creator + ' · ' + item.created_at"></p>
+                                <x-rich-content content-expression="item.content" class="mt-3" />
+                                <p class="mt-3 whitespace-pre-line text-sm" x-text="'Deliverables: ' + (item.deliverables || '-')"></p>
+                                <a x-show="item.document_url" :href="item.document_url" class="mt-3 inline-block text-sm text-blue-700 underline">Dokumen Kompilasi</a>
+                            </section>
+                        </template>
+                        <template x-for="item in (detailRound?.reviews ?? [])" :key="'reviu-' + item.id">
+                            <section data-history-reviu class="rounded-xl border border-slate-200 p-4">
+                                <h3 class="font-bold text-slate-700">Hasil Reviu</h3>
+                                <p class="mt-1 text-sm font-semibold text-blue-700" x-text="item.status_label"></p>
+                                <p class="mt-1 text-xs text-slate-500" x-text="item.creator + ' · ' + item.created_at"></p>
+                                <x-rich-content content-expression="item.content" class="mt-3" />
+                                <p class="mt-3 whitespace-pre-line text-sm" x-text="'Deliverables: ' + (item.deliverables || '-')"></p>
+                                <a x-show="item.document_url" :href="item.document_url" class="mt-3 inline-block text-sm text-blue-700 underline">Dokumen Hasil Reviu</a>
+                            </section>
+                        </template>
                     </div>
                 </div>
 
@@ -144,6 +175,7 @@
                     </button>
 
                     <button type="button" data-unit-next @click="selectNextDetailPic()"
+                        :disabled="filteredDetailPics.length < 2"
                         class="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold hover:bg-blue-50"
                         style="color: #2377b9;">
                         Unit Berikutnya

@@ -137,7 +137,7 @@ test('compilation permissions mirror SNP SBD requirements without granting revie
     }
 })->with(['snp', 'djsn']);
 
-test('only four new review values are accepted and stage 6A does not activate looping or closure', function (string $module) {
+test('only four new review values are accepted and rejection reopens the letter while closure awaits integration', function (string $module) {
     [$user, $butir, $review] = prepareCompilation($module);
     foreach (['dalam_proses_tindak_lanjut_direksi', 'selesai_tuntas', 'dalam_proses_reviu_dewas', 'invalid'] as $status) {
         $this->patchJson(route($module.'.reviu.update', $review), ['hasil_review' => 'Tidak valid', 'status' => $status])->assertUnprocessable()->assertJsonValidationErrors('status');
@@ -152,8 +152,13 @@ test('only four new review values are accepted and stage 6A does not activate lo
             'status' => $status, 'kompilasi_id' => 999, 'putaran_id' => 999, 'komite_id' => 999,
         ]);
         expect($result->getStatusCode())->toBe(302, $status.': '.$result->getContent());
-        expect($review->fresh()->status)->toBe($status)->and($review->fresh()->hasil_review)->toContain('<em>Hasil aman</em>')->not->toContain('script')
-            ->and($butir->record->fresh()->getRawOriginal())->toBe($before);
+        expect($review->fresh()->status)->toBe($status)->and($review->fresh()->hasil_review)->toContain('<em>Hasil aman</em>')->not->toContain('script');
+        if ($status === 'tindak_lanjut_belum_sesuai') {
+            expect($butir->record->fresh()->status)->toBe('proses_tindak_lanjut_belum_sesuai')
+                ->and($butir->record->fresh()->putaranAktif->nomor_putaran)->toBe(1);
+        } else {
+            expect($butir->record->fresh()->getRawOriginal())->toBe($before);
+        }
         if ($status !== 'belum_ditanggapi') {
             $this->patchJson(route($module.'.reviu.update', $review), ['hasil_review' => 'Timpa', 'status' => 'belum_ditanggapi'])->assertUnprocessable();
             $this->postJson(route($module.'.reviu.images.store', $review), ['image' => UploadedFile::fake()->image('terkunci.png')])->assertUnprocessable();

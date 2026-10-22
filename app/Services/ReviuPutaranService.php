@@ -16,6 +16,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -145,19 +146,19 @@ class ReviuPutaranService
     }
 
     /**
-     * Stage 6A stores the choice; round transitions and closure must be integrated before stage 7 activation.
+     * Rejection reopens the entire letter. Closure is integrated separately before stage 7 activation.
      *
      * @param  array<string, mixed>  $data
      */
-    public function review(SnpReview|DjsnReview $review, User $user, array $data, Request $request): void
+    public function review(SnpReview|DjsnReview $review, User $user, array $data, Request $request): ?SuratPutaran
     {
         abort_unless(self::enabled(), 404);
         $newFiles = [];
         try {
-            $review->getConnection()->transaction(function () use ($review, $user, $data, $request, &$newFiles): void {
+            return $review->getConnection()->transaction(function () use ($review, $user, $data, $request, &$newFiles): ?SuratPutaran {
                 $butir = $review->butir;
                 abort_unless($butir, 422, 'Butir tidak tersedia.');
-                $this->lockContext($butir, $review->putaran_id);
+                $round = $this->lockContext($butir, $review->putaran_id);
                 $review = $review->newQuery()->with(['butir.record.putaran', 'kompilasiPutaran'])->lockForUpdate()->findOrFail($review->id);
                 $permission = 'canReview'.ucfirst($this->module($review)).'ByKomite';
                 abort_unless($user->{$permission}($review->komite_id), 403);
@@ -179,12 +180,49 @@ class ReviuPutaranService
                         $butir->record->update(['jth_tempo' => $compilation->ubah_tgl]);
                     }
                 }
-                $this->log($request, $user, $review, 'update_review_putaran', $old);
+
+                return DB::connection('mysql')->transaction(function () use ($review, $round, $user, $request, $old): ?SuratPutaran {
+                    $nextRound = $review->status === ReviuStatus::TindakLanjutBelumSesuai->value
+                        ? $this->reopenForRevision($review, $round, $user, $request)
+                        : null;
+                    $this->log($request, $user, $review, 'update_review_putaran', $old);
+
+                    return $nextRound;
+                });
             });
         } catch (Throwable $exception) {
             Storage::disk('public')->delete($newFiles);
             throw $exception;
         }
+    }
+
+    private function reopenForRevision(SnpReview|DjsnReview $review, SuratPutaran $round, User $user, Request $request): SuratPutaran
+    {
+        $record = $review->butir->record;
+        $old = ['record' => $record->getRawOriginal(), 'putaran' => $round->getRawOriginal()];
+        $record->forceFill(['status' => SuratStatus::TindakLanjutBelumSesuai->value, 'updated_by' => $user->id])->save();
+
+        $rounds = app(SuratPutaranService::class);
+        if (! $round->isLegacy()) {
+            $rounds->arsipkan($round, $user->id);
+        }
+        $nextRound = $rounds->buka($record, $user->id);
+
+        LogActivity::create([
+            'user_id' => $user->id, 'type_code' => $this->module($review), 'database_name' => 'sidewas_'.$this->module($review),
+            'table_name' => 'tb_surat_putaran', 'record_key' => $record->{'id_'.$this->module($review)},
+            'action' => 'buka_putaran_perbaikan',
+            'description' => 'Reviu Tindak Lanjut Belum Sesuai membuka putaran '.$nextRound->nomor_putaran.' untuk seluruh unit pada surat.',
+            'old_values' => $old,
+            'new_values' => [
+                'review_id' => $review->id, 'id_butir' => $review->{'id_butir_'.$this->module($review)},
+                'putaran_sebelumnya' => $round->fresh()->toArray(), 'putaran_baru' => $nextRound->toArray(),
+                'record' => $record->getRawOriginal(),
+            ],
+            'ip_address' => $request->ip(), 'user_agent' => $request->userAgent(),
+        ]);
+
+        return $nextRound;
     }
 
     public function roundLabel(SnpButir|DjsnButir $butir): string

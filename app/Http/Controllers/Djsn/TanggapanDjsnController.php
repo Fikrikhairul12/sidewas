@@ -10,6 +10,7 @@ use App\Models\DjsnTanggapan;
 use App\Models\Komite;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\ReviuPutaranService;
 use App\Services\TanggapanUnitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,6 +37,13 @@ class TanggapanDjsnController extends Controller
             'reviews',
         ])
             ->whereHas('record');
+
+        if (ReviuPutaranService::enabled()) {
+            $query->with([
+                'tanggapanUnit.creator', 'tanggapanUnit.updater', 'tanggapanUnit.unitKerja',
+                'kompilasis.creator', 'reviews.creator', 'reviews.updater',
+            ]);
+        }
 
         if ($request->filled('tanggal_mulai')) {
             $query->whereDate('created_at', '>=', $request->tanggal_mulai);
