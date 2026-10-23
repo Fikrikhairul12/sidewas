@@ -60,10 +60,15 @@ try {
         });
         assert.ok(posted[field].includes('<strong>'));
         assert.equal(posted.deliverables, 'Teks <literal>');
-        if (data.kind === 'kompilasi') assert.equal(posted.tahap_kompilasi, 'tanggapan');
+        if (data.kind === 'kompilasi') {
+            assert.equal(posted.tahap_kompilasi, data.stageType ?? 'tanggapan');
+            if (data.stageId !== undefined) assert.equal(posted.tahap_id, String(data.stageId ?? ''));
+            if (data.roundId !== undefined) assert.equal(posted.putaran_id, String(data.roundId ?? ''));
+        }
         else assert.equal(posted.status, 'tindak_lanjut_belum_sesuai');
         assert.deepEqual(errors, [], 'The modal and toolbar must run without Alpine errors');
         if (fixture.screenshot && data.kind === 'reviu') await page.screenshot({ path: fixture.screenshot });
+        if (data.screenshot) await page.screenshot({ path: data.screenshot });
     }
 } finally {
     await browser?.close();

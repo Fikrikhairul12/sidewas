@@ -57,6 +57,7 @@ trait HasSuratPutaran
             if ($stored?->getAttribute('closed_at') !== null) {
                 throw new LogicException('Surat yang sudah ditutup harus tetap tersimpan sebagai riwayat.');
             }
+            $stored?->assertCanDeleteWorkflow();
 
             return parent::delete();
         });
@@ -65,6 +66,18 @@ trait HasSuratPutaran
     public function isWorkflowClosed(): bool
     {
         return $this->getAttribute('closed_at') !== null || ($this->statusSurat()?->isClosed() ?? false);
+    }
+
+    public function assertCanDeleteWorkflow(): void
+    {
+        $db = $this->getConnection();
+        if (! $db->getSchemaBuilder()->hasColumn('tb_kompilasi', 'salinan_konteks')) {
+            return;
+        }
+        $module = SuratTahap::moduleFor($this->getConnectionName());
+        $butirs = $db->table('tb_butir_'.$module)->where('id_'.$module, $this->{'id_'.$module})->select('id_butir_'.$module);
+        abort_if($db->table('tb_kompilasi')->whereIn('id_butir_'.$module, $butirs)->whereNotNull('salinan_konteks')->lockForUpdate()->first(['id']) !== null,
+            422, 'Surat yang sudah memiliki salinan kompilasi resmi harus tetap tersimpan sebagai riwayat.');
     }
 
     public function lockForWorkflowMutation(): static

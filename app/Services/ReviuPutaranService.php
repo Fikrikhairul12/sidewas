@@ -66,6 +66,9 @@ class ReviuPutaranService
 
     public function canCompile(User $user, SnpButir|DjsnButir $butir): bool
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(KompilasiTahapService::class)->canCompile($user, $butir);
+        }
         $permission = 'canCreate'.ucfirst($this->module($butir)).'Kompilasi';
         if (! $user->{$permission}() || ! $this->roundIsOpen($butir)) {
             return false;
@@ -107,6 +110,9 @@ class ReviuPutaranService
     /** @param array<string, mixed> $data */
     public function compile(SnpButir|DjsnButir $butir, User $user, array $data, Request $request): SnpKompilasi|DjsnKompilasi
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(KompilasiTahapService::class)->compile($butir, $user, $data, $request);
+        }
         abort_unless(self::enabled(), 404);
         $permission = 'canCreate'.ucfirst($this->module($butir)).'Kompilasi';
         abort_unless($user->{$permission}(), 403);

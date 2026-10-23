@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToSuratPutaran;
+use App\Models\Concerns\HasKompilasiSalinan;
 use App\Models\Concerns\TracksUser;
 use Database\Factories\DjsnKompilasiFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,9 +14,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class DjsnKompilasi extends Model
 {
     use BelongsToSuratPutaran;
-
     /** @use HasFactory<DjsnKompilasiFactory> */
     use HasFactory;
+
+    use HasKompilasiSalinan;
 
     use TracksUser;
 

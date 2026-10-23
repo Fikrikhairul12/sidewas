@@ -21,6 +21,14 @@ class ReviuBahanPreviewService
         abort_unless(ReviuPutaranService::enabled(), 404);
         $permission = 'canAccess'.ucfirst($this->workflow->module($butir)).'Kompilasi';
         abort_unless($user->{$permission}(), 403);
+        if (IsianUnitTahapService::enabled()) {
+            $butir->loadMissing(['record.tahapanProses', 'record.tahapAktif', 'record.putaran', 'butirPics',
+                'tanggapanUnit.unitKerja', 'tanggapanUnit.creator', 'tindakLanjuts.unitKerja', 'tindakLanjuts.creator']);
+            $workflow = app(KompilasiTahapService::class);
+            $round = $butir->record?->putaran->firstWhere('id', $workflow->stage($butir)?->putaran_asal_id);
+
+            return $this->materials($butir, $round, $workflow->sources($butir), $workflow->label($butir));
+        }
         $butir->loadMissing(['record.putaran', 'tanggapanAktif.unitKerja', 'tanggapanAktif.creator']);
         $round = $butir->record?->putaran->firstWhere('id', $this->workflow->roundId($butir));
 
@@ -68,14 +76,14 @@ class ReviuBahanPreviewService
     }
 
     /** @return array<string, mixed> */
-    private function materials(SnpButir|DjsnButir $butir, ?SuratPutaran $round, Collection $responses): array
+    private function materials(SnpButir|DjsnButir $butir, ?SuratPutaran $round, Collection $responses, ?string $stageLabel = null): array
     {
         $module = $this->workflow->module($butir);
         $context = [
             'letter_number' => $butir->record?->nomor_surat ?? '-',
             'butir_id' => $butir->{'id_butir_'.$module},
             'round_id' => $round?->id,
-            'round_label' => $round === null || $round->isLegacy() ? 'Putaran awal' : 'Putaran '.$round->nomor_putaran,
+            'round_label' => $stageLabel ?? ($round === null || $round->isLegacy() ? 'Putaran awal' : 'Putaran '.$round->nomor_putaran),
         ];
         $matching = $responses->filter(fn (Model $row): bool => $row->getConnectionName() === $butir->getConnectionName()
             && $row->{'id_butir_'.$module} === $butir->{'id_butir_'.$module}
@@ -87,7 +95,7 @@ class ReviuBahanPreviewService
                 : 'Unit tidak tercatat (data lama)',
             'author' => $row->creator?->name ?? 'Pengisi tidak tercatat (data lama)',
             'date' => $row->created_at?->format('d/m/Y H:i') ?? '-',
-            'content' => $row->tanggapan, 'deliverables' => $row->deliverables,
+            'content' => $row->getTable() === 'tb_tindak_lanjut' ? $row->tindak_lanjut : $row->tanggapan, 'deliverables' => $row->deliverables,
             'after_close' => $row->submitted_after_close_at !== null,
             'after_close_at' => $row->submitted_after_close_at?->format('d/m/Y H:i'),
             'butir_id' => $context['butir_id'], 'round_label' => $context['round_label'],

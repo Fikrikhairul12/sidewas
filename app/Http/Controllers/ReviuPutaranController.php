@@ -12,6 +12,8 @@ use App\Models\SnpCluster;
 use App\Models\SnpKompilasi;
 use App\Models\SnpReview;
 use App\Models\UnitKerja;
+use App\Services\IsianUnitTahapService;
+use App\Services\KompilasiTahapService;
 use App\Services\ReviuBahanPreviewService;
 use App\Services\ReviuPutaranService;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,9 +35,15 @@ class ReviuPutaranController extends Controller
         $permission = 'canAccess'.ucfirst($module).'Kompilasi';
         abort_unless($request->user()?->{$permission}(), 403);
         $query = $class::with(['record.putaran', 'butirPics.unitKerja', 'kompilasis', 'reviews', 'tanggapanAktif.unitKerja', 'tanggapanAktif.creator'])->whereHas('record');
+        if (IsianUnitTahapService::enabled()) {
+            $query->with(['record.tahapanProses', 'record.tahapAktif', 'tanggapanUnit.unitKerja', 'tanggapanUnit.creator', 'tindakLanjuts.unitKerja', 'tindakLanjuts.creator']);
+        }
         $this->filters($query, $request, $module, false);
         if ($request->filled('status')) {
-            $hasSubmitted = fn (Builder $q) => $q->padaPutaranAktif()->where('tahap_kompilasi', 'tanggapan')->where('status', 'dalam_proses_reviu_dewas');
+            $hasSubmitted = IsianUnitTahapService::enabled()
+                ? fn (Builder $q) => $q->whereHas('tahapProses.surat', fn (Builder $record) => $record->whereColumn('tb_record.tahap_aktif_id', 'tb_kompilasi.tahap_id'))
+                    ->where('status', 'dalam_proses_reviu_dewas')
+                : fn (Builder $q) => $q->padaPutaranAktif()->where('tahap_kompilasi', 'tanggapan')->where('status', 'dalam_proses_reviu_dewas');
             match ($request->status) {
                 'belum_dikompilasi' => $query->whereDoesntHave('kompilasis', $hasSubmitted),
                 'dalam_proses_reviu_dewas' => $query->whereHas('kompilasis', $hasSubmitted),
@@ -45,7 +53,7 @@ class ReviuPutaranController extends Controller
         $butirs = $query->latest('id')->paginate(2)->withQueryString();
 
         return view('layouts.partials.kompilasi-putaran', $this->viewData($module) + [
-            'butirs' => $butirs, 'workflow' => $this->workflow,
+            'butirs' => $butirs, 'workflow' => $this->workflow, 'snapshotWorkflow' => app(KompilasiTahapService::class),
             'previewBahan' => $butirs->getCollection()->mapWithKeys(fn ($butir): array => [$butir->id => $this->preview->forCompilation($butir, $request->user())])->all(),
             'statusOptions' => ['belum_dikompilasi' => 'Belum Dikompilasi', 'dalam_proses_reviu_dewas' => 'Dalam Proses Reviu Dewas'],
         ]);
@@ -59,7 +67,8 @@ class ReviuPutaranController extends Controller
         abort_unless($request->user()?->{$permission}(), 403);
         $validated = $request->validate([
             'putaran_id' => ['nullable', 'integer', 'min:1'],
-            'tahap_kompilasi' => ['required', 'in:tanggapan'],
+            'tahap_id' => ['nullable', 'integer', 'min:1'],
+            'tahap_kompilasi' => ['required', IsianUnitTahapService::enabled() ? 'in:tanggapan,tindak_lanjut' : 'in:tanggapan'],
             'hasil_kompilasi' => ['required', 'string'], 'deliverables' => ['nullable', 'string'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
             'ubah_tgl' => ['nullable', 'date'],

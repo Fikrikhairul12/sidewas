@@ -634,6 +634,7 @@ class PerekamanSnpController extends Controller
         if ($user->isSuperAdmin()) {
             DB::connection('mysql_snp')->transaction(function () use ($request, $record, $user) {
                 $record = $record->lockForWorkflowMutation();
+                $record->assertCanDeleteWorkflow();
                 $oldData = $record->load([
                     'butirSnp.butirPics',
                     'cluster',

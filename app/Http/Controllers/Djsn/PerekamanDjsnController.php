@@ -355,6 +355,7 @@ class PerekamanDjsnController extends Controller
         if ($user->isSuperAdmin()) {
             DB::connection('mysql_djsn')->transaction(function () use ($request, $record, $user) {
                 $record = $record->lockForWorkflowMutation();
+                $record->assertCanDeleteWorkflow();
                 $oldData = $record->load([
                     'butirDjsn.butirPics',
                     'butirDjsn.cluster',

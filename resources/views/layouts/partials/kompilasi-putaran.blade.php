@@ -1,8 +1,11 @@
-<x-app-layout>
+@php
+    $revision = \App\Services\IsianUnitTahapService::enabled();
+@endphp
+<x-app-layout :compact-header="$revision">
     <div data-workflow-page x-data="reviuBahanPage({ deliverables: '', ubah_tgl: '' })" @keydown.escape.window="openModal = false" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold text-blue-700">{{ $moduleLabel }}</p>
-            <h1 class="mt-2 text-3xl font-bold text-slate-800">Kompilasi Tanggapan {{ strtoupper($module) }}</h1>
+            <h1 class="mt-2 text-3xl font-bold text-slate-800">Kompilasi {{ $revision ? 'Tanggapan dan Tindak Lanjut' : 'Tanggapan' }} {{ strtoupper($module) }}</h1>
             <p class="mt-2 text-sm text-slate-500">Kompilasi dapat dikirim ke reviu tanpa menunggu seluruh unit kerja mengisi tanggapan.</p>
         </div>
         @if (session('success'))
@@ -30,18 +33,24 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($butirs as $butir)
                             @php
-                                $compilation = $workflow->current($butir->kompilasis, $butir)->firstWhere('tahap_kompilasi', 'tanggapan');
+                                $stage = $revision ? $snapshotWorkflow->stage($butir) : null;
+                                $stageType = $stage?->tahap_proses === \App\Enums\TahapProses::TindakLanjut ? 'tindak_lanjut' : 'tanggapan';
+                                $stageLabel = $revision ? $snapshotWorkflow->label($butir) : $workflow->roundLabel($butir);
+                                $roundId = $revision ? ($stage?->putaran_asal_id ?? $workflow->roundId($butir)) : $workflow->roundId($butir);
+                                $compilation = $revision ? $snapshotWorkflow->compilation($butir) : $workflow->current($butir->kompilasis, $butir)->firstWhere('tahap_kompilasi', 'tanggapan');
                                 $unitIds = $butir->butirPics->whereIn('jenis_pic', ['utama', 'pendukung'])->pluck('unit_kerja_id')->filter()->unique();
-                                $responses = $workflow->current($butir->tanggapanAktif, $butir);
+                                $responses = $revision ? $snapshotWorkflow->sources($butir) : $workflow->current($butir->tanggapanAktif, $butir);
                                 $answered = $responses->pluck('unit_kerja_id')->filter()->unique();
                                 $payload = [
                                     'preview' => $previewBahan[$butir->id],
-                                    'action' => route($module.'.kompilasi.store', $butir), 'putaran_id' => $workflow->roundId($butir),
+                                    'action' => route($module.'.kompilasi.store', $butir), 'putaran_id' => $roundId,
+                                    'tahap_id' => $stage?->id, 'tahap_kompilasi' => $stageType,
                                     'butir_id' => $butir->{'id_butir_'.$module}, 'butir' => $butir->{'butir_'.$module},
-                                    'round_label' => $workflow->roundLabel($butir), 'record_id' => $butir->record->id,
+                                    'round_label' => $stageLabel, 'record_id' => $butir->record->id,
                                     'hasil_kompilasi' => $compilation?->hasil_kompilasi ?? '', 'deliverables' => $compilation?->deliverables ?? '',
                                     'ubah_tgl' => $compilation?->ubah_tgl?->format('Y-m-d') ?? '',
-                                    'image_upload_url' => route($module.'.kompilasi.images.store', ['butir' => $butir, 'putaran_id' => $workflow->roundId($butir)], false),
+                                    'image_upload_url' => route($module.'.kompilasi.images.store', ['butir' => $butir, 'putaran_id' => $roundId]
+                                        + ($revision ? ['tahap_id' => $stage?->id, 'tahap_kompilasi' => $stageType] : []), false),
                                 ];
                             @endphp
                             <tr>
@@ -51,7 +60,7 @@
                                         <p class="mt-2 text-xs font-semibold text-blue-700">Close: {{ \App\Enums\SuratStatus::labelFor($butir->record->status) }} · {{ $butir->record->closed_at->format('d/m/Y H:i') }}.</p>
                                         <p class="mt-1 text-xs text-slate-500">Bahan kompilasi terkunci. Tanggapan setelah penutupan tersedia melalui Detail di halaman Tanggapan.</p>
                                     @endif
-                                    <p class="mt-2 text-xs text-slate-600">{{ $butir->{'id_butir_'.$module} }} · {{ $workflow->roundLabel($butir) }}</p>
+                                    <p class="mt-2 text-xs text-slate-600">{{ $butir->{'id_butir_'.$module} }} · {{ $stageLabel }}</p>
                                     <x-butir-preview class="mt-3" :content="$butir->{'butir_'.$module}" :butir-id="$butir->{'id_butir_'.$module}" />
                                 </td>
                                 <td class="px-6 py-5 align-top text-sm text-slate-700">
@@ -60,8 +69,14 @@
                                         <details class="mt-3">
                                             <summary class="cursor-pointer font-semibold">{{ $response->unitKerja?->nama_unit ?? 'Unit pengisi belum teridentifikasi (data lama)' }}</summary>
                                             <p class="mt-2 text-xs text-slate-500">{{ $response->creator?->name ?? '-' }} · {{ $response->created_at?->format('d/m/Y H:i') ?? '-' }}</p>
-                                            <p class="mt-2 whitespace-pre-line">{{ $response->tanggapan }}</p>
+                                            <p class="mt-2 whitespace-pre-line">{{ $response->getTable() === 'tb_tindak_lanjut' ? $response->tindak_lanjut : $response->tanggapan }}</p>
                                             <p class="mt-2">Deliverables: {{ $response->deliverables ?? '-' }}</p>
+                                            @if ($revision && $response->submitted_after_compilation_at !== null)
+                                                <p class="mt-2 text-xs font-semibold text-amber-800">Tidak termasuk kompilasi</p>
+                                            @endif
+                                            @if ($revision && $response->changed_after_compilation_at !== null)
+                                                <p class="mt-2 text-xs text-amber-800">Diubah setelah kompilasi</p>
+                                            @endif
                                         </details>
                                     @empty
                                         <p class="mt-3 text-slate-500">Belum ada tanggapan pada putaran ini.</p>
@@ -95,7 +110,7 @@
             <div class="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-label="Kompilasi tanggapan">
                 <div class="mb-5 flex justify-between gap-4">
                     <div>
-                        <h2 class="text-xl font-bold text-slate-800">Kompilasi Tanggapan</h2>
+                        <h2 class="text-xl font-bold text-slate-800">{{ $revision ? 'Kompilasi Bahan' : 'Kompilasi Tanggapan' }}</h2>
                         <p data-workflow-context class="mt-1 text-sm text-slate-500" x-text="selected.butir_id + ' · ' + selected.round_label"></p>
                         <p class="mt-2 text-sm text-slate-500">Setelah dikirim, hasil kompilasi dikunci sebagai bahan reviu.</p>
                     </div>
@@ -104,7 +119,10 @@
                 @include('layouts.partials.reviu-bahan-preview', ['showCompilation' => false])
                 <form method="POST" :action="selected.action" enctype="multipart/form-data" data-kompilasi-form>
                     @csrf
-                    <input type="hidden" name="tahap_kompilasi" value="tanggapan">
+                    <input type="hidden" name="tahap_kompilasi" :value="selected.tahap_kompilasi ?? 'tanggapan'">
+                    @if ($revision)
+                        <input type="hidden" name="tahap_id" :value="selected.tahap_id ?? ''">
+                    @endif
                     <input type="hidden" name="putaran_id" :value="selected.putaran_id ?? ''">
                     <x-butir-preview class="mb-5" content-expression="selected.butir" id-expression="selected.butir_id" />
                     <label class="mb-2 block text-sm font-semibold">Hasil Kompilasi</label>

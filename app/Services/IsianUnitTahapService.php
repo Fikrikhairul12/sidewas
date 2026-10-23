@@ -77,7 +77,7 @@ class IsianUnitTahapService
         return $this->sources($butir, $stage)->contains(fn ($source): bool => $this->sourceUnit($source, $butir) === null);
     }
 
-    private function canStartInitial(SnpButir|DjsnButir $butir): bool
+    public function canStartInitial(SnpButir|DjsnButir $butir): bool
     {
         $record = $butir->record;
         $initial = $record?->tahapanProses->first(fn ($stage): bool => $stage->tahap_proses === TahapProses::TanggapanAwal);
@@ -90,7 +90,7 @@ class IsianUnitTahapService
             && ! $this->hasUnmappedInputs($butir);
     }
 
-    private function stageIsCurrent(SnpButir|DjsnButir $butir, SuratTahap $stage): bool
+    public function stageIsCurrent(SnpButir|DjsnButir $butir, SuratTahap $stage): bool
     {
         $record = $butir->record;
 
@@ -206,7 +206,7 @@ class IsianUnitTahapService
         ];
     }
 
-    private function lockButir(SnpButir|DjsnButir $butir): void
+    public function lockButir(SnpButir|DjsnButir $butir): void
     {
         $record = $butir->record()->lockForUpdate()->firstOrFail();
         $record->setRelation('tahapAktif', $record->tahapAktif()->lockForUpdate()->first());
@@ -223,6 +223,24 @@ class IsianUnitTahapService
         }
     }
 
+    public function activeStageForWrite(SnpButir|DjsnButir $butir, User $user): ?SuratTahap
+    {
+        $record = $butir->record;
+        $stage = $record->tahapAktif;
+        if ($stage === null && $this->canStartInitial($butir)) {
+            $round = app(SuratPutaranService::class)->legacyFor($butir->getConnectionName(), $record->getRawOriginal());
+            $stage = $record->tahapanProses()->firstOrCreate(['tahap_proses' => TahapProses::TanggapanAwal->value, 'nomor_putaran' => 0], [
+                'kunci_asal' => 'tanggapan_awal', 'putaran_asal_id' => $round->id, 'asal_pemetaan' => 'aplikasi',
+                'status_pemetaan' => 'terpetakan', 'created_by' => $user->id,
+            ]);
+            $record->forceFill(['tahap_aktif_id' => $stage->id])->save();
+            $record->setRelation('tahapAktif', $stage);
+            $record->setRelation('putaran', $record->putaran()->lockForUpdate()->get());
+        }
+
+        return $stage;
+    }
+
     public function create(SnpButir|DjsnButir $butir, User $user, TahapProses $type, array $data, Request $request): Model
     {
         $newFile = null;
@@ -230,16 +248,7 @@ class IsianUnitTahapService
             return $butir->getConnection()->transaction(function () use ($butir, $user, $type, $data, $request, &$newFile): Model {
                 $this->lockButir($butir);
                 $record = $butir->record;
-                $stage = $record->tahapAktif;
-                if ($stage === null && $type === TahapProses::TanggapanAwal && $this->canStartInitial($butir)) {
-                    $round = app(SuratPutaranService::class)->legacyFor($butir->getConnectionName(), $record->getRawOriginal());
-                    $stage = $record->tahapanProses()->firstOrCreate(['tahap_proses' => $type->value, 'nomor_putaran' => 0], [
-                        'kunci_asal' => 'tanggapan_awal', 'putaran_asal_id' => $round->id, 'asal_pemetaan' => 'aplikasi',
-                        'status_pemetaan' => 'terpetakan', 'created_by' => $user->id,
-                    ]);
-                    $record->forceFill(['tahap_aktif_id' => $stage->id])->save();
-                    $record->setRelation('tahapAktif', $stage);
-                }
+                $stage = $type === TahapProses::TanggapanAwal ? $this->activeStageForWrite($butir, $user) : $record->tahapAktif;
                 if ($stage === null || $stage->tahap_proses !== $type || ! $this->stageIsCurrent($butir, $stage)
                     || isset($data['tahap_id']) && (int) $data['tahap_id'] !== (int) $stage->id
                     || $type === TahapProses::TindakLanjut && empty($data['tahap_id'])) {

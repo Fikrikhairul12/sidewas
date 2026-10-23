@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToSuratPutaran;
+use App\Models\Concerns\HasKompilasiSalinan;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SnpKompilasi extends Model
 {
     use BelongsToSuratPutaran;
+    use HasKompilasiSalinan;
     use TracksUser;
 
     protected $connection = 'mysql_snp';

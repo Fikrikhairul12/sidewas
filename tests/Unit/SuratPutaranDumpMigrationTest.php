@@ -11,17 +11,23 @@ use App\Models\SnpRecord;
 use App\Models\SnpReview;
 use App\Models\SuratPutaran;
 use App\Models\SuratTahap;
+use App\Services\IsianUnitTahapService;
 use App\Services\SuratAwalStatusService;
 use App\Services\SuratPutaranBackfill;
 use App\Services\SuratPutaranService;
 use App\Services\SuratTahapBackfill;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 uses(TestCase::class);
+
+require_once __DIR__.'/WorkflowTestSetup.php';
 
 function awaitWorkflowWorker(Process $process): void
 {
@@ -192,7 +198,7 @@ test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga
     expect(fn () => $this->migration->down())->toThrow(RuntimeException::class);
 });
 
-test('R1 dan R2 pada dump MySQL mempertahankan seluruh sumber tanpa membuat salinan bahan perkiraan', function () {
+test('R1 R2 dan R3 pada dump MySQL mempertahankan seluruh sumber tanpa membuat salinan bahan perkiraan', function () {
     $directory = getenv('SIDEWAS_PUTARAN_DUMP_DIR');
     if (! $directory) {
         $this->markTestSkipped('Set SIDEWAS_PUTARAN_DUMP_DIR untuk salinan dump SNP dan DJSN.');
@@ -223,6 +229,9 @@ test('R1 dan R2 pada dump MySQL mempertahankan seluruh sumber tanpa membuat sali
     $entries = require database_path('migrations/2026_10_23_102718_add_snp_djsn_stage_unit_entries.php');
     $entries->up();
     $entries->up();
+    $captures = require database_path('migrations/2026_10_23_131534_add_snp_djsn_compilation_snapshots.php');
+    $captures->up();
+    $captures->up();
     foreach ($snapshots as $module => $tables) {
         $db = DB::connection('mysql_'.$module);
         foreach ($tables as $table => $snapshot) {
@@ -239,6 +248,10 @@ test('R1 dan R2 pada dump MySQL mempertahankan seluruh sumber tanpa membuat sali
     expect(DB::connection('mysql_djsn')->table('tb_surat_tahap')->where('tahap_proses', 'tindak_lanjut')->whereNull('nomor_putaran')->exists())->toBeTrue();
     expect(DB::connection('mysql_djsn')->table('tb_tindak_lanjut')->whereNotNull('putaran_tl')->count())->toBe(0)
         ->and(DB::connection('mysql_djsn')->table('tb_isian_unit_tahap')->count())->toBe(0);
+    foreach (['snp', 'djsn'] as $module) {
+        expect(DB::connection('mysql_'.$module)->table('tb_kompilasi')->whereNotNull('salinan_konteks')->count())->toBe(0);
+    }
+    $captures->down();
     $entries->down();
     $stages->down();
     foreach ($snapshots as $module => $tables) {
@@ -262,10 +275,14 @@ test('fondasi MySQL dapat dipasang dan dibatalkan pada skema instalasi baru', fu
     $entries = require database_path('migrations/2026_10_23_102718_add_snp_djsn_stage_unit_entries.php');
     $entries->up();
     $entries->up();
+    $captures = require database_path('migrations/2026_10_23_131534_add_snp_djsn_compilation_snapshots.php');
+    $captures->up();
+    $captures->up();
     foreach (['snp', 'djsn'] as $module) {
         expect(Schema::connection('mysql_'.$module)->hasColumn('tb_tanggapan', 'putaran_id'))->toBeTrue()
             ->and(SuratPutaran::on('mysql_'.$module)->count())->toBe(0);
     }
+    $captures->down();
     $entries->down();
     $stages->down();
     $assignments->down();
@@ -491,6 +508,149 @@ test('R2 MySQL mencegah dua akun atau PIC dari unit sama menyimpan isian bersama
         }
     }
 })->with([false, true]);
+
+test('R3 MySQL membekukan bahan secara konsisten saat pengisian edit dan kompilasi bersamaan', function (string $operation, bool $inputFirst) {
+    (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();
+    (require database_path('migrations/2026_06_03_093422_create_djsn_tables.php'))->up();
+    $this->migration->up();
+    (require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php'))->up();
+    (require database_path('migrations/2026_10_22_132318_add_unit_assignments_to_surat_putaran.php'))->up();
+    (require database_path('migrations/2026_10_23_094342_add_snp_djsn_process_stage_foundation.php'))->up();
+    (require database_path('migrations/2026_10_23_102718_add_snp_djsn_stage_unit_entries.php'))->up();
+    (require database_path('migrations/2026_10_23_131534_add_snp_djsn_compilation_snapshots.php'))->up();
+    config(['sidewas.alur_revisi_enabled' => true, 'sidewas.reviu_putaran_enabled' => true]);
+    $worker = <<<'PHP'
+        require $argv[1].'/vendor/autoload.php';
+        $app = require $argv[1].'/bootstrap/app.php';
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        $module = $argv[3];
+        $connection = 'mysql_'.$module;
+        $settings = json_decode($argv[2], true);
+        config(['database.connections.'.$connection => $settings, 'database.connections.mysql' => $settings,
+            'database.default' => 'mysql', 'sidewas.alur_revisi_enabled' => true, 'sidewas.reviu_putaran_enabled' => true]);
+        Illuminate\Support\Facades\DB::purge($connection);
+        Illuminate\Support\Facades\DB::purge('mysql');
+        $user = App\Models\User::findOrFail((int) $argv[6]);
+        Illuminate\Support\Facades\Auth::login($user);
+        fwrite(STDOUT, "ready\n");
+        fflush(STDOUT);
+        $db = Illuminate\Support\Facades\DB::connection($connection);
+        $db->beginTransaction();
+        try {
+            $class = $module === 'snp' ? App\Models\SnpButir::class : App\Models\DjsnButir::class;
+            $butir = $class::findOrFail((int) $argv[4]);
+            $record = $butir->record()->lockForUpdate()->firstOrFail();
+            fwrite(STDOUT, "locked\n");
+            fflush(STDOUT);
+            if (trim(fgets(STDIN) ?: '') !== 'proceed') throw new RuntimeException('Missing concurrency gate');
+            $stage = App\Models\SuratTahap::on($connection)->findOrFail((int) $argv[5]);
+            $request = Illuminate\Http\Request::create('/r3-race', 'POST');
+            if ($argv[7] === 'compile') {
+                app(App\Services\KompilasiTahapService::class)->compile($butir, $user, [
+                    'tahap_id' => $stage->id, 'putaran_id' => $stage->putaran_asal_id,
+                    'tahap_kompilasi' => $stage->tahap_proses === App\Enums\TahapProses::TanggapanAwal ? 'tanggapan' : 'tindak_lanjut',
+                    'hasil_kompilasi' => 'Kompilasi bersamaan',
+                ], $request);
+            } elseif ($argv[7] === 'create') {
+                app(App\Services\IsianUnitTahapService::class)->create($butir, $user, $stage->tahap_proses, [
+                    'tahap_id' => $stage->id, 'butir_pic_id' => (int) $argv[8], 'isi' => 'Isian bersamaan', 'deliverables' => 'Hasil',
+                ], $request);
+            } else {
+                $source = $stage->relatedClass($stage->tahap_proses === App\Enums\TahapProses::TanggapanAwal ? 'Tanggapan' : 'TindakLanjut')::where('tahap_id', $stage->id)->firstOrFail();
+                app(App\Services\IsianUnitTahapService::class)->update($source, $user, ['isi' => 'Edit bersamaan', 'deliverables' => 'Hasil edit'], $request);
+            }
+            $db->commit();
+            fwrite(STDOUT, "saved\n");
+        } catch (Throwable $exception) {
+            $db->rollBack();
+            throw $exception;
+        }
+        PHP;
+    $waitForLock = function (Process $process): void {
+        $deadline = microtime(true) + 10;
+        while (! str_contains($process->getOutput(), "locked\n") && $process->isRunning() && microtime(true) < $deadline) {
+            usleep(10_000);
+        }
+        expect(str_contains($process->getOutput(), "locked\n"))->toBeTrue($process->getOutput().$process->getErrorOutput());
+    };
+    foreach (['snp', 'djsn'] as $module) {
+        $connection = 'mysql_'.$module;
+        config(['database.connections.mysql' => config('database.connections.'.$connection), 'database.default' => 'mysql']);
+        DB::purge('mysql');
+        (require database_path('migrations/0001_01_01_000000_create_users_table.php'))->up();
+        (require database_path('migrations/2026_05_07_000000_create_main_custom_tables.php'))->up();
+        foreach (['tb_direktorat', 'tb_unit_kerja'] as $table) {
+            Schema::table($table, fn (Blueprint $blueprint) => $blueprint->string('status')->default('active'));
+        }
+        DB::table('tb_direktorat')->insert(['id' => 1, 'nama_direktorat' => 'Direktorat Uji']);
+        DB::table('tb_unit_kerja')->insert(['id' => 1, 'direktorat_id' => 1, 'nama_unit' => 'Unit A']);
+        DB::table('tb_komite')->insert(['id' => 1, 'nama_komite' => 'Komite Uji']);
+        $compiler = workflowUser('super_admin');
+        $unit = workflowUser('pic_'.$module);
+        foreach ([false, true] as $followUp) {
+            $butir = workflowButir($module);
+            $record = $butir->record->fresh();
+            $round = app(SuratPutaranService::class)->legacyFor($connection, $record->getRawOriginal());
+            if ($followUp) {
+                $round = app(SuratPutaranService::class)->buka($record, $compiler->id);
+            }
+            $stage = SuratTahap::factory()->forSurat($record)->state([
+                'tahap_proses' => $followUp ? 'tindak_lanjut' : 'tanggapan_awal', 'nomor_putaran' => $followUp ? 1 : 0,
+                'putaran_asal_id' => $round->id,
+            ])->create();
+            $record->forceFill(['tahap_aktif_id' => $stage->id])->save();
+            $pic = $butir->butirPics()->where('jenis_pic', 'utama')->firstOrFail();
+            if ($operation === 'edit') {
+                Auth::login($unit);
+                app(IsianUnitTahapService::class)->create($butir, $unit, $stage->tahap_proses, [
+                    'tahap_id' => $stage->id, 'butir_pic_id' => $pic->id, 'isi' => 'Versi sebelum edit', 'deliverables' => 'Hasil asli',
+                ], Request::create('/r3-initial', 'POST'));
+            }
+            $workers = [];
+            $streams = [];
+            try {
+                foreach ($inputFirst ? [$operation, 'compile'] : ['compile', $operation] as $index => $kind) {
+                    $streams[$index] = new InputStream;
+                    $process = new Process([PHP_BINARY, '-r', $worker, base_path(), json_encode(config('database.connections.'.$connection)),
+                        $module, (string) $butir->id, (string) $stage->id, (string) ($kind === 'compile' ? $compiler->id : $unit->id), $kind, (string) $pic->id],
+                        base_path(), ['APP_ENV' => 'testing', 'LOG_CHANNEL' => 'stderr']);
+                    $process->setInput($streams[$index])->setTimeout(40)->start();
+                    $workers[$index] = $process;
+                    awaitWorkflowWorker($process);
+                    if ($index === 0) {
+                        $waitForLock($process);
+                    }
+                }
+                foreach ($workers as $index => $process) {
+                    $streams[$index]->write("proceed\n");
+                    $streams[$index]->close();
+                    $process->wait();
+                    expect($process->isSuccessful())->toBeTrue($process->getOutput().$process->getErrorOutput());
+                }
+                $compilation = $butir->kompilasis()->firstOrFail();
+                $source = $stage->relatedClass($followUp ? 'TindakLanjut' : 'Tanggapan')::where('tahap_id', $stage->id)->firstOrFail();
+                expect($butir->kompilasis()->count())->toBe(1)->and($butir->reviews()->count())->toBe(1);
+                if ($operation === 'create') {
+                    expect($compilation->bahan()->count())->toBe($inputFirst ? 1 : 0)
+                        ->and($source->submitted_after_compilation_at !== null)->toBe(! $inputFirst);
+                } else {
+                    expect($compilation->bahan()->firstOrFail()->salinan['isi'])->toBe($inputFirst ? 'Edit bersamaan' : 'Versi sebelum edit')
+                        ->and($source->changed_after_compilation_at !== null)->toBe(! $inputFirst);
+                }
+                expect($compilation->salinan_konteks['jumlah_bahan'])->toBe($operation === 'edit' || $inputFirst ? 1 : 0);
+            } finally {
+                foreach ($workers as $process) {
+                    if ($process->isRunning()) {
+                        $process->stop();
+                    }
+                }
+                foreach ($streams as $stream) {
+                    $stream->close();
+                }
+            }
+        }
+    }
+})->with(['create', 'edit'])->with([true, false]);
 
 test('MySQL serializes concurrent responses by unit including late completion after Close', function (bool $closed) {
     (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();

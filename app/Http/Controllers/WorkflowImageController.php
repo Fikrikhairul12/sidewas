@@ -6,6 +6,8 @@ use App\Models\DjsnButir;
 use App\Models\DjsnReview;
 use App\Models\SnpButir;
 use App\Models\SnpReview;
+use App\Services\IsianUnitTahapService;
+use App\Services\KompilasiTahapService;
 use App\Services\ReviuPutaranService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -85,6 +87,13 @@ class WorkflowImageController extends Controller
 
     private function assertCompilationRound(Request $request, SnpButir|DjsnButir $butir): void
     {
+        if (IsianUnitTahapService::enabled()) {
+            $data = $request->validate(['putaran_id' => ['nullable', 'integer', 'min:1'], 'tahap_id' => ['nullable', 'integer', 'min:1'],
+                'tahap_kompilasi' => ['required', 'in:tanggapan,tindak_lanjut']]);
+            app(KompilasiTahapService::class)->assertCanUpload($request->user(), $butir, $data);
+
+            return;
+        }
         $data = $request->validate(['putaran_id' => ['nullable', 'integer', 'min:1']]);
         app(ReviuPutaranService::class)->assertCanUploadCompilation($request->user(), $butir, isset($data['putaran_id']) ? (int) $data['putaran_id'] : null);
     }
