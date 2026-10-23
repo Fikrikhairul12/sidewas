@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToSuratPutaran;
+use App\Models\Concerns\HasKeputusanReviu;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SnpReview extends Model
 {
     use BelongsToSuratPutaran;
+    use HasKeputusanReviu;
     use TracksUser;
 
     protected $connection = 'mysql_snp';

@@ -9,6 +9,7 @@ use App\Models\SnpReview;
 use App\Models\SuratPutaran;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class ReviuBahanPreviewService
@@ -42,6 +43,9 @@ class ReviuBahanPreviewService
         $permission = 'canAccess'.ucfirst($this->workflow->module($review)).'Review';
         abort_unless($user->{$permission}()
             && ($user->isSuperAdmin() || in_array($review->komite_id, $user->komiteIds())), 403);
+        if (IsianUnitTahapService::enabled()) {
+            return $this->snapshotMaterials($review);
+        }
         $review->loadMissing([
             'butir.record.putaran', 'butir.tanggapanUnit.unitKerja', 'butir.tanggapanUnit.creator',
             'kompilasiPutaran.creator', 'kompilasiPutaran.updater',
@@ -73,6 +77,46 @@ class ReviuBahanPreviewService
         }
 
         return $materials;
+    }
+
+    /** @return array<string, mixed> */
+    private function snapshotMaterials(SnpReview|DjsnReview $review): array
+    {
+        $workflow = app(ReviuTahapService::class);
+        if (! $workflow->hasVerifiedCompilation($review)) {
+            return ['responses' => [], 'late_responses' => [], 'compilation' => null, 'needs_reconciliation' => true];
+        }
+        $compilation = $review->kompilasiPutaran;
+        $snapshot = $compilation->salinan_konteks;
+        $context = [
+            'letter_number' => $snapshot['surat']['nomor_surat'], 'butir_id' => $snapshot['butir']['key'],
+            'butir_content' => $snapshot['butir']['isi'], 'round_id' => $review->putaran_id,
+            'stage_id' => $review->tahap_id, 'round_label' => $workflow->label($review->tahapProses),
+            'kind_label' => $review->tahap_review === 'tindak_lanjut' ? 'Tindak Lanjut' : 'Tanggapan',
+        ];
+        $responses = $compilation->bahan->sortBy(fn ($material): string => ($material->salinan['created_at'] ?? '').sprintf('%020d', $material->id))
+            ->map(function ($material) use ($context): array {
+                $copy = $material->salinan;
+
+                return [
+                    'id' => $material->id, 'unit' => trim(($copy['unit']['kode'] ? $copy['unit']['kode'].' - ' : '').($copy['unit']['nama'] ?? 'Unit #'.$material->unit_kerja_id)),
+                    'author' => $copy['pengisi']['nama'] ?? 'Pengisi tidak tercatat (data lama)',
+                    'date' => empty($copy['created_at']) ? '-' : Carbon::parse($copy['created_at'])->setTimezone(config('app.timezone'))->format('d/m/Y H:i'),
+                    'content' => $copy['isi'], 'deliverables' => $copy['deliverables'], 'after_close' => false,
+                    'butir_id' => $context['butir_id'], 'round_label' => $context['round_label'],
+                ];
+            })->values()->all();
+
+        return $context + [
+            'responses' => $responses, 'late_responses' => [], 'is_snapshot' => true, 'needs_reconciliation' => false,
+            'missing_units' => collect($snapshot['kelengkapan_unit'])->where('terisi', false)->pluck('nama')->all(),
+            'compilation' => [
+                'id' => $compilation->id, 'content' => $snapshot['kompilasi']['isi'], 'deliverables' => $snapshot['kompilasi']['deliverables'],
+                'author' => $snapshot['penyusun']['nama'] ?? 'Penyusun tidak tercatat (data lama)',
+                'date' => Carbon::parse($snapshot['dicatat_at'])->setTimezone(config('app.timezone'))->format('d/m/Y H:i'),
+                'butir_id' => $context['butir_id'], 'round_label' => $context['round_label'],
+            ],
+        ];
     }
 
     /** @return array<string, mixed> */

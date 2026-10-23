@@ -10,7 +10,7 @@ export function reviuBahanPage(initialSelected = {}) {
             return this.previewResponses[this.previewIndex] ?? null;
         },
         get previewCounter() {
-            return this.previewResponses.length ? `Tanggapan ${this.previewIndex + 1} dari ${this.previewResponses.length}` : '';
+            return this.previewResponses.length ? `${this.selected.preview?.kind_label ?? 'Tanggapan'} ${this.previewIndex + 1} dari ${this.previewResponses.length}` : '';
         },
         openMaterialModal(payload) {
             this.selected = payload;

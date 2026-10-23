@@ -25,7 +25,7 @@ class SuratPutaranService
             if ($record->isWorkflowClosed() || $record->status === 'tuntas') {
                 throw new LogicException('Surat yang sudah ditutup tidak dapat membuka putaran baru.');
             }
-            $active = $record->putaranAktif;
+            $active = $record->putaranAktif()->lockForUpdate()->first();
 
             if ($active !== null && $active->archived_at === null) {
                 throw new LogicException('Putaran aktif harus diarsipkan sebelum membuka putaran berikutnya.');
@@ -37,7 +37,7 @@ class SuratPutaranService
                 $legacy->update(['archived_at' => now(), 'archived_by' => $actorId]);
             }
 
-            $number = ((int) $record->putaran()->max('nomor_putaran')) + 1;
+            $number = ((int) $record->putaran()->lockForUpdate()->get()->max('nomor_putaran')) + 1;
             $putaran = $record->putaran()->create([
                 'nomor_putaran' => $number,
                 'opened_at' => now(),
@@ -57,7 +57,7 @@ class SuratPutaranService
             if ($record->isWorkflowClosed() || $record->status === 'tuntas') {
                 throw new LogicException('Putaran terakhir surat yang sudah ditutup harus tetap tersedia untuk kelengkapan terlambat.');
             }
-            $current = $putaran->fresh();
+            $current = $putaran->newQuery()->lockForUpdate()->findOrFail($putaran->id);
 
             if ($current->isLegacy() || (int) $record->putaran_aktif_id !== (int) $current->id || $current->archived_at !== null) {
                 throw new LogicException('Hanya putaran aktif yang dapat diarsipkan.');
@@ -103,6 +103,12 @@ class SuratPutaranService
 
         if (IsianUnitTahapService::enabled() && IsianUnitTahapService::isInput($model)) {
             app(IsianUnitTahapService::class)->prepareForSave($model, $record);
+
+            return;
+        }
+
+        if (IsianUnitTahapService::enabled() && $model->getTable() === 'tb_review') {
+            app(ReviuTahapService::class)->prepareForSave($model, $record);
 
             return;
         }

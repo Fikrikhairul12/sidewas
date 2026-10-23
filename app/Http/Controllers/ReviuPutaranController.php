@@ -88,6 +88,9 @@ class ReviuPutaranController extends Controller
             'butir.record.putaran', 'butir.tanggapanUnit.unitKerja', 'butir.tanggapanUnit.creator',
             'kompilasiPutaran.creator', 'kompilasiPutaran.updater', 'putaran', 'komite', 'creator', 'updater', 'tanggapan', 'tindakLanjut',
         ])->whereHas('butir.record');
+        if (IsianUnitTahapService::enabled()) {
+            $query->with(['tahapProses', 'butir.record.tahapanProses', 'kompilasiPutaran.bahan']);
+        }
         if (! $request->user()->isSuperAdmin()) {
             $query->whereIn('komite_id', $request->user()->komiteIds());
         }
@@ -130,7 +133,9 @@ class ReviuPutaranController extends Controller
         $nextRound = $this->workflow->review($review, $request->user(), $request->validate($rules), $request);
 
         return redirect()->route($this->workflow->module($review).'.reviu.index')->with('success', $nextRound
-            ? 'Reviu berhasil disimpan. Putaran '.$nextRound->nomor_putaran.' dibuka untuk seluruh unit pada surat ini. Tanggapan baru diisi melalui halaman Tanggapan.'
+            ? (IsianUnitTahapService::enabled()
+                ? 'Reviu berhasil disimpan. Tindak Lanjut Putaran '.$review->fresh()->butir->record->tahapAktif->nomor_putaran.' dibuka untuk seluruh unit pada surat ini. Perbaikan diisi melalui halaman Tindak Lanjut. Tanggapan Awal tetap terkunci.'
+                : 'Reviu berhasil disimpan. Putaran '.$nextRound->nomor_putaran.' dibuka untuk seluruh unit pada surat ini. Tanggapan baru diisi melalui halaman Tanggapan.')
             : ($review->fresh()->butir->record->closed_at !== null
                 ? 'Reviu berhasil disimpan. Surat Close. Unit yang belum mengisi dapat melengkapi putaran terakhir tanpa mengubah keputusan.'
                 : 'Reviu berhasil disimpan.'));

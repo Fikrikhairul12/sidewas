@@ -39,6 +39,10 @@ class SuratTahap extends Model
     {
         static::saving(function (self $tahap): void {
             self::moduleFor($tahap->getConnectionName());
+            $stored = $tahap->exists ? $tahap->newQuery()->lockForUpdate()->findOrFail($tahap->id) : null;
+            if ($stored?->archived_at !== null && $tahap->isDirty()) {
+                throw new LogicException('Tahap yang sudah diarsipkan tidak boleh diubah atau dibuka kembali.');
+            }
             if ($tahap->tahap_proses === TahapProses::TanggapanAwal && $tahap->nomor_putaran !== 0
                 || $tahap->tahap_proses === TahapProses::TindakLanjut && $tahap->nomor_putaran !== null && $tahap->nomor_putaran < 1) {
                 throw new InvalidArgumentException('Tanggapan Awal memakai nomor 0; Tindak Lanjut memakai nomor positif atau menunggu rekonsiliasi.');
@@ -51,7 +55,7 @@ class SuratTahap extends Model
                 || $tahap->getRawOriginal('nomor_putaran') !== null && $tahap->isDirty('nomor_putaran'))) {
                 throw new LogicException('Identitas tahap dan jejak pemetaan sumber tidak boleh diubah.');
             }
-            if ($tahap->getRawOriginal('penugasan_unit') !== null && $tahap->isDirty('penugasan_unit')) {
+            if ($stored?->penugasan_unit !== null && $tahap->isDirty('penugasan_unit')) {
                 throw new LogicException('Penugasan unit yang sudah dicatat pada tahap tidak boleh ditimpa.');
             }
         });

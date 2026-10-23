@@ -1,11 +1,13 @@
 <div data-bahan-preview class="mb-6 space-y-4">
     <section aria-labelledby="preview-tanggapan-title" class="rounded-xl border border-blue-100 bg-blue-50 p-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 id="preview-tanggapan-title" class="font-bold text-slate-800">Preview Tanggapan Unit Kerja</h3>
+            <h3 id="preview-tanggapan-title" class="font-bold text-slate-800" x-text="'Preview ' + (selected.preview?.kind_label ?? 'Tanggapan') + ' Unit Kerja'">Preview Tanggapan Unit Kerja</h3>
             <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">Hanya baca</span>
         </div>
         <p class="mt-2 break-words text-xs text-slate-600" data-preview-context
             x-text="'Surat: ' + (selected.preview?.letter_number ?? '-') + ' · Butir: ' + (selected.preview?.butir_id ?? '-') + ' · ' + (selected.preview?.round_label ?? '-')"></p>
+        <p x-show="selected.preview?.is_snapshot" class="mt-2 text-xs font-semibold text-blue-700">Salinan bahan saat kompilasi. Isian atau perubahan setelah kompilasi tidak disertakan.</p>
+        <p x-show="selected.preview?.missing_units?.length" class="mt-2 text-xs text-slate-600" x-text="'Belum mengisi saat kompilasi: ' + (selected.preview?.missing_units ?? []).join(', ')"></p>
         <p data-preview-counter aria-live="polite" aria-atomic="true" x-show="previewResponses.length > 0"
             class="mt-3 text-sm font-semibold text-blue-700" x-text="previewCounter"></p>
         <template x-if="previewResponse">
@@ -23,7 +25,7 @@
             </article>
         </template>
         <p data-preview-empty x-show="previewResponses.length === 0" class="mt-3 rounded-lg bg-white p-4 text-sm text-slate-500">
-            Belum ada tanggapan pada putaran ini.
+            <span x-text="selected.preview?.is_snapshot ? 'Tidak ada isian unit dalam salinan kompilasi ini.' : 'Belum ada tanggapan pada putaran ini.'"></span>
         </p>
         <div data-preview-navigation x-show="previewResponses.length > 1" class="mt-3 flex flex-wrap justify-between gap-3">
             <button type="button" data-preview-previous @click="previousPreview()" :disabled="previewIndex === 0" aria-controls="bahan-tanggapan-preview"

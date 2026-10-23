@@ -43,6 +43,7 @@ try {
         else request.abort();
     });
     for (const [index, data] of fixture.pages.entries()) {
+        const responseLabel = data.kindLabel ?? 'Tanggapan';
         await page.goto(`http://127.0.0.1:${server.address().port}/${index}`, { waitUntil: 'networkidle0' });
         await page.waitForFunction(() => document.querySelector('[data-workflow-page]')?._x_dataStack);
         await page.click(`[data-${data.kind}-putaran]`);
@@ -60,12 +61,12 @@ try {
         assert.ok(await page.$eval('[data-bahan-preview]', (node, selector) => !!(node.compareDocumentPosition(document.querySelector(selector)) & Node.DOCUMENT_POSITION_FOLLOWING), form));
         assert.equal((await page.$$('[data-bahan-preview] input, [data-bahan-preview] textarea, [data-bahan-preview] [contenteditable="true"]')).length, 0);
         assert.ok(await page.$eval('[data-preview-context]', (node, id) => node.textContent.includes(id), data.butirId));
-        assert.ok(await page.$eval('[data-preview-context]', node => node.textContent.includes('Putaran awal')));
+        assert.ok(await page.$eval('[data-preview-context]', (node, label) => node.textContent.includes(label), data.roundLabel ?? 'Putaran awal'));
         if (data.count === 0) {
             await page.waitForSelector('[data-preview-empty]', { visible: true });
             await page.waitForSelector('[data-preview-navigation]', { hidden: true });
         } else {
-            await page.waitForFunction(count => document.querySelector('[data-preview-counter]').textContent === `Tanggapan 1 dari ${count}`, {}, data.count);
+            await page.waitForFunction(counter => document.querySelector('[data-preview-counter]').textContent === counter, {}, `${responseLabel} 1 dari ${data.count}`);
             assert.equal(await page.$eval('[data-preview-unit]', node => node.textContent), 'A - Unit A');
             assert.equal(await page.$eval('[data-preview-author]', node => node.textContent), 'Pengisi A');
             assert.equal(await page.$eval('[data-preview-date]', node => node.textContent), data.dates[0]);
@@ -102,7 +103,7 @@ try {
             await page.$eval('[data-response-preview-body]', node => { node.scrollTop = 180; });
             for (const number of [2, 3]) {
                 await page.click('[data-preview-next]');
-                await page.waitForFunction(value => document.querySelector('[data-preview-counter]').textContent === `Tanggapan ${value} dari 3`, {}, number);
+                await page.waitForFunction(counter => document.querySelector('[data-preview-counter]').textContent === counter, {}, `${responseLabel} ${number} dari 3`);
                 assert.equal(await page.$eval('[data-preview-author]', node => node.textContent), `Pengisi ${String.fromCharCode(64 + number)}`);
                 assert.equal(await page.$eval('[data-preview-date]', node => node.textContent), data.dates[number - 1]);
                 assert.equal(await page.$eval('[data-response-preview-body]', node => node.scrollTop), 0);
@@ -110,7 +111,7 @@ try {
             assert.equal(await page.$eval('[data-preview-next]', node => node.disabled), true);
             await page.click('[data-preview-previous]');
             await page.click('[data-preview-previous]');
-            await page.waitForFunction(() => document.querySelector('[data-preview-counter]').textContent === 'Tanggapan 1 dari 3');
+            await page.waitForFunction(counter => document.querySelector('[data-preview-counter]').textContent === counter, {}, `${responseLabel} 1 dari 3`);
             assert.equal(await page.$eval('[data-preview-previous]', node => node.disabled), true);
             if (data.kind === 'reviu') assert.equal(await page.$eval('[data-compilation-preview]', node => node.innerHTML), compilationBefore);
         }
@@ -132,7 +133,7 @@ try {
             await page.waitForSelector('[role="dialog"]', { hidden: true });
             await page.click(`[data-${data.kind}-putaran]`);
             await page.waitForSelector('[role="dialog"]', { visible: true });
-            await page.waitForFunction(() => document.querySelector('[data-preview-counter]').textContent === 'Tanggapan 1 dari 3');
+            await page.waitForFunction(counter => document.querySelector('[data-preview-counter]').textContent === counter, {}, `${responseLabel} 1 dari 3`);
             await page.waitForFunction(selector => document.querySelector(`${selector} input[name="dokumen"]`).files.length === 0, {}, form);
             assert.equal(await page.$eval(`${form} input[name="dokumen"]`, node => node.files.length), 0);
         }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ReviuStatus;
+use App\Enums\TahapProses;
 use App\Models\DjsnButir;
 use App\Models\DjsnKompilasi;
 use App\Models\DjsnRecord;
@@ -12,10 +13,13 @@ use App\Models\SnpReview;
 use App\Models\SuratPutaran;
 use App\Models\SuratTahap;
 use App\Services\IsianUnitTahapService;
+use App\Services\KompilasiTahapService;
+use App\Services\ReviuPutaranService;
 use App\Services\SuratAwalStatusService;
 use App\Services\SuratPutaranBackfill;
 use App\Services\SuratPutaranService;
 use App\Services\SuratTahapBackfill;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -651,6 +655,138 @@ test('R3 MySQL membekukan bahan secara konsisten saat pengisian edit dan kompila
         }
     }
 })->with(['create', 'edit'])->with([true, false]);
+
+test('R4 MySQL hanya menerima satu transisi saat reviu surat dikirim bersamaan', function (bool $sameReview, string $firstDecision, string $secondDecision) {
+    (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();
+    (require database_path('migrations/2026_06_03_093422_create_djsn_tables.php'))->up();
+    $this->migration->up();
+    foreach (['2026_10_22_085515_expand_snp_djsn_review_status_choices.php', '2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php',
+        '2026_10_22_132318_add_unit_assignments_to_surat_putaran.php', '2026_10_23_094342_add_snp_djsn_process_stage_foundation.php',
+        '2026_10_23_102718_add_snp_djsn_stage_unit_entries.php', '2026_10_23_131534_add_snp_djsn_compilation_snapshots.php'] as $migration) {
+        (require database_path('migrations/'.$migration))->up();
+    }
+    config(['sidewas.alur_revisi_enabled' => true, 'sidewas.reviu_putaran_enabled' => true]);
+    $worker = <<<'PHP'
+        require $argv[1].'/vendor/autoload.php';
+        $app = require $argv[1].'/bootstrap/app.php';
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        $module = $argv[3];
+        $connection = 'mysql_'.$module;
+        $settings = json_decode($argv[2], true);
+        config(['database.connections.'.$connection => $settings, 'database.connections.mysql' => $settings,
+            'database.default' => 'mysql', 'sidewas.alur_revisi_enabled' => true, 'sidewas.reviu_putaran_enabled' => true]);
+        Illuminate\Support\Facades\DB::purge($connection);
+        Illuminate\Support\Facades\DB::purge('mysql');
+        $user = App\Models\User::findOrFail((int) $argv[5]);
+        Illuminate\Support\Facades\Auth::login($user);
+        $db = Illuminate\Support\Facades\DB::connection($connection);
+        $db->beginTransaction();
+        $class = $module === 'snp' ? App\Models\SnpReview::class : App\Models\DjsnReview::class;
+        $review = $class::findOrFail((int) $argv[4]);
+        $review->load('butir.record');
+        fwrite(STDOUT, "ready\n");
+        fflush(STDOUT);
+        try {
+            $next = app(App\Services\ReviuPutaranService::class)->review($review, $user, [
+                'hasil_review' => 'Keputusan bersamaan', 'status' => $argv[6],
+            ], Illuminate\Http\Request::create('/r4-race', 'PATCH'));
+            $db->commit();
+            fwrite(STDOUT, $next ? "opened\n" : "closed\n");
+        } catch (Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $db->rollBack();
+            if ($exception->getStatusCode() !== 422) throw $exception;
+            fwrite(STDOUT, "stale\n");
+        }
+        PHP;
+    foreach (['snp', 'djsn'] as $module) {
+        $connection = 'mysql_'.$module;
+        config(['database.connections.mysql' => config('database.connections.'.$connection), 'database.default' => 'mysql']);
+        DB::purge('mysql');
+        (require database_path('migrations/0001_01_01_000000_create_users_table.php'))->up();
+        (require database_path('migrations/2026_05_07_000000_create_main_custom_tables.php'))->up();
+        foreach (['tb_direktorat', 'tb_unit_kerja'] as $table) {
+            Schema::table($table, fn (Blueprint $blueprint) => $blueprint->string('status')->default('active'));
+        }
+        DB::table('tb_direktorat')->insert(['id' => 1, 'nama_direktorat' => 'Direktorat Uji']);
+        DB::table('tb_unit_kerja')->insert(['id' => 1, 'direktorat_id' => 1, 'nama_unit' => 'Unit A']);
+        DB::table('tb_komite')->insert(['id' => 1, 'nama_komite' => 'Komite Uji']);
+        $actor = workflowUser('super_admin');
+        Auth::login($actor);
+        foreach ([false, true] as $followUp) {
+            $first = workflowButir($module);
+            $other = workflowButir($module);
+            $other->forceFill(['id_'.$module => $first->record->{'id_'.$module}])->save();
+            $record = $first->record->fresh();
+            $compile = function ($butir, ?SuratTahap $stage = null) use ($actor): Model {
+                $compilation = app(KompilasiTahapService::class)->compile($butir, $actor, [
+                    'tahap_id' => $stage?->id, 'putaran_id' => $stage?->putaran_asal_id,
+                    'tahap_kompilasi' => $stage?->tahap_proses === TahapProses::TindakLanjut ? 'tindak_lanjut' : 'tanggapan',
+                    'hasil_kompilasi' => 'Kompilasi untuk uji transisi',
+                ], Request::create('/r4-compile', 'POST'));
+
+                return $butir->reviews()->where('kompilasi_id', $compilation->id)->firstOrFail();
+            };
+            $initialReview = $compile($first);
+            if ($followUp) {
+                app(ReviuPutaranService::class)->review($initialReview, $actor, [
+                    'status' => 'tindak_lanjut_belum_sesuai', 'hasil_review' => 'Buka Tindak Lanjut',
+                ], Request::create('/r4-initial-review', 'PATCH'));
+                $stage = $record->fresh()->tahapAktif;
+                $firstReview = $compile($first->fresh(), $stage);
+            } else {
+                $firstReview = $initialReview;
+                $stage = $record->fresh()->tahapAktif;
+            }
+            $otherReview = $compile($other->fresh(), $stage);
+            $beforeStages = $record->tahapanProses()->count();
+            $db = $first->getConnection();
+            $workers = [];
+            $db->beginTransaction();
+            try {
+                $db->table('tb_record')->where('id', $record->id)->lockForUpdate()->first();
+                foreach ([$firstReview->id, $sameReview ? $firstReview->id : $otherReview->id] as $index => $id) {
+                    $process = new Process([PHP_BINARY, '-r', $worker, base_path(), json_encode(config('database.connections.'.$connection)),
+                        $module, (string) $id, (string) $actor->id, $index ? $secondDecision : $firstDecision], base_path(), ['APP_ENV' => 'testing', 'LOG_CHANNEL' => 'stderr']);
+                    $process->setTimeout(40)->start();
+                    $workers[] = $process;
+                    awaitWorkflowWorker($process);
+                }
+                $db->commit();
+                $outcomes = [];
+                foreach ($workers as $process) {
+                    $process->wait();
+                    expect($process->isSuccessful())->toBeTrue($process->getOutput().$process->getErrorOutput());
+                    $outcomes[] = str_contains($process->getOutput(), 'opened') ? 'opened' : (str_contains($process->getOutput(), 'closed') ? 'closed' : 'stale');
+                }
+                sort($outcomes);
+                $closed = in_array('closed', $outcomes);
+                expect($outcomes)->toBe($closed ? ['closed', 'stale'] : ['opened', 'stale'])
+                    ->and($record->tahapanProses()->count())->toBe($beforeStages + ($closed ? 0 : 1))
+                    ->and($record->fresh()->closed_at !== null)->toBe($closed)
+                    ->and($stage->reviu()->where('status', '!=', 'belum_ditanggapi')->count())->toBe(1)
+                    ->and($stage->fresh()->archived_at !== null)->toBe(! $closed);
+                if (! $closed) {
+                    expect($record->fresh()->status)->toBe('proses_tindak_lanjut_belum_sesuai')
+                        ->and($record->fresh()->tahapAktif->tahap_proses)->toBe(TahapProses::TindakLanjut)
+                        ->and($record->fresh()->tahapAktif->nomor_putaran)->toBe($followUp ? 2 : 1);
+                }
+            } finally {
+                if ($db->transactionLevel() > 0) {
+                    $db->rollBack();
+                }
+                foreach ($workers as $process) {
+                    if ($process->isRunning()) {
+                        $process->stop();
+                    }
+                }
+            }
+        }
+    }
+})->with([true, false])->with([
+    ['tindak_lanjut_belum_sesuai', 'tindak_lanjut_belum_sesuai'],
+    ['tindak_lanjut_sesuai', 'tidak_dapat_ditindaklanjuti'],
+    ['tidak_dapat_ditindaklanjuti', 'tindak_lanjut_belum_sesuai'],
+]);
 
 test('MySQL serializes concurrent responses by unit including late completion after Close', function (bool $closed) {
     (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();

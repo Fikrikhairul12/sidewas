@@ -2,8 +2,8 @@
     <div data-workflow-page x-data="reviuBahanPage({ status: 'belum_ditanggapi', deliverables: '', status_pengajuan_tgl: 'pending' })" @keydown.escape.window="openModal = false" class="space-y-6">
         <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <p class="text-sm font-semibold text-blue-700">{{ $moduleLabel }}</p>
-            <h1 class="mt-2 text-3xl font-bold text-slate-800">Reviu Tanggapan {{ strtoupper($module) }}</h1>
-            <p class="mt-2 text-sm text-slate-500">Reviu dilakukan oleh komite berwenang atas kompilasi tanggapan pada putaran yang sedang diproses.</p>
+            <h1 class="mt-2 text-3xl font-bold text-slate-800">Reviu Tanggapan{{ \App\Services\IsianUnitTahapService::enabled() ? ' & Tindak Lanjut' : '' }} {{ strtoupper($module) }}</h1>
+            <p class="mt-2 text-sm text-slate-500">Reviu dilakukan oleh komite berwenang atas kompilasi pada tahap dan putaran yang sedang diproses.</p>
         </div>
         @if (session('success'))
             <p role="status" class="rounded-xl bg-green-50 p-4 text-green-700">{{ session('success') }}</p>
@@ -28,17 +28,20 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($reviews as $review)
                             @php
-                                $compilation = $previewBahan[$review->id]['compilation'] !== null ? $review->kompilasiPutaran : null;
+                                $materials = $previewBahan[$review->id];
+                                $revised = \App\Services\IsianUnitTahapService::enabled();
+                                $compilation = $materials['compilation'] !== null ? $review->kompilasiPutaran : null;
                                 $legacySource = $review->tahap_review === 'tindak_lanjut' ? $review->tindakLanjut : $review->tanggapan;
                                 $number = $review->putaran?->nomor_putaran;
-                                $roundLabel = $number ? 'Putaran '.$number : 'Putaran awal';
+                                $roundLabel = $materials['round_label'] ?? ($number ? 'Putaran '.$number : 'Putaran awal');
+                                $butirContent = $materials['butir_content'] ?? $review->butir?->{'butir_'.$module} ?? '';
                                 $payload = [
-                                    'preview' => $previewBahan[$review->id],
+                                    'preview' => $materials,
                                     'id' => $review->id, 'action' => route($module.'.reviu.update', $review),
-                                    'butir_id' => $review->{'id_butir_'.$module}, 'butir' => $review->butir?->{'butir_'.$module} ?? '',
+                                    'butir_id' => $review->{'id_butir_'.$module}, 'butir' => $butirContent,
                                     'round_label' => $roundLabel, 'record_id' => $review->butir?->record?->id,
                                     'status' => $review->status, 'hasil_review' => $review->hasil_review ?? '', 'deliverables' => $review->deliverables ?? '',
-                                    'compilation' => $compilation?->hasil_kompilasi ?? '', 'compilation_deliverables' => $compilation?->deliverables ?? '',
+                                    'compilation' => $materials['compilation']['content'] ?? '', 'compilation_deliverables' => $materials['compilation']['deliverables'] ?? '',
                                     'ubah_tgl' => $compilation?->ubah_tgl?->format('d/m/Y'),
                                     'status_pengajuan_tgl' => $compilation?->status_pengajuan_tgl ?? 'pending',
                                     'image_upload_url' => route($module.'.reviu.images.store', $review, false),
@@ -46,7 +49,7 @@
                             @endphp
                             <tr>
                                 <td class="px-6 py-5 align-top">
-                                    <p class="font-bold text-blue-700">{{ $review->butir?->record?->nomor_surat }}</p>
+                                    <p class="font-bold text-blue-700">{{ $materials['letter_number'] ?? $review->butir?->record?->nomor_surat }}</p>
                                     <p class="mt-2 text-xs text-slate-600">{{ $review->{'id_butir_'.$module} }} · {{ $roundLabel }}</p>
                                     @if ($review->putaran?->archived_at)
                                         <p class="mt-2 text-xs font-semibold text-slate-500">Putaran lama (terkunci)</p>
@@ -56,19 +59,23 @@
                                         <p class="mt-2 text-xs font-semibold text-blue-700">Close · {{ $review->butir->record->closed_at->format('d/m/Y H:i') }}. Bahan dan keputusan reviu terkunci.</p>
                                     @endif
                                     <p class="mt-2 text-xs text-slate-600">Komite: {{ $review->komite?->nama_komite ?? 'Belum ditetapkan' }}</p>
-                                    <x-butir-preview class="mt-3" :content="$review->butir?->{'butir_'.$module} ?? ''" :butir-id="$review->{'id_butir_'.$module}" />
+                                    <x-butir-preview class="mt-3" :content="$butirContent" :butir-id="$review->{'id_butir_'.$module}" />
                                 </td>
                                 <td class="px-6 py-5 align-top text-sm">
                                     @if ($compilation)
                                         <p class="font-semibold text-slate-600">Hasil Kompilasi</p>
-                                        <x-rich-content :content="$compilation->hasil_kompilasi" class="mt-3" />
-                                        <p class="mt-3 whitespace-pre-line">Deliverables: {{ $compilation->deliverables ?? '-' }}</p>
+                                        @if ($revised)<p class="mt-2 text-xs text-blue-700">Salinan bahan saat kompilasi</p>@endif
+                                        <x-rich-content :content="$materials['compilation']['content']" class="mt-3" />
+                                        <p class="mt-3 whitespace-pre-line">Deliverables: {{ $materials['compilation']['deliverables'] ?? '-' }}</p>
                                         @if ($compilation->ubah_tgl)
                                             <p class="mt-3 text-xs text-slate-600">Pengajuan jatuh tempo: {{ $compilation->ubah_tgl->format('d/m/Y') }} · {{ $compilation->status_pengajuan_tgl }}</p>
                                         @endif
-                                        @if ($compilation->dokumen && auth()->user()->{'canReview'.ucfirst($module).'ByKomite'}($review->komite_id))
+                                        @if (($revised ? data_get($compilation->salinan_konteks, 'kompilasi.dokumen.path') : $compilation->dokumen) && auth()->user()->{'canReview'.ucfirst($module).'ByKomite'}($review->komite_id))
                                             <a href="{{ route($module.'.reviu.dokumen', $review) }}" class="mt-3 inline-block text-blue-700 underline">Dokumen Kompilasi</a>
                                         @endif
+                                    @elseif ($revised)
+                                        <p class="font-semibold text-amber-700">Salinan bahan perlu rekonsiliasi</p>
+                                        <p class="mt-2 text-xs text-slate-500">Riwayat tetap tersimpan. Reviu dinonaktifkan sampai hubungan tahap dan kompilasi dapat diverifikasi.</p>
                                     @else
                                         <p class="font-semibold text-slate-500">Riwayat alur lama · {{ $review->tahap_review === 'tindak_lanjut' ? 'Tindak Lanjut' : 'Tanggapan' }}</p>
                                         <p class="mt-3 whitespace-pre-line">{{ $review->tahap_review === 'tindak_lanjut' ? $review->tindakLanjut?->tindak_lanjut : $review->tanggapan?->tanggapan }}</p>
@@ -110,7 +117,7 @@
             <div class="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-label="Reviu tanggapan">
                 <div class="mb-5 flex justify-between gap-4">
                     <div>
-                        <h2 class="text-xl font-bold text-slate-800">Reviu Tanggapan</h2>
+                        <h2 class="text-xl font-bold text-slate-800">Reviu {{ \App\Services\IsianUnitTahapService::enabled() ? 'Tanggapan & Tindak Lanjut' : 'Tanggapan' }}</h2>
                         <p data-workflow-context class="mt-1 text-sm text-slate-500" x-text="selected.butir_id + ' · ' + selected.round_label"></p>
                     </div>
                     <button type="button" @click="openModal = false" aria-label="Tutup modal" class="text-2xl text-slate-500">&times;</button>

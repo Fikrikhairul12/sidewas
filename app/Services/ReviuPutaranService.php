@@ -84,6 +84,9 @@ class ReviuPutaranService
 
     public function canReview(User $user, SnpReview|DjsnReview $review): bool
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(ReviuTahapService::class)->canReview($user, $review);
+        }
         $permission = 'canReview'.ucfirst($this->module($review)).'ByKomite';
         $compilation = $review->kompilasiPutaran;
 
@@ -159,6 +162,9 @@ class ReviuPutaranService
      */
     public function review(SnpReview|DjsnReview $review, User $user, array $data, Request $request): ?SuratPutaran
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(ReviuTahapService::class)->review($review, $user, $data, $request);
+        }
         abort_unless(self::enabled(), 404);
         $newFiles = [];
         try {
