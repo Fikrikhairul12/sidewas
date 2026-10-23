@@ -16,6 +16,8 @@ use App\Services\IsianUnitTahapService;
 use App\Services\KompilasiTahapService;
 use App\Services\ReviuBahanPreviewService;
 use App\Services\ReviuPutaranService;
+use App\Services\SuratAwalStatusService;
+use App\Services\SuratTanggalService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,6 +36,9 @@ class ReviuPutaranController extends Controller
         $class = $this->workflow->butirClass($module);
         $permission = 'canAccess'.ucfirst($module).'Kompilasi';
         abort_unless($request->user()?->{$permission}(), 403);
+        if (IsianUnitTahapService::enabled()) {
+            app(SuratAwalStatusService::class)->synchronizeModule($module);
+        }
         $query = $class::with(['record.putaran', 'butirPics.unitKerja', 'kompilasis', 'reviews', 'tanggapanAktif.unitKerja', 'tanggapanAktif.creator'])->whereHas('record');
         if (IsianUnitTahapService::enabled()) {
             $query->with(['record.tahapanProses', 'record.tahapAktif', 'tanggapanUnit.unitKerja', 'tanggapanUnit.creator', 'tindakLanjuts.unitKerja', 'tindakLanjuts.creator']);
@@ -72,6 +77,7 @@ class ReviuPutaranController extends Controller
             'hasil_kompilasi' => ['required', 'string'], 'deliverables' => ['nullable', 'string'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
             'ubah_tgl' => ['nullable', 'date'],
+            'alasan_pengajuan_tgl' => ['nullable', 'string', 'max:2000'],
         ]);
         $this->workflow->compile($class::findOrFail($butir), $request->user(), $validated, $request);
 
@@ -83,13 +89,16 @@ class ReviuPutaranController extends Controller
         abort_unless(ReviuPutaranService::enabled(), 404);
         $permission = 'canAccess'.ucfirst($module).'Review';
         abort_unless($request->user()?->{$permission}(), 403);
+        if (IsianUnitTahapService::enabled()) {
+            app(SuratAwalStatusService::class)->synchronizeModule($module);
+        }
         $class = $this->workflow->reviewClass($module);
         $query = $class::with([
             'butir.record.putaran', 'butir.tanggapanUnit.unitKerja', 'butir.tanggapanUnit.creator',
             'kompilasiPutaran.creator', 'kompilasiPutaran.updater', 'putaran', 'komite', 'creator', 'updater', 'tanggapan', 'tindakLanjut',
         ])->whereHas('butir.record');
         if (IsianUnitTahapService::enabled()) {
-            $query->with(['tahapProses', 'butir.record.tahapanProses', 'kompilasiPutaran.bahan']);
+            $query->with(['tahapProses', 'butir.record.tahapanProses', 'kompilasiPutaran.bahan', 'riwayatTanggal']);
         }
         if (! $request->user()->isSuperAdmin()) {
             $query->whereIn('komite_id', $request->user()->komiteIds());
@@ -125,6 +134,9 @@ class ReviuPutaranController extends Controller
             'hasil_review' => ['required', 'string'], 'deliverables' => ['nullable', 'string'],
             'status' => ['required', Rule::in(array_keys(ReviuStatus::options()))],
             'status_pengajuan_tgl' => ['nullable', 'in:pending,disetujui,ditolak'],
+            'jatuh_tempo_tl' => ['nullable', 'date_format:Y-m-d'],
+            'alasan_jatuh_tempo' => ['nullable', 'string', 'max:2000'],
+            'alasan_keputusan_tgl' => ['nullable', 'string', 'max:2000'],
             'dokumen' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg', 'max:5120'],
         ];
         if ($review instanceof SnpReview) {
@@ -171,6 +183,9 @@ class ReviuPutaranController extends Controller
 
     private function filters(Builder $query, Request $request, string $module, bool $reviews): void
     {
+        if (IsianUnitTahapService::enabled() && $request->filled('keterlambatan')) {
+            $query->whereHas($reviews ? 'butir.record' : 'record', fn ($record) => app(SuratTanggalService::class)->applyFilter($record, $request->string('keterlambatan')->toString()));
+        }
         $prefix = $reviews ? 'butir.' : '';
         foreach (['cluster_id', 'sub_cluster_id'] as $field) {
             if ($request->filled($field)) {

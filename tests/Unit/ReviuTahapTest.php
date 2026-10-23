@@ -64,7 +64,7 @@ function reviewStageCompile(array $f, ?SuratTahap $stage = null, array $extra = 
 function reviewStageDecide(array $f, Model $review, string $status, array $extra = []): void
 {
     test()->actingAs($f['actor'])->patch(route($f['module'].'.reviu.update', $review), array_merge([
-        'status' => $status, 'hasil_review' => 'Hasil pemeriksaan resmi',
+        'status' => $status, 'hasil_review' => 'Hasil pemeriksaan resmi', 'jatuh_tempo_tl' => now('Asia/Jakarta')->addDays(14)->toDateString(),
     ], $extra))->assertRedirect()->assertSessionHasNoErrors();
 }
 
@@ -244,7 +244,7 @@ test('R4 kegagalan audit membatalkan keputusan transisi dan unggahan', function 
     });
     try {
         $this->actingAs($f['actor'])->patchJson(route($module.'.reviu.update', $review), [
-            'status' => $decision, 'hasil_review' => 'Keputusan gagal', 'dokumen' => UploadedFile::fake()->create('hasil.pdf', 5, 'application/pdf'),
+            'status' => $decision, 'hasil_review' => 'Keputusan gagal', 'jatuh_tempo_tl' => now('Asia/Jakarta')->addDays(14)->toDateString(), 'dokumen' => UploadedFile::fake()->create('hasil.pdf', 5, 'application/pdf'),
         ])->assertStatus(500);
         expect($review->fresh()->status)->toBe('belum_ditanggapi')->and($record->fresh()->getRawOriginal())->toBe($old)
             ->and($record->tahapanProses()->count())->toBe(1)->and($record->tahapAktif->archived_at)->toBeNull()

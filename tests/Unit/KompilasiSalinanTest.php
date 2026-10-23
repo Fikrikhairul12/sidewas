@@ -239,10 +239,11 @@ test('R3 hak kompilasi dan validasi bahan lama tetap dipertahankan', function (s
 test('R3 gambar kompilasi mengikuti tahap dan putaran serta terkunci sesudah simpan', function (string $module) {
     $f = compilationFixture($module);
     $this->actingAs($f['actor']);
+    $activeStageBeforeUpload = $f['butir']->record->fresh()->tahap_aktif_id;
     $upload = $this->postJson(route($module.'.kompilasi.images.store', $f['butir']), [
         'tahap_kompilasi' => 'tanggapan', 'image' => UploadedFile::fake()->image('awal.png'),
     ])->assertCreated();
-    expect($f['butir']->record->fresh()->tahap_aktif_id)->toBeNull();
+    expect($f['butir']->record->fresh()->tahap_aktif_id)->toBe($activeStageBeforeUpload);
     $compilation = compilationSave($f, extra: ['hasil_kompilasi' => SnpButirContent::PREFIX.'<p><img src="'.$upload->json('url').'" data-width="75"></p>']);
     $this->postJson(route($module.'.kompilasi.images.store', $f['butir']), [
         'tahap_kompilasi' => 'tanggapan', 'image' => UploadedFile::fake()->image('terkunci.png'),
@@ -261,7 +262,8 @@ test('R3 halaman dan formulir browser mengirim konteks awal dan Tindak Lanjut ya
     $f = compilationFixture($module);
     $this->actingAs($f['actor']);
     $action = '/'.$module.'/kompilasi/'.$f['butir']->id;
-    $pages = [['kind' => 'kompilasi', 'action' => $action, 'stageType' => 'tanggapan', 'stageId' => null, 'roundId' => null,
+    $initialStage = $f['butir']->record->fresh()->tahapanProses->firstWhere('nomor_putaran', 0);
+    $pages = [['kind' => 'kompilasi', 'action' => $action, 'stageType' => 'tanggapan', 'stageId' => $initialStage?->id, 'roundId' => $initialStage?->putaran_asal_id,
         'html' => $this->get(route($module.'.kompilasi.index'))->assertOk()->getContent()]];
     compilationSave($f);
     $stage = compilationOpenFollowUp($f, 1);

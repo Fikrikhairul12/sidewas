@@ -3,9 +3,12 @@
 namespace App\Models\Concerns;
 
 use App\Enums\SuratStatus;
+use App\Enums\TahapProses;
 use App\Models\SuratPutaran;
 use App\Models\SuratTahap;
+use App\Services\IsianUnitTahapService;
 use App\Services\SuratAwalStatusService;
+use App\Services\SuratTanggalService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -110,6 +113,11 @@ trait HasSuratPutaran
 
     public function batasStatusAwal(): ?Carbon
     {
+        if (IsianUnitTahapService::enabled()) {
+            $stage = $this->tahapanProses->firstWhere('tahap_proses', TahapProses::TanggapanAwal);
+
+            return app(SuratTanggalService::class)->deadline($stage);
+        }
         if ((bool) $this->getAttribute('pernah_terbit') || ! in_array($this->status, ['draft', 'belum_ditindaklanjuti'], true)) {
             return null;
         }

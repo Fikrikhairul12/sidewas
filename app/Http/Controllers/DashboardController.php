@@ -16,7 +16,9 @@ use App\Models\SnpButir;
 use App\Models\SnpRecord;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\IsianUnitTahapService;
 use App\Services\SuratAwalStatusService;
+use App\Services\SuratTanggalService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -280,6 +282,15 @@ class DashboardController extends Controller
     private function countOverdueButirs(array $module, array $filters): int
     {
         if (in_array($module['record_model'], [SnpRecord::class, DjsnRecord::class], true)) {
+            if (IsianUnitTahapService::enabled()) {
+                $code = $module['record_model'] === SnpRecord::class ? 'snp' : 'djsn';
+                $ids = app(SuratTanggalService::class)->lateRecordIds($code);
+
+                return $this->butirQuery($module, $filters)->whereHas($module['record_relation'], fn ($record) => $record
+                    ->where(fn ($overdue) => $overdue->whereIn('tb_record.id', $ids)->orWhere('status', 'belum_ditindaklanjuti')))
+                    ->distinct()->count('id_'.$code);
+            }
+
             return $this->butirQuery($module, $filters)->whereHas($module['record_relation'], function ($query): void {
                 $query->whereNotIn('status', ['tindak_lanjut_sesuai', 'tidak_dapat_ditindaklanjuti', 'tuntas'])
                     ->whereDate('jth_tempo', '<', now()->toDateString());
@@ -310,8 +321,13 @@ class DashboardController extends Controller
                     ->with([$module['record_relation'], 'butirPics'])
                     ->where(function ($query) use ($module, $letterStatus): void {
                         $query
-                            ->whereHas($module['record_relation'], function ($recordQuery): void {
-                                $recordQuery->whereDate('jth_tempo', '<=', now()->addDays(14)->toDateString());
+                            ->whereHas($module['record_relation'], function ($recordQuery) use ($letterStatus): void {
+                                if ($letterStatus && IsianUnitTahapService::enabled()) {
+                                    $recordQuery->whereHas('tahapAktif', fn ($stage) => $stage->whereNotNull('tanggal_ditetapkan_at')
+                                        ->where('jatuh_tempo', '<=', now('Asia/Jakarta')->addDays(14)->toDateString()));
+                                } else {
+                                    $recordQuery->whereDate('jth_tempo', '<=', now()->addDays(14)->toDateString());
+                                }
                             })
                             ->when($letterStatus,
                                 fn ($query) => $query->orWhereHas($module['record_relation'], fn ($recordQuery) => $recordQuery->whereIn('status', ['proses', 'proses_tindak_lanjut_belum_sesuai'])),
@@ -335,11 +351,11 @@ class DashboardController extends Controller
                             'perihal' => str($record->perihal_surat ?? '-')->limit(60)->toString(),
                             'status' => $letterStatus ? SuratStatus::labelFor($record->status) : $this->statusLabel($butir->status),
                             'status_class' => $this->statusClass($letterStatus ? $record->status : $butir->status),
-                            'jatuh_tempo' => optional($record->jth_tempo)->format('d/m/Y') ?? '-',
+                            'jatuh_tempo' => app(SuratTanggalService::class)->recordDeadline($record)?->format('d/m/Y') ?? '-',
                             'reminder_mailto' => $this->reminderMailto($recipientEmails, $sender, $record, $butir, $module),
                             'reminder_gmail_url' => $this->reminderGmailUrl($recipientEmails, $sender, $record, $butir, $module),
                             'reminder_recipients' => $recipientEmails,
-                            'timestamp' => optional($record->jth_tempo)->timestamp ?? PHP_INT_MAX,
+                            'timestamp' => app(SuratTanggalService::class)->recordDeadline($record)?->timestamp ?? PHP_INT_MAX,
                             'type_code' => $typeCode,
                         ];
                     });
@@ -415,7 +431,7 @@ class DashboardController extends Controller
             'ID Butir: '.$butir->{$module['butir_key']},
             'Perihal: '.($record->perihal_surat ?? '-'),
             'Status: '.(in_array($module['record_model'], [SnpRecord::class, DjsnRecord::class], true) ? SuratStatus::labelFor($record->status) : $this->statusLabel($butir->status)),
-            'Jatuh Tempo: '.(optional($record->jth_tempo)->format('d/m/Y') ?? '-'),
+            'Jatuh Tempo: '.(app(SuratTanggalService::class)->recordDeadline($record)?->format('d/m/Y') ?? '-'),
             '',
             'Dikirim oleh: '.$sender->email,
         ]);
@@ -449,7 +465,7 @@ class DashboardController extends Controller
             'ID Butir: '.$butir->{$module['butir_key']},
             'Perihal: '.($record->perihal_surat ?? '-'),
             'Status: '.(in_array($module['record_model'], [SnpRecord::class, DjsnRecord::class], true) ? SuratStatus::labelFor($record->status) : $this->statusLabel($butir->status)),
-            'Jatuh Tempo: '.(optional($record->jth_tempo)->format('d/m/Y') ?? '-'),
+            'Jatuh Tempo: '.(app(SuratTanggalService::class)->recordDeadline($record)?->format('d/m/Y') ?? '-'),
             '',
             'Dikirim oleh: '.$sender->email,
         ]);

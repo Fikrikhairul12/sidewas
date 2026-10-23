@@ -120,6 +120,7 @@ function setUpWorkflowTestDatabase(bool $withProcessStages = true): void
         (require database_path('migrations/2026_10_23_094342_add_snp_djsn_process_stage_foundation.php'))->up();
         (require database_path('migrations/2026_10_23_102718_add_snp_djsn_stage_unit_entries.php'))->up();
         (require database_path('migrations/2026_10_23_131534_add_snp_djsn_compilation_snapshots.php'))->up();
+        (require database_path('migrations/2026_10_23_143129_add_snp_djsn_stage_deadline_audit.php'))->up();
     }
     Storage::fake('local');
 }

@@ -88,6 +88,7 @@ class KompilasiTahapService
                 $this->inputs->lockButir($butir);
                 $stage = $this->inputs->activeStageForWrite($butir, $user);
                 $this->assertContext($butir, $user, $stage, $data);
+                app(SuratTanggalService::class)->validateCompilation($stage, $data);
                 $module = $this->inputs->module($butir);
                 $class = $stage->relatedClass('Kompilasi');
                 $compilation = $this->compilation($butir) ?? new $class;
@@ -104,6 +105,7 @@ class KompilasiTahapService
                     'hasil_kompilasi' => app(SnpButirContent::class)->normalize($data['hasil_kompilasi'], $butir->record->id, $module, 'hasil_kompilasi', 'Hasil kompilasi'),
                     'deliverables' => $data['deliverables'] ?? null, 'dokumen' => $upload ?? $compilation->dokumen,
                     'ubah_tgl' => $data['ubah_tgl'] ?? null, 'status_pengajuan_tgl' => empty($data['ubah_tgl']) ? null : 'pending',
+                    'alasan_pengajuan_tgl' => $data['alasan_pengajuan_tgl'] ?? null,
                     'status' => 'dalam_proses_reviu_dewas', 'status_bahan' => 'menyiapkan_salinan',
                     'created_by' => $compilation->created_by ?? $user->id, 'updated_by' => $user->id,
                 ])->save();

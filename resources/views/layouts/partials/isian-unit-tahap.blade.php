@@ -59,6 +59,7 @@
                                     <p class="mt-2 text-slate-500">{{ $butir->record->perihal_surat }}</p>
                                     <p class="mt-2 font-semibold">{{ \App\Enums\SuratStatus::labelFor($butir->record->status) }}</p>
                                     <p class="mt-2 text-xs text-slate-500">{{ $selectedStage['label'] ?? $typeLabel }}</p>
+                                    <x-surat-tenggat :record="$butir->record" :stage="$butir->record->tahapanProses->firstWhere('id', $state['stage_id'])" />
                                 </td>
                                 <td class="max-w-md px-6 py-5 align-top text-sm">
                                     <p class="mb-2 font-semibold">{{ $butir->{'id_butir_'.$module} }}</p>
@@ -72,6 +73,7 @@
                                             @if ($item['not_compiled'])
                                                 <p class="mt-1 text-xs text-amber-800">Tidak termasuk kompilasi</p>
                                             @endif
+                                            @if ($item['late'])<p class="mt-1 text-xs font-semibold text-amber-800">Terlambat saat pengisian</p>@endif
                                         </div>
                                     @empty
                                         <p class="text-slate-500">Belum ada isian unit pada tahap ini.</p>
@@ -162,6 +164,7 @@
                     </p>
                     <p x-show="selectedStage?.read_only" data-isian-locked class="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Isian yang sudah tersimpan pada tahap ini terkunci.</p>
                     <p x-show="selectedStage?.needs_reconciliation" class="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Identitas putaran lama perlu direkonsiliasi.</p>
+                    <x-surat-tenggat-detail expression="selectedStage?.dates" />
                     <div class="flex flex-wrap gap-2">
                         <template x-for="(item, index) in (selectedStage?.items ?? [])" :key="item.key">
                             <button type="button" @click="unitIndex = index" class="rounded-xl border px-4 py-2 text-sm" :class="Number(unitIndex) === index ? 'bg-blue-50 font-semibold' : 'bg-white'" x-text="item.unit_label"></button>
@@ -171,6 +174,7 @@
                         <section class="space-y-4 break-words rounded-xl border border-slate-200 p-5">
                             <h3 class="font-bold text-blue-700" x-text="selectedItem.unit_label"></h3>
                             <p x-show="selectedItem.after_close" data-isian-after-close class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Setelah penutupan</p>
+                            <p x-show="selectedItem.late" data-isian-late class="text-sm font-semibold text-amber-800" x-text="'Terlambat saat pengisian. Batas yang berlaku: ' + (selectedItem.deadline_when_submitted ?? '-') + ' 23.59 WIB.'"></p>
                             <p x-show="selectedItem.not_compiled" data-isian-not-compiled class="text-sm font-semibold text-amber-800">Tidak termasuk kompilasi</p>
                             <p x-show="selectedItem.changed_after_compilation" class="text-sm text-amber-800">Diubah setelah kompilasi</p>
                             <div><p class="text-sm font-semibold text-slate-600">{{ $typeLabel }}</p><p class="mt-2 whitespace-pre-line text-sm leading-relaxed" x-text="selectedItem.isi"></p></div>

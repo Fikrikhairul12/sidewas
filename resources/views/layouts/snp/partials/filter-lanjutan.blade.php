@@ -26,6 +26,7 @@
 
         <form method="GET" action="{{ $action }}">
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <x-filter-keterlambatan />
                 {{-- Status --}}
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700">Status</label>

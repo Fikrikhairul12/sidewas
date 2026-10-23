@@ -2,13 +2,20 @@
 
 namespace App\Models\Concerns;
 
+use App\Models\SuratTanggalRiwayat;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 
 /** @mixin Model */
 trait HasKeputusanReviu
 {
     private bool $savingWorkflowDecision = false;
+
+    public function riwayatTanggal(): HasMany
+    {
+        return $this->hasMany(SuratTanggalRiwayat::class, 'review_id')->orderBy('id');
+    }
 
     public function isSavingWorkflowDecision(): bool
     {

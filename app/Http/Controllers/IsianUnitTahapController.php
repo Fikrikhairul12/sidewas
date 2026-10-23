@@ -10,6 +10,8 @@ use App\Models\SnpButir;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\IsianUnitTahapService;
+use App\Services\SuratAwalStatusService;
+use App\Services\SuratTanggalService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +24,7 @@ class IsianUnitTahapController extends Controller
     {
         $user = $request->user();
         $this->authorizePage($user, $module, $type);
+        app(SuratAwalStatusService::class)->synchronizeModule($module);
         $class = $module === 'snp' ? SnpButir::class : DjsnButir::class;
         $query = $class::with([
             'record.tahapanProses', 'record.tahapAktif', 'record.putaran',
@@ -29,6 +32,9 @@ class IsianUnitTahapController extends Controller
             'tanggapanUnit.creator', 'tanggapanUnit.updater', 'tanggapanUnit.unitKerja',
             'tindakLanjuts.creator', 'tindakLanjuts.updater', 'tindakLanjuts.unitKerja', 'reviews', 'kompilasis',
         ])->with($module === 'snp' ? ['record.cluster', 'record.subCluster'] : ['cluster', 'subCluster'])->whereHas('record');
+        if ($type === TahapProses::TanggapanAwal) {
+            $query->where('status', '!=', 'draft');
+        }
         if (! $user->isSuperAdmin() && ! $user->hasRoleType('admin_'.$module)) {
             $query->whereHas('butirPics', fn ($pics) => $pics->whereIn('jenis_pic', ['utama', 'pendukung'])->whereIn('unit_kerja_id', $user->unitKerjaIds()));
         }
@@ -69,6 +75,9 @@ class IsianUnitTahapController extends Controller
                     ->where(fn ($content) => $content->where('tindak_lanjut', 'like', $word)->orWhere('deliverables', 'like', $word))));
         }
         $service = app(IsianUnitTahapService::class);
+        if ($request->filled('keterlambatan')) {
+            $query->whereHas('record', fn ($record) => app(SuratTanggalService::class)->applyFilter($record, $request->string('keterlambatan')->toString()));
+        }
         $this->filterStatus($query, $user, $type, (string) $request->input('status'));
         $entries = $query->latest('id')->paginate(2)->withQueryString()
             ->through(fn ($butir): array => ['butir' => $butir, 'state' => $service->presentation($butir, $user, $type)]);

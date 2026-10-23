@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TahapProses;
+use App\Services\IsianUnitTahapService;
 use Database\Factories\SuratTahapFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,25 @@ class SuratTahap extends Model
     use HasFactory;
 
     protected $table = 'tb_surat_tahap';
+
+    private bool $savingTanggal = false;
+
+    /** @param array<string, mixed> $attributes */
+    public function saveTanggal(array $attributes): bool
+    {
+        return $this->getConnection()->transaction(function () use ($attributes): bool {
+            $record = $this->surat()->lockForUpdate()->firstOrFail();
+            if ($record->isWorkflowClosed()) {
+                throw new LogicException('Tanggal surat Close tidak boleh diubah.');
+            }
+            $this->savingTanggal = true;
+            try {
+                return $this->forceFill($attributes)->save();
+            } finally {
+                $this->savingTanggal = false;
+            }
+        });
+    }
 
     protected $fillable = [
         'record_id', 'putaran_asal_id', 'kunci_asal', 'tahap_proses', 'nomor_putaran',
@@ -40,6 +60,16 @@ class SuratTahap extends Model
         static::saving(function (self $tahap): void {
             self::moduleFor($tahap->getConnectionName());
             $stored = $tahap->exists ? $tahap->newQuery()->lockForUpdate()->findOrFail($tahap->id) : null;
+            if ($stored !== null && IsianUnitTahapService::enabled()) {
+                if (! $tahap->savingTanggal && $tahap->isDirty(['mulai_at', 'jatuh_tempo', 'bukti_tanggal', 'tanggal_ditetapkan_at', 'tanggal_ditetapkan_by'])) {
+                    throw new LogicException('Penetapan tanggal mengikuti publikasi atau keputusan reviewer yang tercatat.');
+                }
+                if ($stored->mulai_at !== null && $tahap->isDirty('mulai_at')
+                    || $stored->tahap_proses === TahapProses::TanggapanAwal && $stored->tanggal_ditetapkan_at !== null
+                    && $tahap->isDirty(['jatuh_tempo', 'bukti_tanggal', 'tanggal_ditetapkan_at', 'tanggal_ditetapkan_by'])) {
+                    throw new LogicException('Tanggal mulai dan batas respons awal dicatat sekali dan tidak boleh diulang.');
+                }
+            }
             if ($stored?->archived_at !== null && $tahap->isDirty()) {
                 throw new LogicException('Tahap yang sudah diarsipkan tidak boleh diubah atau dibuka kembali.');
             }
@@ -105,6 +135,11 @@ class SuratTahap extends Model
     public function bahan(): HasMany
     {
         return $this->hasMany(KompilasiBahan::class, 'tahap_id');
+    }
+
+    public function riwayatTanggal(): HasMany
+    {
+        return $this->hasMany(SuratTanggalRiwayat::class, 'tahap_id')->orderBy('id');
     }
 
     public function rekonsiliasi(): HasMany

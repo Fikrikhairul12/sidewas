@@ -273,6 +273,7 @@
                                     'status_color' => \App\Enums\SuratStatus::colorFor($record->status),
                                     'status_text_color' => \App\Enums\SuratStatus::textColorFor($record->status),
                                     'batas_status_awal' => $record->batasStatusAwal()?->format('d/m/Y'),
+                                    'dates' => \App\Services\IsianUnitTahapService::enabled() ? app(\App\Services\SuratTanggalService::class)->presentation($record) : null,
                                     'cluster' => $record->cluster?->nama_cluster,
                                     'sub_cluster' => $record->subCluster?->nama_sub_cluster,
                                     'butirs' => $record->butirSnp
@@ -418,9 +419,13 @@
                                                 Jatuh Tempo
                                             </p>
 
+                                            @if (\App\Services\IsianUnitTahapService::enabled())
+                                                <x-surat-tenggat :record="$record" />
+                                            @else
                                             <p class="mt-1 text-sm font-bold text-slate-800">
                                                 {{ $record->jth_tempo ? \Carbon\Carbon::parse($record->jth_tempo)->format('d/m/Y') : '-' }}
                                             </p>
+                                            @endif
 
                                             <p class="mt-2 text-xs text-slate-500">
                                                 Diinput oleh:
@@ -994,9 +999,13 @@
                     <span class="inline-flex rounded-full px-4 py-1.5 text-xs font-bold"
                         :style="`background-color: ${detailRecord?.status_color}; color: ${detailRecord?.status_text_color}`"
                         x-text="detailRecord?.status_label ?? '-'"></span>
+                    @if (\App\Services\IsianUnitTahapService::enabled())
+                        <x-surat-tenggat-detail expression="detailRecord?.dates" />
+                    @else
                     <p x-show="detailRecord?.batas_status_awal" class="mt-2 text-xs text-slate-500">
                         Batas pencatatan butir: <span x-text="detailRecord?.batas_status_awal"></span> (14 hari kalender dari tanggal surat).
                     </p>
+                    @endif
                 </div>
 
                 <div class="flex max-h-[70vh] flex-col overflow-hidden">
@@ -1136,7 +1145,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            ID SNP, tanggal jatuh tempo, dan status draft akan dibuat otomatis.
+                            {{ \App\Services\IsianUnitTahapService::enabled() ? 'ID SNP dan status Draft dibuat otomatis. Batas respons dimulai saat butir tersedia bagi unit.' : 'ID SNP, tanggal jatuh tempo, dan status draft akan dibuat otomatis.' }}
                         </p>
                     </div>
 
@@ -1181,7 +1190,7 @@
                             <input type="date" name="tanggal_surat" value="{{ old('tanggal_surat') }}" required
                                 class="w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <p class="mt-1 text-xs text-slate-500">
-                                Tanggal jatuh tempo otomatis 14 hari kerja setelah tanggal ini, di luar Sabtu dan Minggu.
+                                {{ \App\Services\IsianUnitTahapService::enabled() ? 'Tanggal surat tidak menentukan batas respons. Batas Tanggapan Awal adalah 14 hari kalender sejak butir tersedia bagi unit.' : 'Tanggal jatuh tempo otomatis 14 hari kerja setelah tanggal ini, di luar Sabtu dan Minggu.' }}
                             </p>
                         </div>
 

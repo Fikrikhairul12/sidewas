@@ -44,6 +44,11 @@
                                     'compilation' => $materials['compilation']['content'] ?? '', 'compilation_deliverables' => $materials['compilation']['deliverables'] ?? '',
                                     'ubah_tgl' => $compilation?->ubah_tgl?->format('d/m/Y'),
                                     'status_pengajuan_tgl' => $compilation?->status_pengajuan_tgl ?? 'pending',
+                                    'can_decide_date' => $compilation?->ubah_tgl && $compilation->status_pengajuan_tgl === 'pending' && $review->tahap_review === 'tindak_lanjut',
+                                    'date_proposal_reason' => $compilation?->alasan_pengajuan_tgl ?? '',
+                                    'jatuh_tempo_tl' => app(\App\Services\SuratTanggalService::class)->suggestedDate(),
+                                    'suggested_date' => app(\App\Services\SuratTanggalService::class)->suggestedDate(),
+                                    'alasan_jatuh_tempo' => '', 'alasan_keputusan_tgl' => '',
                                     'image_upload_url' => route($module.'.reviu.images.store', $review, false),
                                 ];
                             @endphp
@@ -60,6 +65,7 @@
                                     @endif
                                     <p class="mt-2 text-xs text-slate-600">Komite: {{ $review->komite?->nama_komite ?? 'Belum ditetapkan' }}</p>
                                     <x-butir-preview class="mt-3" :content="$butirContent" :butir-id="$review->{'id_butir_'.$module}" />
+                                    @if ($revised)<x-surat-tenggat :record="$review->butir->record" :stage="$review->tahapProses" />@endif
                                 </td>
                                 <td class="px-6 py-5 align-top text-sm">
                                     @if ($compilation)
@@ -87,6 +93,11 @@
                                 </td>
                                 <td class="px-6 py-5 align-top text-sm">
                                     <p class="font-semibold text-blue-700">{{ \App\Enums\ReviuStatus::labelFor($review->status) }}</p>
+                                    @if ($revised)
+                                        @foreach ($review->riwayatTanggal->where('jenis', 'penetapan_tindak_lanjut') as $penetapan)
+                                            <p class="mt-2 text-xs text-slate-600">Jatuh Tempo Tindak Lanjut Putaran Berikutnya: {{ $penetapan->tanggal_baru->format('d/m/Y') }} 23.59 WIB. {{ $penetapan->alasan }}</p>
+                                        @endforeach
+                                    @endif
                                     <x-rich-content :content="$review->hasil_review" class="mt-3" />
                                     <p class="mt-3 whitespace-pre-line">Deliverables: {{ $review->deliverables ?? '-' }}</p>
                                     <p class="mt-3 text-xs text-slate-500">Disimpan oleh: {{ $review->updater?->name ?? $review->creator?->name ?? '-' }} · {{ $review->updated_at?->format('d/m/Y H:i') ?? '-' }}</p>
@@ -140,18 +151,38 @@
                         <input type="file" name="dokumen_memo" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" class="w-full rounded-xl border p-3">
                     @endif
                     <p class="mt-1 text-xs text-slate-500">PDF, Word, Excel, JPG, PNG. Maksimal 5 MB per berkas.</p>
-                    <template x-if="selected.ubah_tgl">
+                    <template x-if="selected.ubah_tgl{{ \App\Services\IsianUnitTahapService::enabled() ? ' && selected.can_decide_date' : '' }}">
                         <div class="mt-5">
                             <label class="mb-2 block text-sm font-semibold" x-text="'Pengajuan Jatuh Tempo: ' + selected.ubah_tgl"></label>
                             <select name="status_pengajuan_tgl" x-model="selected.status_pengajuan_tgl" class="w-full rounded-xl border-slate-300">
                                 <option value="pending">Pending</option><option value="disetujui">Disetujui</option><option value="ditolak">Ditolak</option>
                             </select>
+                            @if (\App\Services\IsianUnitTahapService::enabled())
+                                <p class="mt-2 text-xs text-slate-500" x-text="'Alasan pengajuan: ' + selected.date_proposal_reason"></p>
+                                <label class="mt-3 block text-sm font-semibold">Alasan keputusan tanggal
+                                    <textarea name="alasan_keputusan_tgl" x-model="selected.alasan_keputusan_tgl" :required="['disetujui', 'ditolak'].includes(selected.status_pengajuan_tgl)" maxlength="2000" rows="2" class="mt-2 w-full rounded-xl border-slate-300"></textarea>
+                                </label>
+                            @endif
                         </div>
                     </template>
                     <label for="status-reviu" class="mb-2 mt-5 block text-sm font-semibold">Status Reviu</label>
                     <select id="status-reviu" name="status" x-model="selected.status" required class="w-full rounded-xl border-slate-300">
                         @foreach ($statusOptions as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
                     </select>
+                    @if (\App\Services\IsianUnitTahapService::enabled())
+                        <template x-if="selected.status === 'tindak_lanjut_belum_sesuai'">
+                            <div class="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4" data-next-deadline>
+                                <label class="block text-sm font-semibold">Jatuh Tempo Tindak Lanjut Putaran Berikutnya
+                                    <input type="date" name="jatuh_tempo_tl" x-model="selected.jatuh_tempo_tl" required min="{{ now('Asia/Jakarta')->addDay()->toDateString() }}" class="mt-2 w-full rounded-xl border-slate-300">
+                                </label>
+                                <p class="mt-2 text-xs text-slate-600">Saran sistem: tanggal reviu +14 hari kalender. Batas berlaku hingga pukul 23.59 WIB.</p>
+                                <label class="mt-3 block text-sm font-semibold">Alasan penetapan tanggal
+                                    <textarea name="alasan_jatuh_tempo" x-model="selected.alasan_jatuh_tempo" :required="selected.jatuh_tempo_tl !== selected.suggested_date" rows="2" maxlength="2000" class="mt-2 w-full rounded-xl border-slate-300"></textarea>
+                                </label>
+                                <p class="mt-1 text-xs text-slate-600">Wajib diisi jika tanggal berbeda dari saran sistem.</p>
+                            </div>
+                        </template>
+                    @endif
                     <div class="mt-6 flex justify-end gap-3">
                         <button type="button" @click="openModal = false" class="rounded-xl border px-4 py-2">Batal</button>
                         <button type="submit" class="rounded-xl bg-blue-700 px-4 py-2 font-semibold text-white">Simpan Reviu</button>

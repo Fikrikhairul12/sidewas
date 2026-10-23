@@ -172,6 +172,7 @@ class ReviuTahapService
                 }
                 $review->setRelation('kompilasiPutaran', $compilation);
                 abort_unless($this->canReview($user, $review), 422, 'Reviu sudah diputuskan, tahap terkunci, atau salinan kompilasi perlu rekonsiliasi.');
+                app(SuratTanggalService::class)->validateReview($review, $data);
                 $status = ReviuStatus::from($data['status']);
                 $stage = $review->tahapProses;
                 $round = $butir->record->putaran->firstWhere('id', $stage->putaran_asal_id);
@@ -196,16 +197,10 @@ class ReviuTahapService
                 $review->saveWorkflowDecision();
 
                 return DB::connection('mysql')->transaction(function () use ($review, $user, $data, $request, $stage, $round, $old): ?SuratPutaran {
-                    $compilation = $review->kompilasiPutaran;
-                    if ($compilation->ubah_tgl && isset($data['status_pengajuan_tgl'])) {
-                        $compilation->update(['status_pengajuan_tgl' => $data['status_pengajuan_tgl'], 'updated_by' => $user->id]);
-                        if ($data['status_pengajuan_tgl'] === 'disetujui') {
-                            $review->butir->record->update(['jth_tempo' => $compilation->ubah_tgl, 'updated_by' => $user->id]);
-                        }
-                    }
+                    app(SuratTanggalService::class)->decideProposal($review, $user, $data);
                     $next = null;
                     if ($review->status === ReviuStatus::TindakLanjutBelumSesuai->value) {
-                        $next = $this->openFollowUp($review, $stage, $round, $user);
+                        $next = $this->openFollowUp($review, $stage, $round, $user, $data);
                     } elseif (SuratStatus::tryFrom($review->status)?->isClosed()) {
                         $review->butir->record->forceFill([
                             'status' => $review->status, 'closed_at' => now(), 'closed_by' => $user->id,
@@ -223,7 +218,8 @@ class ReviuTahapService
         }
     }
 
-    private function openFollowUp(SnpReview|DjsnReview $review, SuratTahap $stage, SuratPutaran $round, User $user): SuratPutaran
+    /** @param array<string, mixed> $data */
+    private function openFollowUp(SnpReview|DjsnReview $review, SuratTahap $stage, SuratPutaran $round, User $user, array $data): SuratPutaran
     {
         $record = $review->butir->record;
         $stages = $record->tahapanProses()->lockForUpdate()->get();
@@ -244,6 +240,7 @@ class ReviuTahapService
             'bukti_pemetaan' => ['review_id' => $review->id, 'kompilasi_id' => $review->kompilasi_id, 'tahap_sebelumnya_id' => $stage->id],
             'penugasan_unit' => $nextRound->penugasan_unit, 'mulai_at' => now(), 'created_by' => $user->id,
         ]);
+        app(SuratTanggalService::class)->assignFollowUp($nextStage, $review, $user, $data);
         $record->forceFill(['tahap_aktif_id' => $nextStage->id])->save();
 
         return $nextRound;

@@ -290,6 +290,7 @@ test('R2 browser menampilkan tombol unit yang benar dan edit hanya melalui Detai
     $initialRoute = route($module.'.tanggapan.index');
     $tlRoute = route($module.'.tindak-lanjut.index');
     $pages = [['mode' => 'pending', 'canCreate' => true, 'canEdit' => false, 'butirId' => $f['butir']->id, 'picId' => $f['picA'],
+        'stageId' => $f['butir']->record->fresh()->tahapanProses->firstWhere('nomor_putaran', 0)?->id,
         'html' => $this->get($initialRoute)->assertOk()->getContent()]];
     $this->post(route($module.'.tanggapan.store', $f['butir']), stageUnitPayload($f, $f['picA']))->assertSessionHasNoErrors();
     $responseClass = $module === 'snp' ? SnpTanggapan::class : DjsnTanggapan::class;

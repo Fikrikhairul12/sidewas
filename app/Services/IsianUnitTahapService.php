@@ -185,6 +185,8 @@ class IsianUnitTahapService
                 'can_edit' => $this->canEdit($user, $source, $butir, $stage),
                 'update_url' => route($module.($isResponse ? '.tanggapan.update' : '.tindak-lanjut.update'), $source->id),
                 'after_close' => $afterClose, 'not_compiled' => $afterClose || $afterCompilation,
+                'late' => $source->submitted_late_at !== null,
+                'deadline_when_submitted' => $source->jatuh_tempo_saat_pengisian?->format('d/m/Y'),
                 'changed_after_compilation' => $source->getAttribute('changed_after_compilation_at') !== null,
             ];
         });
@@ -198,6 +200,7 @@ class IsianUnitTahapService
             'id' => $stage->id, 'label' => $stage->tahap_proses->label().($stage->tahap_proses === TahapProses::TindakLanjut
                 ? ($stage->nomor_putaran === null ? ' (nomor belum terverifikasi)' : ' Putaran '.$stage->nomor_putaran) : ''),
             'is_current' => $current,
+            'dates' => app(SuratTanggalService::class)->presentation($butir->record, $stage),
             'is_closed' => $current && $butir->record->isWorkflowClosed(),
             'read_only' => ! $current || $butir->record->isWorkflowClosed(),
             'needs_reconciliation' => $stage->status_pemetaan !== 'terpetakan' || $this->hasUnknownUnits($butir, $stage),
@@ -250,6 +253,7 @@ class IsianUnitTahapService
                 $record = $butir->record;
                 $stage = $type === TahapProses::TanggapanAwal ? $this->activeStageForWrite($butir, $user) : $record->tahapAktif;
                 if ($stage === null || $stage->tahap_proses !== $type || ! $this->stageIsCurrent($butir, $stage)
+                    || $type === TahapProses::TanggapanAwal && $butir->status === 'draft'
                     || isset($data['tahap_id']) && (int) $data['tahap_id'] !== (int) $stage->id
                     || $type === TahapProses::TindakLanjut && empty($data['tahap_id'])) {
                     throw ValidationException::withMessages(['tahap_id' => 'Tahap telah berubah, terkunci, atau perlu rekonsiliasi. Perbaikan diisi melalui Tindak Lanjut pada putaran aktif.']);
@@ -330,7 +334,7 @@ class IsianUnitTahapService
         if (! $source->exists && ($source->getTable() === 'tb_tanggapan') !== ($stage->tahap_proses === TahapProses::TanggapanAwal)) {
             throw new LogicException('Tanggapan awal hanya sekali; perbaikan harus disimpan sebagai Tindak Lanjut.');
         }
-        if ($source->exists && ($source->isDirty([$column, 'tahap_id', 'putaran_id', 'putaran_tl', 'butir_pic_id', 'created_by', 'created_at', 'submitted_after_close_at', 'submitted_after_compilation_at', 'changed_after_compilation_at'])
+        if ($source->exists && ($source->isDirty([$column, 'tahap_id', 'putaran_id', 'putaran_tl', 'butir_pic_id', 'created_by', 'created_at', 'submitted_after_close_at', 'submitted_after_compilation_at', 'changed_after_compilation_at', 'jatuh_tempo_saat_pengisian', 'submitted_late_at'])
             || $source->getRawOriginal('unit_kerja_id') !== null && $source->isDirty('unit_kerja_id'))) {
             throw new LogicException('Identitas sumber, unit, waktu awal, dan penanda isian tidak boleh diganti.');
         }
@@ -364,6 +368,7 @@ class IsianUnitTahapService
             throw new LogicException('Isian yang sudah direviu tidak boleh diubah.');
         }
         if (! $source->exists) {
+            app(SuratTanggalService::class)->markSubmission($source, $stage);
             $source->setAttribute('submitted_after_close_at', $record->closed_at === null ? null : now());
             $source->setAttribute('submitted_after_compilation_at', $this->hasCompilation($butir, $stage) ? now() : null);
         } elseif ($this->hasCompilation($butir, $stage) && $source->isDirty(['tanggapan', 'tindak_lanjut', 'deliverables', 'dokumen'])) {

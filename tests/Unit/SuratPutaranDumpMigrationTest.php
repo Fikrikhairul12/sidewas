@@ -202,7 +202,7 @@ test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga
     expect(fn () => $this->migration->down())->toThrow(RuntimeException::class);
 });
 
-test('R1 R2 dan R3 pada dump MySQL mempertahankan seluruh sumber tanpa membuat salinan bahan perkiraan', function () {
+test('R1 sampai R5 pada dump MySQL mempertahankan sumber tanggal lama dan bahan tanpa perkiraan', function () {
     $directory = getenv('SIDEWAS_PUTARAN_DUMP_DIR');
     if (! $directory) {
         $this->markTestSkipped('Set SIDEWAS_PUTARAN_DUMP_DIR untuk salinan dump SNP dan DJSN.');
@@ -236,6 +236,9 @@ test('R1 R2 dan R3 pada dump MySQL mempertahankan seluruh sumber tanpa membuat s
     $captures = require database_path('migrations/2026_10_23_131534_add_snp_djsn_compilation_snapshots.php');
     $captures->up();
     $captures->up();
+    $dates = require database_path('migrations/2026_10_23_143129_add_snp_djsn_stage_deadline_audit.php');
+    $dates->up();
+    $dates->up();
     foreach ($snapshots as $module => $tables) {
         $db = DB::connection('mysql_'.$module);
         foreach ($tables as $table => $snapshot) {
@@ -254,7 +257,11 @@ test('R1 R2 dan R3 pada dump MySQL mempertahankan seluruh sumber tanpa membuat s
         ->and(DB::connection('mysql_djsn')->table('tb_isian_unit_tahap')->count())->toBe(0);
     foreach (['snp', 'djsn'] as $module) {
         expect(DB::connection('mysql_'.$module)->table('tb_kompilasi')->whereNotNull('salinan_konteks')->count())->toBe(0);
+        expect(DB::connection('mysql_'.$module)->table('tb_surat_tanggal_riwayat')->count())->toBe(0)
+            ->and(DB::connection('mysql_'.$module)->table('tb_surat_tahap')->whereNotNull('tanggal_ditetapkan_at')->count())->toBe(0)
+            ->and(DB::connection('mysql_'.$module)->table('tb_tanggapan')->whereNotNull('submitted_late_at')->count())->toBe(0);
     }
+    $dates->down();
     $captures->down();
     $entries->down();
     $stages->down();
@@ -522,6 +529,7 @@ test('R3 MySQL membekukan bahan secara konsisten saat pengisian edit dan kompila
     (require database_path('migrations/2026_10_23_094342_add_snp_djsn_process_stage_foundation.php'))->up();
     (require database_path('migrations/2026_10_23_102718_add_snp_djsn_stage_unit_entries.php'))->up();
     (require database_path('migrations/2026_10_23_131534_add_snp_djsn_compilation_snapshots.php'))->up();
+    (require database_path('migrations/2026_10_23_143129_add_snp_djsn_stage_deadline_audit.php'))->up();
     config(['sidewas.alur_revisi_enabled' => true, 'sidewas.reviu_putaran_enabled' => true]);
     $worker = <<<'PHP'
         require $argv[1].'/vendor/autoload.php';
@@ -598,7 +606,7 @@ test('R3 MySQL membekukan bahan secara konsisten saat pengisian edit dan kompila
             if ($followUp) {
                 $round = app(SuratPutaranService::class)->buka($record, $compiler->id);
             }
-            $stage = SuratTahap::factory()->forSurat($record)->state([
+            $stage = (! $followUp ? $record->tahapanProses()->where('nomor_putaran', 0)->first() : null) ?? SuratTahap::factory()->forSurat($record)->state([
                 'tahap_proses' => $followUp ? 'tindak_lanjut' : 'tanggapan_awal', 'nomor_putaran' => $followUp ? 1 : 0,
                 'putaran_asal_id' => $round->id,
             ])->create();
@@ -662,7 +670,8 @@ test('R4 MySQL hanya menerima satu transisi saat reviu surat dikirim bersamaan',
     $this->migration->up();
     foreach (['2026_10_22_085515_expand_snp_djsn_review_status_choices.php', '2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php',
         '2026_10_22_132318_add_unit_assignments_to_surat_putaran.php', '2026_10_23_094342_add_snp_djsn_process_stage_foundation.php',
-        '2026_10_23_102718_add_snp_djsn_stage_unit_entries.php', '2026_10_23_131534_add_snp_djsn_compilation_snapshots.php'] as $migration) {
+        '2026_10_23_102718_add_snp_djsn_stage_unit_entries.php', '2026_10_23_131534_add_snp_djsn_compilation_snapshots.php',
+        '2026_10_23_143129_add_snp_djsn_stage_deadline_audit.php'] as $migration) {
         (require database_path('migrations/'.$migration))->up();
     }
     config(['sidewas.alur_revisi_enabled' => true, 'sidewas.reviu_putaran_enabled' => true]);
@@ -688,10 +697,14 @@ test('R4 MySQL hanya menerima satu transisi saat reviu surat dikirim bersamaan',
         fflush(STDOUT);
         try {
             $next = app(App\Services\ReviuPutaranService::class)->review($review, $user, [
-                'hasil_review' => 'Keputusan bersamaan', 'status' => $argv[6],
+                'hasil_review' => 'Keputusan bersamaan', 'status' => $argv[6], 'jatuh_tempo_tl' => now('Asia/Jakarta')->addDays(14)->toDateString(),
+                ...isset($argv[7]) ? ['status_pengajuan_tgl' => $argv[7], 'alasan_keputusan_tgl' => 'Keputusan tanggal bersamaan'] : [],
             ], Illuminate\Http\Request::create('/r4-race', 'PATCH'));
             $db->commit();
-            fwrite(STDOUT, $next ? "opened\n" : "closed\n");
+            fwrite(STDOUT, isset($argv[7]) ? "date_saved\n" : ($next ? "opened\n" : "closed\n"));
+        } catch (Illuminate\Validation\ValidationException $exception) {
+            $db->rollBack();
+            fwrite(STDOUT, "stale\n");
         } catch (Symfony\Component\HttpKernel\Exception\HttpException $exception) {
             $db->rollBack();
             if ($exception->getStatusCode() !== 422) throw $exception;
@@ -722,6 +735,8 @@ test('R4 MySQL hanya menerima satu transisi saat reviu surat dikirim bersamaan',
                     'tahap_id' => $stage?->id, 'putaran_id' => $stage?->putaran_asal_id,
                     'tahap_kompilasi' => $stage?->tahap_proses === TahapProses::TindakLanjut ? 'tindak_lanjut' : 'tanggapan',
                     'hasil_kompilasi' => 'Kompilasi untuk uji transisi',
+                    ...$stage?->tahap_proses === TahapProses::TindakLanjut
+                        ? ['ubah_tgl' => now('Asia/Jakarta')->addDays(21)->toDateString(), 'alasan_pengajuan_tgl' => 'Bahan putaran perlu waktu tambahan'] : [],
                 ], Request::create('/r4-compile', 'POST'));
 
                 return $butir->reviews()->where('kompilasi_id', $compilation->id)->firstOrFail();
@@ -729,7 +744,7 @@ test('R4 MySQL hanya menerima satu transisi saat reviu surat dikirim bersamaan',
             $initialReview = $compile($first);
             if ($followUp) {
                 app(ReviuPutaranService::class)->review($initialReview, $actor, [
-                    'status' => 'tindak_lanjut_belum_sesuai', 'hasil_review' => 'Buka Tindak Lanjut',
+                    'status' => 'tindak_lanjut_belum_sesuai', 'hasil_review' => 'Buka Tindak Lanjut', 'jatuh_tempo_tl' => now('Asia/Jakarta')->addDays(14)->toDateString(),
                 ], Request::create('/r4-initial-review', 'PATCH'));
                 $stage = $record->fresh()->tahapAktif;
                 $firstReview = $compile($first->fresh(), $stage);
@@ -738,6 +753,42 @@ test('R4 MySQL hanya menerima satu transisi saat reviu surat dikirim bersamaan',
                 $stage = $record->fresh()->tahapAktif;
             }
             $otherReview = $compile($other->fresh(), $stage);
+            if ($followUp) {
+                $workers = [];
+                $db = $first->getConnection();
+                $db->beginTransaction();
+                try {
+                    $db->table('tb_record')->where('id', $record->id)->lockForUpdate()->first();
+                    foreach (['disetujui', 'ditolak'] as $decision) {
+                        $process = new Process([PHP_BINARY, '-r', $worker, base_path(), json_encode(config('database.connections.'.$connection)),
+                            $module, (string) $firstReview->id, (string) $actor->id, 'belum_ditanggapi', $decision], base_path(), ['APP_ENV' => 'testing', 'LOG_CHANNEL' => 'stderr']);
+                        $process->setTimeout(40)->start();
+                        $workers[] = $process;
+                        awaitWorkflowWorker($process);
+                    }
+                    $db->commit();
+                    $outcomes = [];
+                    foreach ($workers as $process) {
+                        $process->wait();
+                        expect($process->isSuccessful())->toBeTrue($process->getOutput().$process->getErrorOutput());
+                        $outcomes[] = str_contains($process->getOutput(), 'date_saved') ? 'date_saved' : 'stale';
+                    }
+                    sort($outcomes);
+                    expect($outcomes)->toBe(['date_saved', 'stale']);
+                    $compilation = $firstReview->kompilasiPutaran()->firstOrFail();
+                    expect($stage->riwayatTanggal()->where('kompilasi_id', $compilation->id)->count())->toBe(1)
+                        ->and($stage->fresh()->jatuh_tempo->toDateString())->toBe(now('Asia/Jakarta')->addDays($compilation->status_pengajuan_tgl === 'disetujui' ? 21 : 14)->toDateString());
+                } finally {
+                    if ($db->transactionLevel() > 0) {
+                        $db->rollBack();
+                    }
+                    foreach ($workers as $process) {
+                        if ($process->isRunning()) {
+                            $process->stop();
+                        }
+                    }
+                }
+            }
             $beforeStages = $record->tahapanProses()->count();
             $db = $first->getConnection();
             $workers = [];
@@ -769,6 +820,8 @@ test('R4 MySQL hanya menerima satu transisi saat reviu surat dikirim bersamaan',
                     expect($record->fresh()->status)->toBe('proses_tindak_lanjut_belum_sesuai')
                         ->and($record->fresh()->tahapAktif->tahap_proses)->toBe(TahapProses::TindakLanjut)
                         ->and($record->fresh()->tahapAktif->nomor_putaran)->toBe($followUp ? 2 : 1);
+                    expect($record->fresh()->tahapAktif->jatuh_tempo->toDateString())->toBe(now('Asia/Jakarta')->addDays(14)->toDateString())
+                        ->and($record->fresh()->tahapAktif->riwayatTanggal()->where('jenis', 'penetapan_tindak_lanjut')->count())->toBe(1);
                 }
             } finally {
                 if ($db->transactionLevel() > 0) {

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\HasSuratPutaran;
 use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
+use App\Services\IsianUnitTahapService;
 use App\Services\SuratAwalStatusService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -45,7 +46,7 @@ class DjsnRecord extends Model
                 $record->id_djsn = static::generateIdDjsn($record->nomor_surat);
             }
 
-            if (! empty($record->tanggal_surat) && empty($record->jth_tempo)) {
+            if (! IsianUnitTahapService::enabled() && ! empty($record->tanggal_surat) && empty($record->jth_tempo)) {
                 $record->jth_tempo = Carbon::parse($record->tanggal_surat)->addDays(30);
             }
 

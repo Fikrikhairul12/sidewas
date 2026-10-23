@@ -14,6 +14,11 @@ use InvalidArgumentException;
 /** @mixin Model */
 trait BelongsToSuratPutaran
 {
+    public function initializeBelongsToSuratPutaran(): void
+    {
+        $this->mergeCasts(['jatuh_tempo_saat_pengisian' => 'date', 'submitted_late_at' => 'datetime']);
+    }
+
     public function tahapProses(): BelongsTo
     {
         return $this->belongsTo(SuratTahap::class, 'tahap_id');

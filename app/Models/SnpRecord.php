@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\HasSuratPutaran;
 use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
+use App\Services\IsianUnitTahapService;
 use App\Services\SuratAwalStatusService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -48,7 +49,7 @@ class SnpRecord extends Model
                 $record->id_snp = static::generateIdSnp($record->nomor_surat);
             }
 
-            if (! empty($record->tanggal_surat) && empty($record->jth_tempo)) {
+            if (! IsianUnitTahapService::enabled() && ! empty($record->tanggal_surat) && empty($record->jth_tempo)) {
                 $record->jth_tempo = static::hitungJatuhTempo($record->tanggal_surat);
             }
 

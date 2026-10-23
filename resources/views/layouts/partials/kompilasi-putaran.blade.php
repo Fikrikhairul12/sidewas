@@ -49,6 +49,7 @@
                                     'round_label' => $stageLabel, 'record_id' => $butir->record->id,
                                     'hasil_kompilasi' => $compilation?->hasil_kompilasi ?? '', 'deliverables' => $compilation?->deliverables ?? '',
                                     'ubah_tgl' => $compilation?->ubah_tgl?->format('Y-m-d') ?? '',
+                                    'alasan_pengajuan_tgl' => $compilation?->alasan_pengajuan_tgl ?? '',
                                     'image_upload_url' => route($module.'.kompilasi.images.store', ['butir' => $butir, 'putaran_id' => $roundId]
                                         + ($revision ? ['tahap_id' => $stage?->id, 'tahap_kompilasi' => $stageType] : []), false),
                                 ];
@@ -61,6 +62,7 @@
                                         <p class="mt-1 text-xs text-slate-500">Bahan kompilasi terkunci. Tanggapan setelah penutupan tersedia melalui Detail di halaman Tanggapan.</p>
                                     @endif
                                     <p class="mt-2 text-xs text-slate-600">{{ $butir->{'id_butir_'.$module} }} · {{ $stageLabel }}</p>
+                                    @if ($revision)<x-surat-tenggat :record="$butir->record" :stage="$stage" />@endif
                                     <x-butir-preview class="mt-3" :content="$butir->{'butir_'.$module}" :butir-id="$butir->{'id_butir_'.$module}" />
                                 </td>
                                 <td class="px-6 py-5 align-top text-sm text-slate-700">
@@ -131,8 +133,16 @@
                         key-expression="openModal ? selected.image_upload_url : 'closed'" upload-url-expression="selected.image_upload_url" />
                     <label class="mb-2 mt-5 block text-sm font-semibold">Deliverables Kompilasi</label>
                     <textarea name="deliverables" rows="3" x-model="selected.deliverables" class="w-full rounded-xl border-slate-300"></textarea>
-                    <label class="mb-2 mt-5 block text-sm font-semibold">Pengajuan Ubah Tanggal Jatuh Tempo</label>
-                    <input type="date" name="ubah_tgl" x-model="selected.ubah_tgl" class="w-full rounded-xl border-slate-300">
+                    <template x-if="{{ \App\Services\IsianUnitTahapService::enabled() ? "selected.tahap_kompilasi === 'tindak_lanjut'" : 'true' }}">
+                        <div>
+                            <label class="mb-2 mt-5 block text-sm font-semibold">Pengajuan Ubah Tanggal Jatuh Tempo</label>
+                            <input type="date" name="ubah_tgl" x-model="selected.ubah_tgl" class="w-full rounded-xl border-slate-300">
+                            @if (\App\Services\IsianUnitTahapService::enabled())
+                                <label class="mb-2 mt-3 block text-sm font-semibold">Alasan pengajuan perubahan tanggal</label>
+                                <textarea name="alasan_pengajuan_tgl" x-model="selected.alasan_pengajuan_tgl" :required="!!selected.ubah_tgl" rows="2" maxlength="2000" class="w-full rounded-xl border-slate-300"></textarea>
+                            @endif
+                        </div>
+                    </template>
                     <label class="mb-2 mt-5 block text-sm font-semibold">Dokumen Kompilasi</label>
                     <input type="file" name="dokumen" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" class="w-full rounded-xl border p-3">
                     <p class="mt-1 text-xs text-slate-500">PDF, Word, Excel, JPG, PNG. Maksimal 5 MB.</p>

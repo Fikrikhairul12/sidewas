@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Enums\SuratStatus;
+use App\Enums\TahapProses;
 use App\Models\DjsnRecord;
 use App\Models\SnpRecord;
+use App\Models\SuratTahap;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
@@ -69,11 +71,24 @@ class SuratAwalStatusService
 
             $recordColumn = 'id_'.$module;
             $butirColumn = 'id_butir_'.$module;
-            $hasButir = $db->table('tb_butir_'.$module)->where($recordColumn, $record->{$recordColumn})->exists();
+            $hasButir = $db->table('tb_butir_'.$module)->where($recordColumn, $record->{$recordColumn})->lockForUpdate()->first(['id']) !== null;
             $everPublished = (bool) $record->pernah_terbit || $hasButir || ($record->putaran_aktif_id ?? null) !== null;
             $status = $record->status;
 
-            if (in_array($status, $this->initialValues(), true)) {
+            if (IsianUnitTahapService::enabled() && in_array($status, $this->initialValues(), true) && ($record->closed_at ?? null) === null) {
+                $stage = SuratTahap::on($db->getName())->where('record_id', $id)->where('tahap_proses', TahapProses::TanggapanAwal->value)->lockForUpdate()->first();
+                $hasResponse = $stage !== null && $db->table('tb_tanggapan')->where('tahap_id', $stage->id)
+                    ->whereNotNull('tanggapan')->whereRaw("TRIM(tanggapan) <> ''")->lockForUpdate()->first(['id']) !== null;
+                $deadline = app(SuratTanggalService::class)->deadline($stage);
+                $awaitingPublication = ($stage?->bukti_tanggal['menunggu_publikasi_R5'] ?? false) && $deadline === null;
+                $status = match (true) {
+                    ! $hasButir => SuratStatus::Draft->value,
+                    $hasResponse => SuratStatus::Proses->value,
+                    $awaitingPublication => SuratStatus::Draft->value,
+                    $deadline !== null && now('Asia/Jakarta')->greaterThan($deadline) => SuratStatus::BelumDitindaklanjuti->value,
+                    default => SuratStatus::Terbit->value,
+                };
+            } elseif (! IsianUnitTahapService::enabled() && in_array($status, $this->initialValues(), true)) {
                 $hasResponse = $db->table('tb_tanggapan as t')
                     ->join('tb_butir_'.$module.' as b', 't.'.$butirColumn, '=', 'b.'.$butirColumn)
                     ->where('b.'.$recordColumn, $record->{$recordColumn})
@@ -116,7 +131,8 @@ class SuratAwalStatusService
             ->selectRaw('status, COUNT(*) as jumlah')->groupBy('status')->pluck('jumlah', 'status');
         $values = array_fill_keys(array_keys(SuratStatus::options()), 0);
 
-        return ['total' => (int) $counts->sum(), ...$values, ...$counts->map(fn ($value): int => (int) $value)->all()];
+        return ['total' => (int) $counts->sum(), ...$values, ...$counts->map(fn ($value): int => (int) $value)->all(),
+            ...(IsianUnitTahapService::enabled() ? ['terlambat_tindak_lanjut' => count(app(SuratTanggalService::class)->lateRecordIds($module))] : [])];
     }
 
     /** @return array<string, string> */

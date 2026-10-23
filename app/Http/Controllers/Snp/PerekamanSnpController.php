@@ -20,9 +20,11 @@ use App\Models\SnpTindakLanjut;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\ClusterSelection;
+use App\Services\IsianUnitTahapService;
 use App\Services\ReviuPutaranService;
 use App\Services\SnpButirContent;
 use App\Services\SuratAwalStatusService;
+use App\Services\SuratTanggalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +54,10 @@ class PerekamanSnpController extends Controller
                 'butirSnp.butirPics.komite',
             ])
             ->withCount('butirSnp');
+        if (IsianUnitTahapService::enabled()) {
+            $recordsQuery->with(['tahapAktif.riwayatTanggal', 'tahapanProses.riwayatTanggal']);
+            app(SuratTanggalService::class)->applyFilter($recordsQuery, (string) $request->input('keterlambatan'));
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -537,7 +543,7 @@ class PerekamanSnpController extends Controller
                 'updated_by' => $user->id,
             ];
 
-            if (! empty($recordUpdates['tanggal_surat'])) {
+            if (! IsianUnitTahapService::enabled() && ! empty($recordUpdates['tanggal_surat'])) {
                 $recordUpdates['jth_tempo'] = SnpRecord::hitungJatuhTempo($recordUpdates['tanggal_surat']);
             }
 

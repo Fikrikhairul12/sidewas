@@ -54,6 +54,7 @@ class KompilasiSalinanService
                 'tahap_id' => $stage->id, 'tahap_proses' => $stage->tahap_proses->value,
                 'nomor_putaran' => $stage->nomor_putaran, 'putaran_asal_id' => $stage->putaran_asal_id,
                 'deliverables' => $source->deliverables,
+                'keterlambatan' => ['batas_saat_pengisian' => $source->jatuh_tempo_saat_pengisian?->toDateString(), 'ditandai_at' => $source->submitted_late_at?->toISOString()],
                 'unit' => $this->unit($unit, $unitId),
                 'pengisi' => $this->actor($source->creator, $source->created_by),
                 'pengubah' => $this->actor($source->updater, $source->updated_by),
@@ -88,7 +89,8 @@ class KompilasiSalinanService
                 'mulai_at' => $stage->mulai_at?->toISOString(), 'jatuh_tempo' => $stage->jatuh_tempo?->toDateString()],
             'kompilasi' => $this->files->content($compilation->hasil_kompilasi, $module, $record->id, $copies) + [
                 'deliverables' => $compilation->deliverables, 'dokumen' => $this->files->document($compilation->dokumen, $copies),
-                'ubah_tgl' => $compilation->ubah_tgl?->toDateString(), 'status_pengajuan_tgl' => $compilation->status_pengajuan_tgl],
+                'ubah_tgl' => $compilation->ubah_tgl?->toDateString(), 'status_pengajuan_tgl' => $compilation->status_pengajuan_tgl,
+                'alasan_pengajuan_tgl' => $compilation->alasan_pengajuan_tgl],
             'penugasan' => $assignments->all(), 'kelengkapan_unit' => $completeness, 'jumlah_bahan' => count($materials),
             'bahan' => collect($materials)->map(fn ($material): array => ['tabel' => $material['jenis_sumber'], 'id' => $material['sumber_id'],
                 'unit_kerja_id' => $material['unit_kerja_id'], 'versi_sumber' => $material['salinan']['versi_sumber']])->all(),

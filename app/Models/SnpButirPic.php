@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsSuratAwalStatus;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
 class SnpButirPic extends Model
 {
+    use SyncsSuratAwalStatus;
     use TracksUser;
 
     protected $connection = 'mysql_snp';
@@ -27,16 +29,16 @@ class SnpButirPic extends Model
     {
         static::saving(function ($pic) {
             if (in_array($pic->jenis_pic, ['utama', 'pendukung'])) {
-                if (empty($pic->unit_kerja_id) || !empty($pic->komite_id)) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
+                if (empty($pic->unit_kerja_id) || ! empty($pic->komite_id)) {
+                    throw ValidationException::withMessages([
                         'pic' => 'PIC utama/pendukung wajib menggunakan unit kerja.',
                     ]);
                 }
             }
 
             if ($pic->jenis_pic === 'komite') {
-                if (empty($pic->komite_id) || !empty($pic->unit_kerja_id)) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
+                if (empty($pic->komite_id) || ! empty($pic->unit_kerja_id)) {
+                    throw ValidationException::withMessages([
                         'komite' => 'PIC komite wajib menggunakan komite.',
                     ]);
                 }

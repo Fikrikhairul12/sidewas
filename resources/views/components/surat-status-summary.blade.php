@@ -10,6 +10,9 @@
     if (($statistics['tuntas'] ?? 0) > 0) {
         $cards['tuntas'] = 'Tuntas (Alur Lama)';
     }
+    if (array_key_exists('terlambat_tindak_lanjut', $statistics)) {
+        $cards['terlambat_tindak_lanjut'] = 'Tindak Lanjut Terlambat';
+    }
 @endphp
 
 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

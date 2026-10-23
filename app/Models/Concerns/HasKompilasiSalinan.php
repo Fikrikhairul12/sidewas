@@ -21,7 +21,7 @@ trait HasKompilasiSalinan
                 return;
             }
             foreach (['id_butir_snp', 'id_butir_djsn', 'putaran_id', 'tahap_id', 'putaran_tl', 'tahap_kompilasi',
-                'hasil_kompilasi', 'deliverables', 'dokumen', 'ubah_tgl', 'created_by', 'created_at', 'status',
+                'hasil_kompilasi', 'deliverables', 'dokumen', 'ubah_tgl', 'alasan_pengajuan_tgl', 'created_by', 'created_at', 'status',
                 'salinan_konteks', 'kunci_salinan', 'status_bahan', 'bahan_dicatat_at'] as $field) {
                 if ($compilation->isDirty($field) && $compilation->getAttributes()[$field] !== $stored->getRawOriginal($field)) {
                     throw new LogicException('Hasil kompilasi dan salinan bahan resmi tidak boleh ditimpa. Perbaikan mengikuti putaran berikutnya.');
