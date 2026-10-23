@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DjsnRecord;
 use App\Models\SnpRecord;
 use App\Models\SuratPutaran;
+use App\Models\SuratTahap;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -100,8 +101,25 @@ class SuratPutaranService
             throw new InvalidArgumentException('Surat pemilik riwayat tidak ditemukan.');
         }
 
+        if (IsianUnitTahapService::enabled() && IsianUnitTahapService::isInput($model)) {
+            app(IsianUnitTahapService::class)->prepareForSave($model, $record);
+
+            return;
+        }
+
         if ($model->exists && $model->isDirty(['putaran_id', $butirColumn])) {
             throw new LogicException('Identitas riwayat tidak boleh dipindah ke butir, unit, atau putaran lain.');
+        }
+
+        if ($model->exists && $model->getRawOriginal('tahap_id') !== null && $model->isDirty('tahap_id')) {
+            throw new LogicException('Sumber yang sudah dipetakan tidak boleh dipindah ke tahap lain.');
+        }
+        if ($model->getAttribute('tahap_id') !== null) {
+            $tahap = SuratTahap::on($connection)->findOrFail($model->getAttribute('tahap_id'));
+            if ((int) $tahap->record_id !== (int) $record->id
+                || $tahap->putaran_asal_id !== null && (int) $tahap->putaran_asal_id !== (int) $model->getAttribute('putaran_id')) {
+                throw new InvalidArgumentException('Tahap, putaran asal, dan sumber harus berasal dari surat yang sama.');
+            }
         }
 
         if ($model->getAttribute('putaran_id') === null) {

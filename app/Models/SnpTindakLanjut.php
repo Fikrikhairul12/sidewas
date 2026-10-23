@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToSuratPutaran;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SnpTindakLanjut extends Model
 {
@@ -17,6 +18,8 @@ class SnpTindakLanjut extends Model
 
     protected $fillable = [
         'putaran_id',
+        'tahap_id',
+        'unit_kerja_id',
         'id_butir_snp',
         'butir_pic_id',
         'putaran_tl',
@@ -30,6 +33,9 @@ class SnpTindakLanjut extends Model
 
     protected $casts = [
         'jth_tempo' => 'date',
+        'submitted_after_close_at' => 'datetime',
+        'submitted_after_compilation_at' => 'datetime',
+        'changed_after_compilation_at' => 'datetime',
     ];
 
     public function butir()
@@ -55,5 +61,10 @@ class SnpTindakLanjut extends Model
     public function butirPic()
     {
         return $this->belongsTo(SnpButirPic::class, 'butir_pic_id', 'id');
+    }
+
+    public function unitKerja(): BelongsTo
+    {
+        return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
     }
 }

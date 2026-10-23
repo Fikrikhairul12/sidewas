@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Snp;
 
+use App\Enums\TahapProses;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\IsianUnitTahapController;
 use App\Models\Direktorat;
 use App\Models\Komite;
 use App\Models\LogActivity;
@@ -13,6 +15,7 @@ use App\Models\SnpReview;
 use App\Models\SnpTindakLanjut;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\IsianUnitTahapService;
 use App\Services\ReviuPutaranService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -68,6 +71,9 @@ class TindakLanjutSnpController extends Controller
 
     public function index(Request $request)
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(IsianUnitTahapController::class)->index($request, 'snp', TahapProses::TindakLanjut);
+        }
         if (ReviuPutaranService::enabled()) {
             return redirect()->route('snp.tanggapan.index')->with('info', 'Tindak lanjut dikelola melalui Tanggapan, Kompilasi, dan Reviu. Riwayat lama tersedia melalui Detail dan laporan.');
         }
@@ -321,6 +327,9 @@ class TindakLanjutSnpController extends Controller
 
     public function store(Request $request)
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(IsianUnitTahapController::class)->store($request, 'snp', TahapProses::TindakLanjut);
+        }
         abort_if(ReviuPutaranService::enabled(), 410, 'Alur Tindak Lanjut lama sudah digantikan oleh putaran tanggapan dan keputusan reviu.');
         $validated = $request->validate([
             'butir_id' => ['required', 'integer', 'exists:mysql_snp.tb_butir_snp,id'],
@@ -473,6 +482,9 @@ class TindakLanjutSnpController extends Controller
 
     public function update(Request $request, SnpTindakLanjut $tindakLanjut)
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(IsianUnitTahapController::class)->update($request, $tindakLanjut);
+        }
         abort_if(ReviuPutaranService::enabled(), 410, 'Riwayat Tindak Lanjut lama hanya dapat dibaca melalui Detail dan laporan.');
         $user = User::find(Auth::id());
         $tindakLanjut->load(['butir.reviews', 'butirPic']);

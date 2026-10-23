@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
-function setUpWorkflowTestDatabase(): void
+function setUpWorkflowTestDatabase(bool $withProcessStages = true): void
 {
     config(['app.key' => 'base64:'.base64_encode(str_repeat('w', 32)), 'database.default' => 'mysql']);
     foreach (['mysql', 'mysql_snp', 'mysql_djsn'] as $connection) {
@@ -116,6 +116,10 @@ function setUpWorkflowTestDatabase(): void
     (require database_path('migrations/2026_10_21_141454_enable_snp_djsn_initial_letter_statuses.php'))->up();
     (require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php'))->up();
     (require database_path('migrations/2026_10_22_132318_add_unit_assignments_to_surat_putaran.php'))->up();
+    if ($withProcessStages) {
+        (require database_path('migrations/2026_10_23_094342_add_snp_djsn_process_stage_foundation.php'))->up();
+        (require database_path('migrations/2026_10_23_102718_add_snp_djsn_stage_unit_entries.php'))->up();
+    }
     Storage::fake('local');
 }
 

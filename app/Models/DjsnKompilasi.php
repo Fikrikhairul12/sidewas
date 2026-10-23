@@ -44,6 +44,11 @@ class DjsnKompilasi extends Model
         return $this->hasMany(DjsnReview::class, 'kompilasi_id');
     }
 
+    public function bahan(): HasMany
+    {
+        return $this->hasMany(KompilasiBahan::class, 'kompilasi_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

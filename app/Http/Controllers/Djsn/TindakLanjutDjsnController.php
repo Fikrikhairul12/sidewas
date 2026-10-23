@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Djsn;
 
+use App\Enums\TahapProses;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\IsianUnitTahapController;
 use App\Models\Direktorat;
 use App\Models\DjsnButir;
 use App\Models\DjsnCluster;
@@ -12,7 +14,9 @@ use App\Models\Komite;
 use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\IsianUnitTahapService;
 use App\Services\ReviuPutaranService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -23,6 +27,9 @@ class TindakLanjutDjsnController extends Controller
 {
     public function index(Request $request)
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(IsianUnitTahapController::class)->index($request, 'djsn', TahapProses::TindakLanjut);
+        }
         if (ReviuPutaranService::enabled()) {
             return redirect()->route('djsn.tanggapan.index')->with('info', 'Tindak lanjut dikelola melalui Tanggapan, Kompilasi, dan Reviu. Riwayat lama tersedia melalui Detail dan laporan.');
         }
@@ -274,6 +281,9 @@ class TindakLanjutDjsnController extends Controller
 
     public function store(Request $request)
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(IsianUnitTahapController::class)->store($request, 'djsn', TahapProses::TindakLanjut);
+        }
         abort_if(ReviuPutaranService::enabled(), 410, 'Alur Tindak Lanjut lama sudah digantikan oleh putaran tanggapan dan keputusan reviu.');
         $validated = $request->validate([
             'butir_id' => ['required', 'integer', 'exists:mysql_djsn.tb_butir_djsn,id'],
@@ -362,5 +372,12 @@ class TindakLanjutDjsnController extends Controller
         return redirect()
             ->route('djsn.tindak-lanjut.index')
             ->with('success', 'Tindak lanjut DJSN berhasil disimpan.');
+    }
+
+    public function update(Request $request, DjsnTindakLanjut $tindakLanjut): RedirectResponse
+    {
+        abort_unless(IsianUnitTahapService::enabled(), 404);
+
+        return app(IsianUnitTahapController::class)->update($request, $tindakLanjut);
     }
 }

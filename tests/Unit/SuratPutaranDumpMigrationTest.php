@@ -10,9 +10,11 @@ use App\Models\SnpKompilasi;
 use App\Models\SnpRecord;
 use App\Models\SnpReview;
 use App\Models\SuratPutaran;
+use App\Models\SuratTahap;
 use App\Services\SuratAwalStatusService;
 use App\Services\SuratPutaranBackfill;
 use App\Services\SuratPutaranService;
+use App\Services\SuratTahapBackfill;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -190,6 +192,62 @@ test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga
     expect(fn () => $this->migration->down())->toThrow(RuntimeException::class);
 });
 
+test('R1 dan R2 pada dump MySQL mempertahankan seluruh sumber tanpa membuat salinan bahan perkiraan', function () {
+    $directory = getenv('SIDEWAS_PUTARAN_DUMP_DIR');
+    if (! $directory) {
+        $this->markTestSkipped('Set SIDEWAS_PUTARAN_DUMP_DIR untuk salinan dump SNP dan DJSN.');
+    }
+    foreach (['snp' => 'sidewasi_sidewas_snp (1).sql', 'djsn' => 'sidewasi_sidewas_djsn.sql'] as $module => $filename) {
+        $sql = file_get_contents($directory.DIRECTORY_SEPARATOR.$filename);
+        if (preg_match('/^\s*(?:USE\b|(?:CREATE|DROP)\s+DATABASE\b|SOURCE\b|DELIMITER\b)/im', $sql)) {
+            throw new RuntimeException('Dump hanya boleh berisi objek dalam database pengujian yang dipilih.');
+        }
+        DB::connection('mysql_'.$module)->unprepared($sql);
+    }
+    $this->migration->up();
+    (require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php'))->up();
+    (require database_path('migrations/2026_10_22_132318_add_unit_assignments_to_surat_putaran.php'))->up();
+    $snapshots = [];
+    foreach (['snp', 'djsn'] as $module) {
+        $db = DB::connection('mysql_'.$module);
+        foreach (['tb_record', 'tb_butir_'.$module, 'tb_butir_pic', 'tb_surat_putaran', 'tb_tanggapan', 'tb_tindak_lanjut', 'tb_kompilasi', 'tb_review'] as $table) {
+            $snapshots[$module][$table] = [
+                'columns' => Schema::connection('mysql_'.$module)->getColumnListing($table),
+                'rows' => $db->table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all(),
+            ];
+        }
+    }
+    $stages = require database_path('migrations/2026_10_23_094342_add_snp_djsn_process_stage_foundation.php');
+    $stages->up();
+    $stages->up();
+    $entries = require database_path('migrations/2026_10_23_102718_add_snp_djsn_stage_unit_entries.php');
+    $entries->up();
+    $entries->up();
+    foreach ($snapshots as $module => $tables) {
+        $db = DB::connection('mysql_'.$module);
+        foreach ($tables as $table => $snapshot) {
+            expect($db->table($table)->select($snapshot['columns'])->orderBy('id')->get()->map(fn ($row) => (array) $row)->all())->toEqual($snapshot['rows']);
+        }
+        expect(array_sum((new SuratTahapBackfill)->run('mysql_'.$module)))->toBe(0)
+            ->and($db->table('tb_record')->whereNotNull('tahap_aktif_id')->count())->toBe(0)
+            ->and($db->table('tb_kompilasi_bahan')->count())->toBe(0)
+            ->and($db->table('tb_kompilasi')->where('status_bahan', '!=', 'perlu_rekonsiliasi')->count())->toBe(0)
+            ->and($db->table('tb_tanggapan')->whereNull('tahap_id')->count())->toBe(0)
+            ->and($db->table('tb_tindak_lanjut')->whereNull('tahap_id')->count())->toBe(0)
+            ->and($db->table('tb_surat_rekonsiliasi')->exists())->toBeTrue();
+    }
+    expect(DB::connection('mysql_djsn')->table('tb_surat_tahap')->where('tahap_proses', 'tindak_lanjut')->whereNull('nomor_putaran')->exists())->toBeTrue();
+    expect(DB::connection('mysql_djsn')->table('tb_tindak_lanjut')->whereNotNull('putaran_tl')->count())->toBe(0)
+        ->and(DB::connection('mysql_djsn')->table('tb_isian_unit_tahap')->count())->toBe(0);
+    $entries->down();
+    $stages->down();
+    foreach ($snapshots as $module => $tables) {
+        foreach ($tables as $table => $snapshot) {
+            expect(DB::connection('mysql_'.$module)->table($table)->select($snapshot['columns'])->orderBy('id')->get()->map(fn ($row) => (array) $row)->all())->toEqual($snapshot['rows']);
+        }
+    }
+});
+
 test('fondasi MySQL dapat dipasang dan dibatalkan pada skema instalasi baru', function () {
     (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();
     (require database_path('migrations/2026_06_03_093422_create_djsn_tables.php'))->up();
@@ -198,10 +256,18 @@ test('fondasi MySQL dapat dipasang dan dibatalkan pada skema instalasi baru', fu
     $closure->up();
     $assignments = require database_path('migrations/2026_10_22_132318_add_unit_assignments_to_surat_putaran.php');
     $assignments->up();
+    $stages = require database_path('migrations/2026_10_23_094342_add_snp_djsn_process_stage_foundation.php');
+    $stages->up();
+    $stages->up();
+    $entries = require database_path('migrations/2026_10_23_102718_add_snp_djsn_stage_unit_entries.php');
+    $entries->up();
+    $entries->up();
     foreach (['snp', 'djsn'] as $module) {
         expect(Schema::connection('mysql_'.$module)->hasColumn('tb_tanggapan', 'putaran_id'))->toBeTrue()
             ->and(SuratPutaran::on('mysql_'.$module)->count())->toBe(0);
     }
+    $entries->down();
+    $stages->down();
     $assignments->down();
     $closure->down();
     $this->migration->down();
@@ -327,6 +393,104 @@ test('MySQL applies only one final or correction decision when reviews of the sa
     ['tindak_lanjut_sesuai', 'tidak_dapat_ditindaklanjuti'],
     ['tidak_dapat_ditindaklanjuti', 'tindak_lanjut_belum_sesuai'],
 ]);
+
+test('R2 MySQL mencegah dua akun atau PIC dari unit sama menyimpan isian bersamaan', function (bool $closed) {
+    (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();
+    (require database_path('migrations/2026_06_03_093422_create_djsn_tables.php'))->up();
+    $this->migration->up();
+    (require database_path('migrations/2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php'))->up();
+    (require database_path('migrations/2026_10_22_132318_add_unit_assignments_to_surat_putaran.php'))->up();
+    (require database_path('migrations/2026_10_23_094342_add_snp_djsn_process_stage_foundation.php'))->up();
+    (require database_path('migrations/2026_10_23_102718_add_snp_djsn_stage_unit_entries.php'))->up();
+    $worker = <<<'PHP'
+        require $argv[1].'/vendor/autoload.php';
+        $app = require $argv[1].'/bootstrap/app.php';
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        $module = $argv[3];
+        $connection = 'mysql_'.$module;
+        $settings = json_decode($argv[2], true);
+        config(['database.connections.'.$connection => $settings, 'database.connections.mysql' => $settings,
+            'database.default' => $connection, 'sidewas.alur_revisi_enabled' => true]);
+        Illuminate\Support\Facades\DB::purge($connection);
+        Illuminate\Support\Facades\DB::purge('mysql');
+        Illuminate\Support\Facades\Auth::shouldReceive('check')->andReturn(false);
+        Illuminate\Support\Facades\Auth::shouldReceive('id')->andReturn(null);
+        $stage = App\Models\SuratTahap::on($connection)->findOrFail((int) $argv[6]);
+        $initial = $stage->tahap_proses === App\Enums\TahapProses::TanggapanAwal;
+        $class = $stage->relatedClass($initial ? 'Tanggapan' : 'TindakLanjut');
+        fwrite(STDOUT, "ready\n");
+        fflush(STDOUT);
+        try {
+            $class::create(['id_butir_'.$module => $argv[4], 'tahap_id' => $stage->id,
+                'putaran_id' => $stage->putaran_asal_id, 'butir_pic_id' => (int) $argv[5],
+                'unit_kerja_id' => 10, $initial ? 'tanggapan' : 'tindak_lanjut' => 'Isian bersamaan',
+                'deliverables' => 'Hasil', 'created_by' => (int) $argv[7], ...($initial ? [] : ['putaran_tl' => $stage->nomor_putaran])]);
+            fwrite(STDOUT, "created\n");
+        } catch (LogicException $exception) {
+            fwrite(STDOUT, "duplicate\n");
+        }
+        PHP;
+    foreach (['snp', 'djsn'] as $module) {
+        foreach ([false, true] as $followUp) {
+            $connection = 'mysql_'.$module;
+            $db = DB::connection($connection);
+            $recordClass = $module === 'snp' ? SnpRecord::class : DjsnRecord::class;
+            $butirClass = $module === 'snp' ? SnpButir::class : DjsnButir::class;
+            $record = $recordClass::create(['nomor_surat' => 'R2-RACE-'.($followUp ? 'TL' : 'AWAL'), 'tanggal_surat' => '2026-10-23']);
+            $butir = $butirClass::create(['id_'.$module => $record->{'id_'.$module}, 'butir_'.$module => 'Butir persaingan isian']);
+            $round = (new SuratPutaranService)->legacyFor($connection, $record->fresh()->getRawOriginal());
+            $stage = SuratTahap::factory()->forSurat($record)->state([
+                'tahap_proses' => $followUp ? 'tindak_lanjut' : 'tanggapan_awal', 'nomor_putaran' => $followUp ? 1 : 0,
+                'putaran_asal_id' => $round->id,
+            ])->create();
+            $record->forceFill(['tahap_aktif_id' => $stage->id])->save();
+            if ($closed) {
+                $record->forceFill(['status' => 'tindak_lanjut_sesuai', 'closed_at' => now(), 'closed_by' => 999, 'closed_putaran_id' => $round->id])->save();
+            }
+            $snapshot = $record->fresh()->getRawOriginal();
+            $pics = [];
+            foreach (['utama', 'pendukung'] as $kind) {
+                $pics[] = $db->table('tb_butir_pic')->insertGetId(['id_butir_'.$module => $butir->{'id_butir_'.$module}, 'jenis_pic' => $kind, 'unit_kerja_id' => 10]);
+            }
+            $workers = [];
+            $db->beginTransaction();
+            try {
+                $db->table('tb_record')->where('id', $record->id)->lockForUpdate()->first();
+                foreach ($pics as $index => $pic) {
+                    $process = new Process([PHP_BINARY, '-r', $worker, base_path(), json_encode(config('database.connections.'.$connection)),
+                        $module, $butir->{'id_butir_'.$module}, (string) $pic, (string) $stage->id, (string) (999 + $index)],
+                        base_path(), ['APP_ENV' => 'testing', 'LOG_CHANNEL' => 'stderr']);
+                    $process->setTimeout(30)->start();
+                    $workers[] = $process;
+                    awaitWorkflowWorker($process);
+                }
+                $db->commit();
+                $outcomes = [];
+                foreach ($workers as $process) {
+                    $process->wait();
+                    expect($process->isSuccessful())->toBeTrue($process->getErrorOutput());
+                    $outcomes[] = str_contains($process->getOutput(), 'created') ? 'created' : 'duplicate';
+                }
+                sort($outcomes);
+                $table = $followUp ? 'tb_tindak_lanjut' : 'tb_tanggapan';
+                expect($outcomes)->toBe(['created', 'duplicate'])
+                    ->and($db->table($table)->where('tahap_id', $stage->id)->count())->toBe(1)
+                    ->and($db->table('tb_isian_unit_tahap')->where('tahap_id', $stage->id)->count())->toBe(1)
+                    ->and($db->table($table)->where('tahap_id', $stage->id)->whereNotNull('submitted_after_close_at')->count())->toBe($closed ? 1 : 0)
+                    ->and($record->fresh()->getRawOriginal())->toBe($snapshot);
+            } finally {
+                if ($db->transactionLevel() > 0) {
+                    $db->rollBack();
+                }
+                foreach ($workers as $process) {
+                    if ($process->isRunning()) {
+                        $process->stop();
+                    }
+                }
+            }
+        }
+    }
+})->with([false, true]);
 
 test('MySQL serializes concurrent responses by unit including late completion after Close', function (bool $closed) {
     (require database_path('migrations/2026_05_06_101519_create_snp_tables.php'))->up();

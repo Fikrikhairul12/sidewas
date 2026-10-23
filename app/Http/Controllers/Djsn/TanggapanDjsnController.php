@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Djsn;
 
+use App\Enums\TahapProses;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\IsianUnitTahapController;
 use App\Models\Direktorat;
 use App\Models\DjsnButir;
 use App\Models\DjsnCluster;
@@ -10,6 +12,7 @@ use App\Models\DjsnTanggapan;
 use App\Models\Komite;
 use App\Models\UnitKerja;
 use App\Models\User;
+use App\Services\IsianUnitTahapService;
 use App\Services\ReviuPutaranService;
 use App\Services\TanggapanUnitService;
 use Illuminate\Http\Request;
@@ -19,6 +22,9 @@ class TanggapanDjsnController extends Controller
 {
     public function index(Request $request)
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(IsianUnitTahapController::class)->index($request, 'djsn', TahapProses::TanggapanAwal);
+        }
         $user = User::find(Auth::id());
 
         if (! $user || ! $user->canAccessDjsnTanggapan()) {
@@ -160,6 +166,9 @@ class TanggapanDjsnController extends Controller
 
     public function store(Request $request, DjsnButir $butir)
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(IsianUnitTahapController::class)->store($request, 'djsn', TahapProses::TanggapanAwal, $butir);
+        }
         $user = User::find(Auth::id());
         abort_unless($user && $user->canAccessDjsnTanggapan(), 403);
         $validated = $request->validate([
@@ -177,6 +186,9 @@ class TanggapanDjsnController extends Controller
 
     public function update(Request $request, DjsnTanggapan $tanggapan)
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(IsianUnitTahapController::class)->update($request, $tanggapan);
+        }
         $user = User::find(Auth::id());
         abort_unless($user && $user->canAccessDjsnTanggapan(), 403);
         $validated = $request->validate([

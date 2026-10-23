@@ -4,18 +4,34 @@ namespace App\Models\Concerns;
 
 use App\Enums\SuratStatus;
 use App\Models\SuratPutaran;
+use App\Models\SuratTahap;
 use App\Services\SuratAwalStatusService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use InvalidArgumentException;
 use LogicException;
 
 /** @mixin Model */
 trait HasSuratPutaran
 {
+    public function tahapanProses(): HasMany
+    {
+        return $this->hasMany(SuratTahap::class, 'record_id')->orderBy('id');
+    }
+
+    public function tahapAktif(): BelongsTo
+    {
+        return $this->belongsTo(SuratTahap::class, 'tahap_aktif_id');
+    }
+
     public function save(array $options = []): bool
     {
+        if ($this->getAttribute('tahap_aktif_id') !== null
+            && (! $this->exists || ! $this->tahapAktif()->where('record_id', $this->getKey())->exists())) {
+            throw new InvalidArgumentException('Tahap aktif harus berasal dari surat yang sama.');
+        }
         if (! $this->exists || ! $this->getConnection()->getSchemaBuilder()->hasColumn($this->getTable(), 'closed_at')) {
             return parent::save($options);
         }
@@ -23,7 +39,7 @@ trait HasSuratPutaran
         return $this->getConnection()->transaction(function () use ($options): bool {
             $stored = $this->newQuery()->lockForUpdate()->findOrFail($this->getKey());
             if ($stored->closed_at !== null) {
-                foreach (['status', 'putaran_aktif_id', 'closed_at', 'closed_by', 'closed_review_id', 'closed_putaran_id'] as $column) {
+                foreach (['status', 'putaran_aktif_id', 'tahap_aktif_id', 'closed_at', 'closed_by', 'closed_review_id', 'closed_putaran_id'] as $column) {
                     if ($this->isDirty($column) && (string) $stored->getRawOriginal($column) !== (string) ($this->getAttributes()[$column] ?? null)) {
                         throw new LogicException('Keputusan dan identitas penutupan surat tidak boleh diubah.');
                     }

@@ -18,10 +18,11 @@ class DjsnTanggapan extends Model
 
     protected $table = 'tb_tanggapan';
 
-    protected $casts = ['submitted_after_close_at' => 'datetime'];
+    protected $casts = ['submitted_after_close_at' => 'datetime', 'submitted_after_compilation_at' => 'datetime', 'changed_after_compilation_at' => 'datetime'];
 
     protected $fillable = [
         'putaran_id',
+        'tahap_id',
         'unit_kerja_id',
         'butir_pic_id',
         'id_butir_djsn',

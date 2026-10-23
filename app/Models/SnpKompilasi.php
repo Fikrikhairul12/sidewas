@@ -45,6 +45,11 @@ class SnpKompilasi extends Model
         return $this->hasMany(SnpReview::class, 'kompilasi_id');
     }
 
+    public function bahan(): HasMany
+    {
+        return $this->hasMany(KompilasiBahan::class, 'kompilasi_id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'id');

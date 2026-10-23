@@ -578,6 +578,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/djsn/tindak-lanjut', [TindakLanjutDjsnController::class, 'store'])
         ->name('djsn.tindak-lanjut.store');
+
+    Route::patch('/djsn/tindak-lanjut/{tindakLanjut}', [TindakLanjutDjsnController::class, 'update'])
+        ->name('djsn.tindak-lanjut.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

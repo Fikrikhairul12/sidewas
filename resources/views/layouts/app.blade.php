@@ -66,6 +66,7 @@
                     <div x-data="{ openUserMenu: false }" class="relative">
                         <button type="button" @click="openUserMenu = !openUserMenu"
                             @click.outside="openUserMenu = false"
+                            aria-label="Menu akun {{ $headerUser?->email ?? $headerUser?->name }}"
                             class="inline-flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100">
                             @if ($headerAvatarUrl)
                                 <img src="{{ $headerAvatarUrl }}"
@@ -82,7 +83,7 @@
                                     </svg>
                                 </div>
                             @endif
-                            <span>
+                            <span @class(['hidden sm:inline' => $attributes->get('compact-header', false)])>
                                 {{ $headerUser?->email ?? $headerUser?->name }}
                             </span>
 
