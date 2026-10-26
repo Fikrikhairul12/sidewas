@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\TahapProses;
 use App\Models\DjsnButir;
 use App\Models\DjsnReview;
 use App\Models\SnpButir;
@@ -9,7 +10,6 @@ use App\Models\SnpReview;
 use App\Models\SuratPutaran;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class ReviuBahanPreviewService
@@ -23,12 +23,25 @@ class ReviuBahanPreviewService
         $permission = 'canAccess'.ucfirst($this->workflow->module($butir)).'Kompilasi';
         abort_unless($user->{$permission}(), 403);
         if (IsianUnitTahapService::enabled()) {
-            $butir->loadMissing(['record.tahapanProses', 'record.tahapAktif', 'record.putaran', 'butirPics',
+            $butir->loadMissing(['record.tahapanProses', 'record.tahapAktif', 'record.putaran', 'butirPics.unitKerja',
                 'tanggapanUnit.unitKerja', 'tanggapanUnit.creator', 'tindakLanjuts.unitKerja', 'tindakLanjuts.creator']);
             $workflow = app(KompilasiTahapService::class);
-            $round = $butir->record?->putaran->firstWhere('id', $workflow->stage($butir)?->putaran_asal_id);
+            $stage = $workflow->stage($butir);
+            $round = $butir->record?->putaran->firstWhere('id', $stage?->putaran_asal_id);
+            $inputs = app(IsianUnitTahapService::class);
+            $sources = $stage !== null && ($inputs->stageIsCurrent($butir, $stage) || $inputs->canStartInitial($butir))
+                ? $workflow->sources($butir)->filter(fn ($source): bool => $source->submitted_after_close_at === null
+                    && $butir->butirPics->whereIn('jenis_pic', ['utama', 'pendukung'])->contains('unit_kerja_id', $inputs->sourceUnit($source, $butir)))
+                : collect();
+            foreach ($sources as $source) {
+                if ($source->unitKerja === null) {
+                    $source->setRelation('unitKerja', $butir->butirPics->firstWhere('unit_kerja_id', $inputs->sourceUnit($source, $butir))?->unitKerja);
+                }
+            }
 
-            return $this->materials($butir, $round, $workflow->sources($butir), $workflow->label($butir));
+            return $this->materials($butir, $round, $sources, $workflow->label($butir)) + [
+                'stage_id' => $stage?->id, 'kind_label' => $stage?->tahap_proses === TahapProses::TindakLanjut ? 'Tindak Lanjut' : 'Tanggapan',
+            ];
         }
         $butir->loadMissing(['record.putaran', 'tanggapanAktif.unitKerja', 'tanggapanAktif.creator']);
         $round = $butir->record?->putaran->firstWhere('id', $this->workflow->roundId($butir));
@@ -86,37 +99,9 @@ class ReviuBahanPreviewService
         if (! $workflow->hasVerifiedCompilation($review)) {
             return ['responses' => [], 'late_responses' => [], 'compilation' => null, 'needs_reconciliation' => true];
         }
-        $compilation = $review->kompilasiPutaran;
-        $snapshot = $compilation->salinan_konteks;
-        $context = [
-            'letter_number' => $snapshot['surat']['nomor_surat'], 'butir_id' => $snapshot['butir']['key'],
-            'butir_content' => $snapshot['butir']['isi'], 'round_id' => $review->putaran_id,
-            'stage_id' => $review->tahap_id, 'round_label' => $workflow->label($review->tahapProses),
-            'kind_label' => $review->tahap_review === 'tindak_lanjut' ? 'Tindak Lanjut' : 'Tanggapan',
-        ];
-        $responses = $compilation->bahan->sortBy(fn ($material): string => ($material->salinan['created_at'] ?? '').sprintf('%020d', $material->id))
-            ->map(function ($material) use ($context): array {
-                $copy = $material->salinan;
+        $reader = app(KompilasiBahanReader::class);
 
-                return [
-                    'id' => $material->id, 'unit' => trim(($copy['unit']['kode'] ? $copy['unit']['kode'].' - ' : '').($copy['unit']['nama'] ?? 'Unit #'.$material->unit_kerja_id)),
-                    'author' => $copy['pengisi']['nama'] ?? 'Pengisi tidak tercatat (data lama)',
-                    'date' => empty($copy['created_at']) ? '-' : Carbon::parse($copy['created_at'])->setTimezone(config('app.timezone'))->format('d/m/Y H:i'),
-                    'content' => $copy['isi'], 'deliverables' => $copy['deliverables'], 'after_close' => false,
-                    'butir_id' => $context['butir_id'], 'round_label' => $context['round_label'],
-                ];
-            })->values()->all();
-
-        return $context + [
-            'responses' => $responses, 'late_responses' => [], 'is_snapshot' => true, 'needs_reconciliation' => false,
-            'missing_units' => collect($snapshot['kelengkapan_unit'])->where('terisi', false)->pluck('nama')->all(),
-            'compilation' => [
-                'id' => $compilation->id, 'content' => $snapshot['kompilasi']['isi'], 'deliverables' => $snapshot['kompilasi']['deliverables'],
-                'author' => $snapshot['penyusun']['nama'] ?? 'Penyusun tidak tercatat (data lama)',
-                'date' => Carbon::parse($snapshot['dicatat_at'])->setTimezone(config('app.timezone'))->format('d/m/Y H:i'),
-                'butir_id' => $context['butir_id'], 'round_label' => $context['round_label'],
-            ],
-        ];
+        return $reader->preview($reader->read($review->kompilasiPutaran));
     }
 
     /** @return array<string, mixed> */

@@ -1,3 +1,6 @@
+@if ($workflowReport['compiled_only'] ?? false)
+    @include('layouts.partials.workflow-compilation-pdf')
+@else
 <x-report-butir-pdf :records="$records" :module="$workflowReport['module']" :prepared="true">
 <!DOCTYPE html>
 <html>
@@ -152,3 +155,4 @@
 </body>
 </html>
 </x-report-butir-pdf>
+@endif

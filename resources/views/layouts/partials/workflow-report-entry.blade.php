@@ -14,7 +14,10 @@
     @if ($entry['decision'])
         <div><strong>Keputusan reviu: {{ $entry['decision'] }}</strong></div>
     @endif
-    @if (in_array($entry['field'], ['hasil_kompilasi', 'hasil_review'], true))
+    @if (($officialSnapshot ?? false) && ($entry['late_at_submission'] ?? null))
+        <div>Diisi melewati batas saat pengisian: {{ \Carbon\Carbon::parse($entry['deadline_at_submission'])->format('d/m/Y') }} 23.59 WIB.</div>
+    @endif
+    @if (($officialSnapshot ?? false) || in_array($entry['field'], ['hasil_kompilasi', 'hasil_review'], true))
         <x-rich-content data-report-rich :content="$entry['content']" />
     @else
         <div class="pre-line">{{ filled($entry['content']) ? $entry['content'] : '-' }}</div>

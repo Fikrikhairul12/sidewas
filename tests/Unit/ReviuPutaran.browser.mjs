@@ -37,6 +37,7 @@ try {
         await page.waitForFunction(() => document.querySelector('[data-workflow-page]')?._x_dataStack && typeof window.snpButirEditor === 'function');
         await page.click(`[data-${data.kind}-putaran]`);
         await page.waitForSelector('[role="dialog"]', { visible: true });
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('[x-show="openModal"]')).opacity === '1');
         await page.waitForFunction(() => document.querySelector('.tiptap') && !document.querySelector('[data-snp-editor]')._x_dataStack[0].busy);
         const form = `[data-${data.kind}-form]`;
         assert.ok((await page.$eval(form, node => node.action)).endsWith(data.action));
@@ -44,7 +45,7 @@ try {
         assert.equal((await page.$$(`${form} [aria-label="Format ${data.kind === 'kompilasi' ? 'Hasil Kompilasi' : 'Hasil Reviu'}"]`)).length, 1);
         await page.click(`${form} [aria-label="Tebal"]`);
         await page.type(`${form} .tiptap`, ' Isi Berformat');
-        await page.type(`${form} textarea[name="deliverables"]`, 'Teks <literal>');
+        await page.type(`${form} textarea[name="deliverables"]`, 'Teks <literal>', { delay: 10 });
         const field = data.kind === 'kompilasi' ? 'hasil_kompilasi' : 'hasil_review';
         await page.waitForFunction((selector, name) => document.querySelector(`${selector} input[name="${name}"]`).value.includes('<strong>'), {}, form, field);
         if (data.kind === 'reviu') {

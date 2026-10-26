@@ -29,68 +29,11 @@ class ReviuTahapService
     /** The official sources are the frozen copies, never the latest unit inputs. */
     public function hasVerifiedCompilation(SnpReview|DjsnReview $review): bool
     {
-        $review->loadMissing(['butir.record', 'tahapProses', 'kompilasiPutaran.bahan']);
-        $stage = $review->tahapProses;
-        $butir = $review->butir;
-        $compilation = $review->kompilasiPutaran;
-        $module = $this->inputs->module($review);
-        $key = $review->{'id_butir_'.$module};
-        $context = $compilation?->salinan_konteks;
-        if ($stage === null || $butir?->record === null || $compilation === null || ! is_array($context)
-            || $stage->status_pemetaan !== 'terpetakan' || $stage->nomor_putaran === null
-            || (int) $stage->record_id !== (int) $butir->record->id
-            || (int) $compilation->tahap_id !== (int) $stage->id
-            || (int) $compilation->putaran_id !== (int) $stage->putaran_asal_id
-            || (int) $review->putaran_id !== (int) $stage->putaran_asal_id
-            || $compilation->{'id_butir_'.$module} !== $key
-            || $compilation->status !== 'dalam_proses_reviu_dewas'
-            || $compilation->status_bahan !== 'terverifikasi' || $compilation->bahan_dicatat_at === null
-            || $compilation->kunci_salinan !== hash('sha256', $stage->id.':'.$key)) {
-            return false;
-        }
-        $type = $stage->tahap_proses === TahapProses::TanggapanAwal ? 'tanggapan' : 'tindak_lanjut';
-        $committee = collect($context['penugasan'] ?? [])->firstWhere('jenis_pic', 'komite');
-        if ($review->tahap_review !== $type || $compilation->tahap_kompilasi !== $type
-            || (int) $review->komite_id !== (int) ($committee['komite']['id'] ?? null)
-            || ($context['versi_salinan'] ?? null) !== 1
-            || (int) data_get($context, 'surat.id') !== (int) $stage->record_id
-            || (int) data_get($context, 'butir.id') !== (int) $butir->id || data_get($context, 'butir.key') !== $key
-            || ! is_array($context['butir'] ?? null) || ! array_key_exists('isi', $context['butir'])
-            || (int) data_get($context, 'tahap.id') !== (int) $stage->id
-            || data_get($context, 'tahap.jenis') !== $stage->tahap_proses->value
-            || (int) data_get($context, 'tahap.nomor_putaran') !== $stage->nomor_putaran
-            || (int) data_get($context, 'tahap.putaran_asal_id') !== (int) $stage->putaran_asal_id
-            || ! is_array($context['bahan'] ?? null) || ! is_array($context['kelengkapan_unit'] ?? null)
-            || ! is_array($context['kompilasi'] ?? null)
-            || ! array_key_exists('isi', $context['kompilasi'] ?? [])
-            || ($context['jumlah_bahan'] ?? null) !== $compilation->bahan->count()
-            || count($context['bahan']) !== $compilation->bahan->count()
-            || $compilation->bahan->pluck('unit_kerja_id')->unique()->count() !== $compilation->bahan->count()) {
-            return false;
-        }
-        foreach ($compilation->bahan as $material) {
-            $copy = $material->salinan;
-            $reference = collect($context['bahan'])->first(fn ($row): bool => ($row['tabel'] ?? null) === $material->jenis_sumber
-                && (int) ($row['id'] ?? 0) === (int) $material->sumber_id);
-            if (! is_array($copy) || $reference === null
-                || ! in_array($material->jenis_sumber, ['tb_tanggapan', 'tb_tindak_lanjut'], true)
-                || (int) $material->tahap_id !== (int) $stage->id || $material->butir_key !== $key
-                || (int) ($copy['tahap_id'] ?? 0) !== (int) $stage->id || ($copy['butir_key'] ?? null) !== $key
-                || (int) ($copy['record_id'] ?? 0) !== (int) $stage->record_id
-                || ($copy['tahap_proses'] ?? null) !== $stage->tahap_proses->value
-                || (int) ($copy['nomor_putaran'] ?? -1) !== $stage->nomor_putaran
-                || (int) ($copy['putaran_asal_id'] ?? 0) !== (int) $stage->putaran_asal_id
-                || data_get($copy, 'sumber.tabel') !== $material->jenis_sumber
-                || (int) data_get($copy, 'sumber.id') !== (int) $material->sumber_id
-                || (int) data_get($copy, 'unit.id') !== (int) $material->unit_kerja_id
-                || ! array_key_exists('isi', $copy) || ! array_key_exists('deliverables', $copy)
-                || (int) ($reference['unit_kerja_id'] ?? 0) !== (int) $material->unit_kerja_id
-                || empty($copy['versi_sumber']) || ($reference['versi_sumber'] ?? null) !== $copy['versi_sumber']) {
-                return false;
-            }
-        }
+        $review->loadMissing('kompilasiPutaran');
+        $reader = app(KompilasiBahanReader::class);
 
-        return true;
+        return $review->kompilasiPutaran !== null && $reader->verified($review->kompilasiPutaran)
+            && $reader->matchesReview($review->kompilasiPutaran, $review);
     }
 
     public function canReview(User $user, SnpReview|DjsnReview $review): bool

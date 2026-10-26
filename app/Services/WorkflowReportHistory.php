@@ -20,6 +20,9 @@ class WorkflowReportHistory
     /** @return Collection<int, array{id: int, label: string}> */
     public function unitOptions(SnpButir $butir): Collection
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(KompilasiReportHistory::class)->unitOptions($butir);
+        }
         $units = app(SuratPutaranPenugasan::class)->units($butir->butirPics);
         foreach ($butir->record->putaran as $round) {
             $units = $units->concat($round->penugasan_unit[$butir->id_butir_snp] ?? []);
@@ -54,6 +57,9 @@ class WorkflowReportHistory
      */
     public function data(array $data, string $module): array
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(KompilasiReportHistory::class)->data($data, $module);
+        }
         $records = $data['records'];
         $relation = 'butir'.ucfirst($module);
         $relations = [
@@ -101,6 +107,9 @@ class WorkflowReportHistory
      */
     public function rounds(SnpButir|DjsnButir $butir, array $selection = []): Collection
     {
+        if (IsianUnitTahapService::enabled()) {
+            return app(KompilasiReportHistory::class)->rounds($butir, $selection);
+        }
         $record = $butir->record;
         $headers = $record->putaran->sortBy('nomor_putaran')->values();
         $all = collect()->concat($butir->tanggapanUnit)->concat($butir->kompilasis)->concat($butir->reviews)->concat($butir->tindakLanjuts);

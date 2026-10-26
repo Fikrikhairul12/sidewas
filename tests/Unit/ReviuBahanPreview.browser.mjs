@@ -48,6 +48,7 @@ try {
         await page.waitForFunction(() => document.querySelector('[data-workflow-page]')?._x_dataStack);
         await page.click(`[data-${data.kind}-putaran]`);
         await page.waitForSelector('[role="dialog"]', { visible: true });
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('[x-show="openModal"]')).opacity === '1');
         await page.waitForFunction(() => document.querySelector('.tiptap') && !document.querySelector('[data-snp-editor]')._x_dataStack[0].busy);
         const form = `[data-${data.kind}-form]`;
         const field = data.kind === 'kompilasi' ? 'hasil_kompilasi' : 'hasil_review';
@@ -86,8 +87,8 @@ try {
         await page.click(`${form} [aria-label="Tebal"]`);
         await page.type(`${form} .tiptap`, ' Isi formulir yang dipertahankan');
         await page.type(`${form} textarea[name="deliverables"]`, ' Deliverables belum disimpan');
-        if (data.kind === 'kompilasi') await page.$eval(`${form} [name="ubah_tgl"]`, node => { node.value = '2027-02-10'; node.dispatchEvent(new Event('input', { bubbles: true })); });
-        else await page.select('#status-reviu', 'tindak_lanjut_belum_sesuai');
+        if (data.kind === 'kompilasi' && data.hasDateProposal !== false) await page.$eval(`${form} [name="ubah_tgl"]`, node => { node.value = '2027-02-10'; node.dispatchEvent(new Event('input', { bubbles: true })); });
+        else if (data.kind === 'reviu') await page.select('#status-reviu', 'tindak_lanjut_belum_sesuai');
         await (await page.$(`${form} input[name="dokumen"]`)).uploadFile(fixture.upload);
         await page.waitForFunction((selector, name) => document.querySelector(`${selector} input[name="${name}"]`).value.includes('Isi formulir yang dipertahankan'), {}, form, field);
         const before = await page.$eval(form, node => [...new FormData(node)].map(([name, value]) => [name, value instanceof File ? [value.name, value.size, value.type] : value]));
