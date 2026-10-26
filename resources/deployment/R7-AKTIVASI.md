@@ -101,6 +101,8 @@ Alur revisi SNP/DJSN tetap nonaktif sampai pemeriksaan data dan penerimaan pada 
 
    Bahan dengan unit atau versi yang belum dapat dibuktikan tetap terbuka. Tidak ada tindakan umum “selesaikan semua masalah”, penghapusan sumber, atau penetapan Close baru dari perkiraan.
 
+   Pada rekonsiliasi tenggat TL historis, tanggal dibaca sampai akhir hari WIB. Tenggat pada hari yang sama dengan keputusan dapat dipertahankan bila akhir harinya masih sesudah waktu keputusan yang dibuktikan. Ketentuan ini menjaga tanggal arsip asli; pengisian tenggat pada reviu baru tetap mengikuti validasi R5.
+
    Validasi tanpa menulis:
 
    ```sh

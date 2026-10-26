@@ -13,20 +13,25 @@ use App\Models\SnpReview;
 use App\Models\SuratPutaran;
 use App\Models\SuratTahap;
 use App\Services\IsianUnitTahapService;
+use App\Services\KompilasiBahanReader;
 use App\Services\KompilasiTahapService;
+use App\Services\ReviuBahanPreviewService;
 use App\Services\ReviuPutaranService;
 use App\Services\SnpButirContent;
 use App\Services\SuratAwalStatusService;
 use App\Services\SuratPutaranBackfill;
 use App\Services\SuratPutaranService;
+use App\Services\SuratRekonsiliasiService;
 use App\Services\SuratTahapBackfill;
 use App\Services\WorkflowReadinessService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -190,6 +195,254 @@ test('R7 dump terbaru tujuh modul tetap utuh setelah migrasi ulang serta backup 
         file_put_contents(base_path('tmp/r7/storage-inventory.json'), json_encode($assets, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     }
     expect(config('sidewas.alur_revisi_enabled'))->toBeFalse();
+});
+
+test('R7 salinan SNP dapat direkonsiliasi dari audit lengkap tanpa menimpa sumber atau membuat putaran baru', function () {
+    $directory = getenv('SIDEWAS_R7_DUMP_DIR');
+    $auditFile = getenv('SIDEWAS_R7_AUDIT_JSON');
+    if (! $directory || ! $auditFile) {
+        $this->markTestSkipped('Set SIDEWAS_R7_DUMP_DIR dan SIDEWAS_R7_AUDIT_JSON untuk simulasi arsip operasional.');
+    }
+    $this->travelTo(Carbon::parse('2026-10-26T18:25:00+07:00'));
+    $db = DB::connection('mysql_snp');
+    $sql = file_get_contents($directory.DIRECTORY_SEPARATOR.'sidewasi_sidewas_snp (1).sql');
+    if (preg_match('/^\s*(?:USE\b|(?:CREATE|DROP)\s+DATABASE\b|SOURCE\b|DELIMITER\b|CREATE\s+USER\b|GRANT\b)/im', $sql)) {
+        throw new RuntimeException('Dump hanya boleh diarahkan ke database simulasi.');
+    }
+    $db->unprepared($sql);
+    $db->statement("SET time_zone = '+07:00'");
+    config(['database.default' => 'mysql', 'sidewas.alur_revisi_enabled' => false, 'sidewas.reviu_putaran_enabled' => true]);
+    (require database_path('migrations/0001_01_01_000000_create_users_table.php'))->up();
+    (require database_path('migrations/2026_05_07_000000_create_main_custom_tables.php'))->up();
+    foreach (['tb_direktorat', 'tb_unit_kerja'] as $table) {
+        Schema::table($table, fn (Blueprint $blueprint) => $blueprint->string('status')->default('active'));
+    }
+    DB::table('tb_direktorat')->insert(['id' => 1, 'nama_direktorat' => 'Direktorat simulasi']);
+    DB::table('tb_unit_kerja')->insert(['id' => 1, 'direktorat_id' => 1, 'nama_unit' => 'Unit simulasi']);
+    DB::table('tb_komite')->insert(['id' => 1, 'nama_komite' => 'Komite simulasi']);
+    $actor = workflowUser('super_admin');
+    Storage::fake('local');
+    $auditBytes = file_get_contents($auditFile);
+    $audit = json_decode($auditBytes, true, flags: JSON_THROW_ON_ERROR);
+    expect($audit['aggregate_count_matches'])->toBeTrue()->and($audit['total_log'])->toBe(count($audit['rows']));
+    $logs = collect($audit['rows']);
+    Storage::disk('local')->put('arsip-r7/audit-lengkap.json', $auditBytes);
+    $evidence = ['disk' => 'local', 'path' => 'arsip-r7/audit-lengkap.json', 'sha256' => hash('sha256', $auditBytes)];
+    $sourceBefore = [];
+    foreach (['tb_butir_snp', 'tb_butir_pic', 'tb_tanggapan', 'tb_tindak_lanjut', 'tb_review', 'tb_surat_putaran'] as $table) {
+        $sourceBefore[$table] = $db->table($table)->orderBy('id')->get()->toJson();
+    }
+    $recordsBefore = $db->table('tb_record')->orderBy('id')->get()->keyBy('id');
+    $compilationsBefore = $db->table('tb_kompilasi')->orderBy('id')->get()->keyBy('id');
+    $service = app(SuratRekonsiliasiService::class);
+    $readiness = app(WorkflowReadinessService::class);
+    $run = function (SnpRecord $record, string $action, array $details, int $auditId) use ($service, $readiness, $actor, $evidence): array {
+        $plan = ['version' => 1, 'module' => 'snp', 'record_id' => $record->id, 'expected_fingerprint' => $readiness->fingerprint('snp', $record->id),
+            'action' => $action, 'details' => $details, 'reason' => 'SIMULASI pada salinan database; bukti log bisnis #'.$auditId.'. Belum diterapkan pada server.', 'evidence' => $evidence];
+        expect($service->run($plan, $actor)['applied'])->toBeFalse()
+            ->and($readiness->fingerprint('snp', $record->id))->toBe($plan['expected_fingerprint']);
+        expect($service->run($plan, $actor, true)['applied'])->toBeTrue();
+
+        return $plan;
+    };
+    $letters = SnpRecord::whereIn('id', [6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 18, 19])->get();
+    $publication = [];
+    foreach ($letters as $record) {
+        $keys = $record->butirSnp()->pluck('id_butir_snp');
+        $first = $logs->filter(fn ($log) => $log['type_code'] === 'snp' && $log['table_name'] === 'tb_butir_snp' && $log['action'] === 'create' && $keys->contains($log['record_key']))
+            ->sortBy('created_at_epoch')->first();
+        expect($first)->not->toBeNull()->and(data_get($first, 'new_values.record.id'))->toBe($record->id)
+            ->and(data_get($first, 'new_values.butir.status'))->toBe('terbit')
+            ->and(data_get($first, 'new_values.input.unit_kerja_utama_id'))->not->toBeEmpty();
+        $stage = $record->tahapanProses()->where('tahap_proses', 'tanggapan_awal')->firstOrFail();
+        $at = Carbon::createFromTimestamp($first['created_at_epoch'], 'Asia/Jakarta');
+        $run($record, 'konfirmasi_tahap', ['stage_id' => $stage->id, 'nomor_putaran' => 0, 'aktif' => true], $first['id']);
+        $run($record, 'konfirmasi_tanggal', ['stage_id' => $stage->id, 'mulai_at' => $at->toIso8601String(), 'ditetapkan_at' => $at->toIso8601String()], $first['id']);
+        expect($stage->fresh()->jatuh_tempo->toDateString())->toBe($at->copy()->addDays(14)->toDateString());
+        $publication[$record->id] = ['audit_id' => $first['id'], 'mulai_at' => $at->toIso8601String(), 'jatuh_tempo' => $stage->fresh()->jatuh_tempo->toDateString()];
+    }
+    $log = $logs->firstWhere('id', 176);
+    $archived = $log['new_values'];
+    $butir = $archived['butir'];
+    $compiled = $archived['kompilasi'];
+    $letter = $butir['record'];
+    $record = SnpRecord::findOrFail($letter['id']);
+    $stage = $record->tahapAktif;
+    $toDate = fn ($value) => $value === null ? null : Carbon::parse($value)->setTimezone('Asia/Jakarta')->toDateString();
+    $bundle = fn ($value) => ['isi' => $value, 'isi_asal' => $value, 'gambar' => []];
+    $assignments = collect($butir['butir_pics'])->map(fn ($pic) => ['pic_id' => $pic['id'], 'jenis_pic' => $pic['jenis_pic'],
+        'unit' => $pic['unit_kerja_id'] === null ? null : ['id' => $pic['unit_kerja_id'], 'nama' => $pic['unit_kerja']['nama_unit'], 'kode' => $pic['unit_kerja']['kode_unit'],
+            'direktorat' => ['id' => $pic['unit_kerja']['direktorat_id'], 'nama' => null]],
+        'komite' => $pic['komite_id'] === null ? null : ['id' => $pic['komite_id'], 'nama' => $pic['komite']['nama_komite']]])->values();
+    $materials = [];
+    foreach ($butir['tanggapan'] as $source) {
+        $pic = collect($butir['butir_pics'])->firstWhere('id', $source['butir_pic_id']);
+        $unit = $assignments->firstWhere('pic_id', $pic['id'])['unit'];
+        expect($source['dokumen'])->toBeNull();
+        $materials[] = ['jenis_sumber' => 'tb_tanggapan', 'sumber_id' => $source['id'], 'unit_kerja_id' => $unit['id'], 'salinan' => $bundle($source['tanggapan']) + [
+            'versi_salinan' => 1, 'versi_sumber' => hash('sha256', json_encode($source, JSON_THROW_ON_ERROR)),
+            'sumber' => ['tabel' => 'tb_tanggapan', 'id' => $source['id'], 'data_asal' => $source],
+            'record_id' => $record->id, 'butir_key' => $butir['id_butir_snp'], 'tahap_id' => $stage->id,
+            'tahap_proses' => 'tanggapan_awal', 'nomor_putaran' => 0, 'putaran_asal_id' => $stage->putaran_asal_id,
+            'deliverables' => $source['deliverables'], 'dokumen' => null, 'unit' => $unit,
+            'pengisi' => ['id' => $source['created_by'], 'nama' => null], 'pengubah' => ['id' => $source['updated_by'], 'nama' => null],
+            'created_at' => $source['created_at'], 'updated_at' => $source['updated_at'], 'dicatat_at' => $log['created_at_wib'],
+            'penugasan' => $assignments->where('unit.id', $unit['id'])->values()->all(),
+        ]];
+    }
+    expect($letter['dokumen'])->toBeNull()->and($letter['dokumen_memo'])->toBeNull()->and($compiled['dokumen'])->toBeNull();
+    $context = ['versi_salinan' => 1, 'dicatat_at' => $log['created_at_wib'], 'penyusun' => ['id' => $compiled['created_by'], 'nama' => null],
+        'surat' => ['id' => $record->id, 'id_surat' => $letter['id_snp'], 'nomor_surat' => $letter['nomor_surat'], 'tanggal_surat' => $toDate($letter['tanggal_surat']), 'perihal' => $letter['perihal_surat'], 'dokumen' => null, 'dokumen_memo' => null],
+        'butir' => ['id' => $butir['id'], 'key' => $butir['id_butir_snp']] + $bundle($butir['butir_snp']),
+        'tahap' => ['id' => $stage->id, 'jenis' => 'tanggapan_awal', 'nomor_putaran' => 0, 'putaran_asal_id' => $stage->putaran_asal_id, 'mulai_at' => $publication[$record->id]['mulai_at'], 'jatuh_tempo' => $toDate($letter['jth_tempo'])],
+        'kompilasi' => $bundle($compiled['hasil_kompilasi']) + ['deliverables' => $compiled['deliverables'], 'dokumen' => null, 'ubah_tgl' => $toDate($compiled['ubah_tgl']), 'status_pengajuan_tgl' => $compiled['status_pengajuan_tgl']],
+        'penugasan' => $assignments->all(), 'jumlah_bahan' => count($materials),
+        'bahan' => collect($materials)->map(fn ($material) => ['tabel' => $material['jenis_sumber'], 'id' => $material['sumber_id'], 'unit_kerja_id' => $material['unit_kerja_id'], 'versi_sumber' => $material['salinan']['versi_sumber']])->all(),
+        'kelengkapan_unit' => $assignments->whereNotNull('unit')->unique('unit.id')->map(fn ($assignment) => $assignment['unit'] + ['terisi' => collect($materials)->contains('unit_kerja_id', $assignment['unit']['id'])])->values()->all()];
+    $details = ['compilation_id' => $compiled['id'], 'context' => $context, 'materials' => $materials, 'review_ids' => [3]];
+    $run($record, 'salinan_historis', $details, $log['id']);
+    $compilation = SnpKompilasi::findOrFail($compiled['id']);
+    expect(app(KompilasiBahanReader::class)->verified($compilation))->toBeTrue()
+        ->and($compilation->bahan->pluck('sumber_id')->all())->toBe([9]);
+    config(['sidewas.alur_revisi_enabled' => true]);
+    $preview = app(ReviuBahanPreviewService::class)->forReview(SnpReview::findOrFail(3), $actor);
+    expect($preview['is_snapshot'])->toBeTrue()->and($preview['responses'])->toHaveCount(1)
+        ->and($preview['responses'][0]['content'])->toBe($butir['tanggapan'][0]['tanggapan'])
+        ->and($preview['missing_units'])->toHaveCount(2);
+    foreach ($sourceBefore as $table => $value) {
+        expect($db->table($table)->orderBy('id')->get()->toJson())->toBe($value, $table.' berubah saat rekonsiliasi');
+    }
+    foreach ($recordsBefore as $id => $value) {
+        $expected = (array) $value;
+        unset($expected['tahap_aktif_id']);
+        expect((array) $db->table('tb_record')->where('id', $id)->first(array_keys($expected)))->toBe($expected);
+    }
+    foreach ($compilationsBefore as $id => $value) {
+        $expected = (array) $value;
+        foreach (['salinan_konteks', 'status_bahan', 'bahan_dicatat_at', 'kunci_salinan'] as $field) {
+            unset($expected[$field]);
+        }
+        expect((array) $db->table('tb_kompilasi')->where('id', $id)->first(array_keys($expected)))->toBe($expected);
+    }
+    $status = $readiness->inspect(['snp'])['modules']['snp'];
+    $metadataBlockers = collect($status['issues'])->where('severity', 'blocker')->where('code', '!=', 'berkas_sumber_tidak_tersedia')->values();
+    expect($metadataBlockers)->toBeEmpty();
+    foreach ($letters as $letter) {
+        app(SuratAwalStatusService::class)->synchronizeRecord($letter->fresh());
+    }
+    $statusCounts = $db->table('tb_record')->whereIn('id', $letters->modelKeys())->selectRaw('status, COUNT(*) AS jumlah')->groupBy('status')->pluck('jumlah', 'status')->map(fn ($count) => (int) $count)->all();
+    expect($statusCounts)->toBe(['belum_ditindaklanjuti' => 9, 'proses' => 2, 'terbit' => 1]);
+    file_put_contents(base_path('tmp/r7/snp-reconciliation-simulation.json'), json_encode(['environment' => 'Salinan MySQL lokal dengan akun dummy', 'letters_reconciled' => $letters->count(),
+        'publication' => $publication, 'historical_compilation_id' => $compilation->id, 'material_source_ids' => [9], 'original_sources_unchanged' => true,
+        'original_rounds_unchanged' => true, 'new_rounds_created' => 0, 'metadata_blockers' => $metadataBlockers->all(),
+        'status_date_wib' => now('Asia/Jakarta')->toIso8601String(), 'target_letter_status_counts' => $statusCounts, 'production_changes_applied' => false], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+});
+
+test('R7 rencana penghapusan DJSN dummy dapat dibatalkan dan dipulihkan tanpa menyentuh surat lain atau SNP', function () {
+    $directory = getenv('SIDEWAS_R7_DUMP_DIR');
+    if (! $directory) {
+        $this->markTestSkipped('Set SIDEWAS_R7_DUMP_DIR untuk simulasi rencana penghapusan khusus data uji.');
+    }
+    foreach (['snp', 'djsn'] as $module) {
+        $filename = $module === 'snp' ? 'sidewasi_sidewas_snp (1).sql' : 'sidewasi_sidewas_djsn.sql';
+        $sql = file_get_contents($directory.DIRECTORY_SEPARATOR.$filename);
+        if (preg_match('/^\s*(?:USE\b|(?:CREATE|DROP)\s+DATABASE\b|SOURCE\b|DELIMITER\b|CREATE\s+USER\b|GRANT\b)/im', $sql)) {
+            throw new RuntimeException('Dump hanya boleh diarahkan ke database simulasi.');
+        }
+        DB::connection('mysql_'.$module)->unprepared($sql);
+    }
+    $db = DB::connection('mysql_djsn');
+    $db->statement('SET FOREIGN_KEY_CHECKS = 1');
+    expect((int) $db->selectOne('SELECT @@FOREIGN_KEY_CHECKS AS enabled')->enabled)->toBe(1);
+    $target = $db->table('tb_record')->where('id', 1)->first();
+    expect($target->id_djsn)->toBe('DUMMY 04/02/2009-DJSN-DJSN')->and($target->nomor_surat)->toBe('DUMMY 04/02/2009-DJSN');
+    foreach (['tahap_aktif_id', 'putaran_aktif_id', 'closed_at', 'closed_review_id', 'closed_putaran_id'] as $field) {
+        expect($target->{$field})->toBeNull();
+    }
+    $key = 'R7-KONTROL-DJSN';
+    $db->table('tb_record')->insert(['id' => 990001, 'id_djsn' => $key, 'nomor_surat' => $key, 'tanggal_surat' => '2026-10-26', 'status' => 'proses']);
+    $db->table('tb_surat_putaran')->insert(['id' => 990001, 'record_id' => 990001, 'nomor_putaran' => 0, 'status_lama' => 'dalam_proses']);
+    $db->table('tb_surat_tahap')->insert(['id' => 990001, 'record_id' => 990001, 'putaran_asal_id' => 990001, 'kunci_asal' => 'tanggapan_awal', 'tahap_proses' => 'tanggapan_awal', 'nomor_putaran' => 0]);
+    $db->table('tb_butir_djsn')->insert(['id' => 990001, 'id_djsn' => $key, 'id_butir_djsn' => $key.'.01', 'butir_djsn' => 'Surat kontrol harus tetap ada', 'status' => 'terbit']);
+    $db->table('tb_butir_pic')->insert(['id' => 990001, 'id_butir_djsn' => $key.'.01', 'jenis_pic' => 'utama', 'unit_kerja_id' => 26]);
+    $db->table('tb_tanggapan')->insert(['id' => 990001, 'id_butir_djsn' => $key.'.01', 'tanggapan' => 'Tanggapan kontrol', 'putaran_id' => 990001, 'tahap_id' => 990001, 'unit_kerja_id' => 26, 'butir_pic_id' => 990001]);
+    $db->table('tb_kompilasi')->insert(['id' => 990001, 'id_butir_djsn' => $key.'.01', 'tahap_kompilasi' => 'tanggapan', 'status' => 'belum_dikompilasi', 'putaran_id' => 990001, 'tahap_id' => 990001]);
+    $db->table('tb_review')->insert(['id' => 990001, 'id_butir_djsn' => $key.'.01', 'id_tanggapan' => 990001, 'kompilasi_id' => 990001, 'tahap_review' => 'tanggapan', 'status' => 'belum_ditanggapi', 'putaran_id' => 990001, 'tahap_id' => 990001]);
+    $snapshot = function ($connection): array {
+        $result = [];
+        foreach ($connection->getSchemaBuilder()->getTableListing($connection->getDatabaseName(), schemaQualified: false) as $table) {
+            $result[$table] = $connection->table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
+        }
+
+        return $result;
+    };
+    $before = $snapshot($db);
+    $snpBefore = $snapshot(DB::connection('mysql_snp'));
+    $butirKeys = $db->table('tb_butir_djsn')->where('id_djsn', $target->id_djsn)->pluck('id_butir_djsn')->all();
+    $stages = $db->table('tb_surat_tahap')->where('record_id', $target->id)->pluck('id')->all();
+    $selectors = ['tb_surat_tanggal_riwayat' => ['record_id', [$target->id]], 'tb_isian_unit_tahap' => ['tahap_id', $stages],
+        'tb_surat_rekonsiliasi' => ['record_id', [$target->id]], 'tb_kompilasi_bahan' => ['tahap_id', $stages],
+        'tb_review' => ['id_butir_djsn', $butirKeys], 'tb_kompilasi' => ['id_butir_djsn', $butirKeys],
+        'tb_tanggapan' => ['id_butir_djsn', $butirKeys], 'tb_tindak_lanjut' => ['id_butir_djsn', $butirKeys],
+        'tb_butir_pic' => ['id_butir_djsn', $butirKeys], 'tb_butir_djsn' => ['id_butir_djsn', $butirKeys],
+        'tb_surat_tahap' => ['record_id', [$target->id]], 'tb_surat_putaran' => ['record_id', [$target->id]], 'tb_record' => ['id', [$target->id]]];
+    $counts = [];
+    $ids = [];
+    foreach ($selectors as $table => [$field, $values]) {
+        $ids[$table] = $db->table($table)->whereIn($field, $values)->orderBy('id')->pluck('id')->all();
+        $counts[$table] = count($ids[$table]);
+    }
+    expect($counts['tb_record'])->toBe(1)->and($counts['tb_butir_djsn'])->toBe(2)->and($counts['tb_tanggapan'])->toBe(2)
+        ->and($counts['tb_tindak_lanjut'])->toBe(1)->and($counts['tb_review'])->toBe(3);
+    if ($preflight = getenv('SIDEWAS_R7_DUMMY_PREFLIGHT_SQL')) {
+        $rows = $db->select(file_get_contents($preflight));
+        expect(collect($rows)->mapWithKeys(fn ($row) => [$row->tabel => (int) $row->jumlah])->all())->toBe($counts);
+        foreach ($rows as $row) {
+            $listed = $row->ids === null ? [] : array_map('intval', explode(',', $row->ids));
+            expect($listed)->toBe($ids[$row->tabel])->and($row->engine)->toBe('InnoDB');
+        }
+    }
+    $backupPath = base_path('tmp/r7/djsn-dummy-backup-simulation.sql');
+    $backup = new Process([getenv('SIDEWAS_R7_MYSQLDUMP') ?: 'mysqldump', '--no-defaults', '--host=127.0.0.1', '--port='.getenv('SIDEWAS_PUTARAN_TEST_MYSQL_PORT'),
+        '--user=root', '--single-transaction', '--quick', '--hex-blob', '--no-tablespaces', '--set-gtid-purged=OFF', '--result-file='.$backupPath, $db->getDatabaseName()]);
+    $backup->setTimeout(60)->run();
+    expect($backup->isSuccessful())->toBeTrue($backup->getErrorOutput());
+    $delete = function () use ($db, $selectors, $counts): void {
+        foreach ($selectors as $table => [$field, $values]) {
+            expect($db->table($table)->whereIn($field, $values)->delete())->toBe($counts[$table], $table);
+        }
+    };
+    $db->beginTransaction();
+    try {
+        $delete();
+        expect($db->table('tb_record')->where('id', 1)->exists())->toBeFalse()->and($db->table('tb_record')->where('id', 990001)->exists())->toBeTrue();
+    } finally {
+        $db->rollBack();
+    }
+    expect($snapshot($db))->toEqual($before);
+    $db->transaction($delete);
+    foreach ($before as $table => $rows) {
+        $remaining = array_values(array_filter($rows, fn ($row) => ! in_array($row['id'], $ids[$table] ?? [], true)));
+        expect($db->table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all())->toEqual($remaining, $table.' di luar target berubah');
+    }
+    expect($snapshot(DB::connection('mysql_snp')))->toEqual($snpBefore);
+    $restoredName = 'sidewas_putaran_test_djsn_'.bin2hex(random_bytes(5));
+    $this->admin->exec('CREATE DATABASE `'.$restoredName.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    try {
+        $restored = new PDO('mysql:host=127.0.0.1;port='.(int) getenv('SIDEWAS_PUTARAN_TEST_MYSQL_PORT').';dbname='.$restoredName.';charset=utf8mb4', 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        $restored->exec(file_get_contents($backupPath));
+        $restored->exec("SET time_zone = '+00:00'");
+        foreach ($before as $table => $rows) {
+            expect($restored->query('SELECT * FROM `'.$table.'` ORDER BY id')->fetchAll(PDO::FETCH_ASSOC))->toEqual($rows, $table.' berbeda setelah restore');
+        }
+    } finally {
+        $restored = null;
+        $this->admin->exec('DROP DATABASE `'.$restoredName.'`');
+    }
+    file_put_contents(base_path('tmp/r7/djsn-dummy-removal-plan-simulation.json'), json_encode(['scope' => 'Salinan MySQL lokal saja, dengan surat kontrol sintetis', 'target_record_id' => 1,
+        'target_key' => $target->id_djsn, 'target_letter_number' => $target->nomor_surat, 'counts' => $counts, 'ids' => $ids,
+        'total_rows_targeted' => array_sum($counts), 'rollback_verified' => true, 'backup_restore_verified' => true, 'non_target_records_unchanged' => true, 'snp_unchanged' => true,
+        'backup_sha256' => hash_file('sha256', $backupPath), 'backup_is_production_backup' => false, 'production_changes_applied' => false], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 });
 
 test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga putaran', function () {

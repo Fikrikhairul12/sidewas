@@ -206,8 +206,8 @@ class SuratRekonsiliasiService
                 $this->reject('Batas awal wajib 14 hari kalender sejak tersedia.');
             }
         } else {
-            if (empty($details['jatuh_tempo']) || Carbon::parse($details['jatuh_tempo'], 'Asia/Jakarta')->startOfDay()->lessThanOrEqualTo($decided->copy()->startOfDay())) {
-                $this->reject('Jatuh tempo TL historis harus sesudah tanggal keputusan yang dibuktikan.');
+            if (empty($details['jatuh_tempo']) || Carbon::parse($details['jatuh_tempo'], 'Asia/Jakarta')->endOfDay()->lessThan($decided)) {
+                $this->reject('Jatuh tempo TL historis tidak boleh berakhir sebelum waktu keputusan yang dibuktikan.');
             }
             $changes['jatuh_tempo'] = $details['jatuh_tempo'];
         }

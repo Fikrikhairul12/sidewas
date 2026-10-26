@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\LogActivity;
+use App\Models\SuratTahap;
 use App\Services\KompilasiSalinanService;
 use App\Services\ReviuBahanPreviewService;
 use App\Services\SuratPutaranService;
@@ -115,6 +116,25 @@ test('R7 tanggal berbukti melengkapi metadata tanpa menimpa tanggal surat atau w
     $again = reconciliationPlan($f, 'konfirmasi_tanggal', ['stage_id' => $f['stage']->id, 'mulai_at' => '2026-11-02', 'ditetapkan_at' => '2026-11-02']);
     expect(fn () => app(SuratRekonsiliasiService::class)->run($again, $f['actor'], true))->toThrow(ValidationException::class);
 })->with(['snp', 'djsn']);
+
+test('R7 tenggat TL historis mengikuti akhir hari WIB termasuk tanggal keputusan yang sama', function (string $module, string $due, bool $accepted) {
+    $f = reconciliationFixture($module);
+    $stage = SuratTahap::on('mysql_'.$module)->create(['record_id' => $f['record']->id, 'putaran_asal_id' => $f['stage']->putaran_asal_id,
+        'kunci_asal' => 'tl_historis', 'tahap_proses' => 'tindak_lanjut', 'nomor_putaran' => 1,
+        'asal_pemetaan' => 'legacy', 'status_pemetaan' => 'terpetakan']);
+    $before = $f['record']->fresh()->getRawOriginal();
+    $plan = reconciliationPlan($f, 'konfirmasi_tanggal', ['stage_id' => $stage->id, 'ditetapkan_at' => '2026-10-07T09:33:34+07:00', 'jatuh_tempo' => $due]);
+    if (! $accepted) {
+        expect(fn () => app(SuratRekonsiliasiService::class)->run($plan, $f['actor'], true))->toThrow(ValidationException::class)
+            ->and(app(WorkflowReadinessService::class)->fingerprint($module, $f['record']->id))->toBe($plan['expected_fingerprint']);
+    } else {
+        app(SuratRekonsiliasiService::class)->run($plan, $f['actor'], true);
+        expect($stage->fresh()->jatuh_tempo->toDateString())->toBe($due)
+            ->and($stage->fresh()->tanggal_ditetapkan_at->format('Y-m-d H:i:s'))->toBe('2026-10-07 09:33:34')
+            ->and($stage->riwayatTanggal()->count())->toBe(1);
+    }
+    expect($f['record']->fresh()->getRawOriginal())->toBe($before);
+})->with(['snp', 'djsn'])->with([['2026-10-06', false], ['2026-10-07', true], ['2026-10-08', true]]);
 
 test('R7 rencana basi bukti berubah dan pengguna tanpa kewenangan ditolak', function (string $module) {
     $f = reconciliationFixture($module);
