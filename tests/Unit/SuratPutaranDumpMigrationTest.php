@@ -15,10 +15,12 @@ use App\Models\SuratTahap;
 use App\Services\IsianUnitTahapService;
 use App\Services\KompilasiTahapService;
 use App\Services\ReviuPutaranService;
+use App\Services\SnpButirContent;
 use App\Services\SuratAwalStatusService;
 use App\Services\SuratPutaranBackfill;
 use App\Services\SuratPutaranService;
 use App\Services\SuratTahapBackfill;
+use App\Services\WorkflowReadinessService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -71,10 +73,123 @@ beforeEach(function () {
 afterEach(function () {
     foreach ($this->databases ?? [] as $module => $database) {
         DB::purge('mysql_'.$module);
-        if (preg_match('/\Asidewas_putaran_test_(snp|djsn)_[a-f0-9]{10}\z/', $database)) {
+        if (preg_match('/\Asidewas_putaran_test_(snp|djsn|ragab|rawas|eksternal|produk_hukum|kunjungan)_[a-f0-9]{10}\z/', $database)) {
             $this->admin->exec('DROP DATABASE `'.$database.'`');
         }
     }
+});
+
+test('R7 dump terbaru tujuh modul tetap utuh setelah migrasi ulang serta backup dan restore MySQL', function () {
+    $directory = getenv('SIDEWAS_R7_DUMP_DIR');
+    if (! $directory) {
+        $this->markTestSkipped('Set SIDEWAS_R7_DUMP_DIR untuk dump terbaru tanpa database akun.');
+    }
+    $modules = ['snp', 'djsn', 'ragab', 'rawas', 'eksternal', 'produk_hukum', 'kunjungan'];
+    $snapshots = [];
+    foreach ($modules as $module) {
+        if (! isset($this->databases[$module])) {
+            $database = 'sidewas_putaran_test_'.$module.'_'.bin2hex(random_bytes(5));
+            $this->admin->exec('CREATE DATABASE `'.$database.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+            $this->databases[$module] = $database;
+            config(['database.connections.mysql_'.$module => array_replace(config('database.connections.mysql_snp'), ['database' => $database])]);
+            DB::purge('mysql_'.$module);
+        }
+        $db = DB::connection('mysql_'.$module);
+        $filename = $module === 'snp' ? 'sidewasi_sidewas_snp (1).sql' : 'sidewasi_sidewas_'.$module.'.sql';
+        $sql = file_get_contents($directory.DIRECTORY_SEPARATOR.$filename);
+        expect($sql)->not->toBeFalse();
+        if (preg_match('/^\s*(?:USE\b|(?:CREATE|DROP)\s+DATABASE\b|SOURCE\b|DELIMITER\b|CREATE\s+USER\b|GRANT\b)/im', $sql)) {
+            throw new RuntimeException('Dump harus diarahkan hanya ke database uji.');
+        }
+        $db->unprepared($sql);
+        foreach ($db->getSchemaBuilder()->getTableListing($db->getDatabaseName(), schemaQualified: false) as $table) {
+            $columns = $db->getSchemaBuilder()->getColumnListing($table);
+            $snapshots[$module][$table] = ['columns' => $columns, 'rows' => $db->table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all()];
+        }
+    }
+    config(['sidewas.alur_revisi_enabled' => false]);
+    foreach (['2026_10_21_134321_add_surat_putaran_foundation.php', '2026_10_21_141454_enable_snp_djsn_initial_letter_statuses.php',
+        '2026_10_22_085515_expand_snp_djsn_review_status_choices.php', '2026_10_22_100320_add_snp_djsn_letter_closure_metadata.php',
+        '2026_10_22_132318_add_unit_assignments_to_surat_putaran.php', '2026_10_23_094342_add_snp_djsn_process_stage_foundation.php',
+        '2026_10_23_102718_add_snp_djsn_stage_unit_entries.php', '2026_10_23_131534_add_snp_djsn_compilation_snapshots.php',
+        '2026_10_23_143129_add_snp_djsn_stage_deadline_audit.php'] as $file) {
+        $migration = require database_path('migrations/'.$file);
+        $migration->up();
+        $migration->up();
+    }
+    $directory = base_path('tmp/r7/backup-test');
+    if (! is_dir($directory)) {
+        mkdir($directory, 0700, true);
+    }
+    $summary = [];
+    foreach ($snapshots as $module => $tables) {
+        $db = DB::connection('mysql_'.$module);
+        foreach ($tables as $table => $snapshot) {
+            expect($db->table($table)->select($snapshot['columns'])->orderBy('id')->get()->map(fn ($row) => (array) $row)->all())->toEqual($snapshot['rows']);
+        }
+        $dumpPath = $directory.'/'.$module.'.sql';
+        $dump = new Process([getenv('SIDEWAS_R7_MYSQLDUMP') ?: 'mysqldump', '--no-defaults', '--host=127.0.0.1',
+            '--port='.getenv('SIDEWAS_PUTARAN_TEST_MYSQL_PORT'), '--user=root', '--single-transaction', '--quick', '--hex-blob', '--no-tablespaces',
+            '--set-gtid-purged=OFF', '--result-file='.$dumpPath, $db->getDatabaseName()]);
+        $dump->setTimeout(60)->run();
+        expect($dump->isSuccessful())->toBeTrue($dump->getErrorOutput());
+        $restored = 'sidewas_putaran_test_'.$module.'_'.bin2hex(random_bytes(5));
+        $this->admin->exec('CREATE DATABASE `'.$restored.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+        try {
+            $pdo = new PDO('mysql:host=127.0.0.1;port='.(int) getenv('SIDEWAS_PUTARAN_TEST_MYSQL_PORT').';dbname='.$restored.';charset=utf8mb4', 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+            $pdo->exec(file_get_contents($dumpPath));
+            $pdo->exec("SET time_zone = '+00:00'");
+            $db->statement("SET time_zone = '+00:00'");
+            foreach ($db->getSchemaBuilder()->getTableListing($db->getDatabaseName(), schemaQualified: false) as $table) {
+                $before = $db->table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
+                $after = $pdo->query('SELECT * FROM `'.$table.'` ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+                expect(hash('sha256', json_encode($after, JSON_THROW_ON_ERROR)))->toBe(hash('sha256', json_encode($before, JSON_THROW_ON_ERROR)), $module.'.'.$table.' berbeda setelah restore');
+            }
+        } finally {
+            $pdo = null;
+            $this->admin->exec('DROP DATABASE `'.$restored.'`');
+        }
+        $summary[$module] = ['tables' => count($tables), 'rows' => array_sum(array_map(fn ($table) => count($table['rows']), $tables)),
+            'backup_sha256' => hash_file('sha256', $dumpPath), 'source_preserved' => true, 'restore_verified' => true];
+    }
+    $readiness = app(WorkflowReadinessService::class)->inspect();
+    file_put_contents(base_path('tmp/r7/latest-dump-readiness.json'), json_encode($readiness, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    file_put_contents(base_path('tmp/r7/migration-restore-results.json'), json_encode($summary, JSON_PRETTY_PRINT));
+    if ($storage = getenv('SIDEWAS_R7_STORAGE_DIR')) {
+        $assets = [];
+        foreach (['snp', 'djsn'] as $module) {
+            foreach ($snapshots[$module] as $table => $snapshot) {
+                foreach ($snapshot['rows'] as $row) {
+                    foreach ($row as $field => $value) {
+                        if (in_array($field, ['dokumen', 'dokumen_memo'], true) && is_string($value) && $value !== '') {
+                            $key = 'public:'.$value;
+                            $assets[$key]['disk'] = 'public';
+                            $assets[$key]['path'] = $value;
+                            $assets[$key]['references'][] = [$module, $table, $row['id'], $field];
+                        }
+                        if (in_array($field, ['butir_'.$module, 'tanggapan', 'tindak_lanjut', 'hasil_kompilasi', 'hasil_review'], true) && is_string($value)) {
+                            foreach (app(SnpButirContent::class)->images($value) as $image) {
+                                $key = 'local:'.$image['path'];
+                                $assets[$key]['disk'] = 'local';
+                                $assets[$key]['path'] = $image['path'];
+                                $assets[$key]['references'][] = [$module, $table, $row['id'], $field];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        foreach ($assets as &$asset) {
+            $path = $asset['path'];
+            $safe = ! str_contains($path, '..') && ! str_contains($path, ':') && ! str_starts_with($path, '/') && ! str_contains($path, '\\');
+            $file = rtrim($storage, '/\\').'/'.($asset['disk'] === 'local' ? 'private' : 'public').'/'.$path;
+            $asset['available'] = $safe && is_file($file);
+            $asset['sha256'] = $asset['available'] ? hash_file('sha256', $file) : null;
+        }
+        unset($asset);
+        file_put_contents(base_path('tmp/r7/storage-inventory.json'), json_encode($assets, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    }
+    expect(config('sidewas.alur_revisi_enabled'))->toBeFalse();
 });
 
 test('migrasi dump MySQL mempertahankan seluruh nilai sumber dan memisahkan tiga putaran', function () {

@@ -185,14 +185,18 @@ else
 fi
 
 maintenance_enabled=false
+activation_check_failed=false
 
 finish_deployment() {
     local exit_code=$?
 
     trap - EXIT
 
-    if [[ "$maintenance_enabled" == true ]]; then
+    if [[ "$maintenance_enabled" == true && "$activation_check_failed" == false ]]; then
         "$PHP_BIN" "$APP_PATH/artisan" up || true
+    fi
+    if [[ "$activation_check_failed" == true ]]; then
+        log 'Aplikasi tetap maintenance: pemeriksaan aktivasi alur revisi belum lulus. Ikuti resources/deployment/R7-AKTIVASI.md sebelum mengubah flag atau memulihkan cadangan.'
     fi
 
     if [[ $exit_code -eq 0 ]]; then
@@ -209,6 +213,9 @@ trap finish_deployment EXIT
 if [[ -f "$APP_PATH/artisan" && -f "$APP_PATH/vendor/autoload.php" ]]; then
     if "$PHP_BIN" "$APP_PATH/artisan" down --retry=15; then
         maintenance_enabled=true
+    else
+        log 'Maintenance gagal dimulai; deployment dihentikan sebelum migrasi.'
+        exit 1
     fi
 fi
 
@@ -229,6 +236,13 @@ log 'Menjalankan migrasi dan membangun cache production.'
     "$PHP_BIN" artisan migrate --force
     "$PHP_BIN" artisan optimize
 )
+
+log 'Memeriksa kesiapan aktivasi alur revisi SNP/DJSN.'
+if ! "$PHP_BIN" "$APP_PATH/artisan" workflow:check-revisi --if-enabled; then
+    activation_check_failed=true
+    log 'Aktivasi ditolak karena data atau salinan bahan belum siap. Periksa workflow:check-revisi sebelum mengaktifkan flag.'
+    exit 1
+fi
 
 log 'Menyinkronkan public Laravel ke document root.'
 copy_public_tree

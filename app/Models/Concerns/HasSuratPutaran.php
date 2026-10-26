@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Enums\SuratStatus;
 use App\Enums\TahapProses;
 use App\Models\SuratPutaran;
+use App\Models\SuratRekonsiliasi;
 use App\Models\SuratTahap;
 use App\Services\IsianUnitTahapService;
 use App\Services\SuratAwalStatusService;
@@ -22,6 +23,11 @@ trait HasSuratPutaran
     public function tahapanProses(): HasMany
     {
         return $this->hasMany(SuratTahap::class, 'record_id')->orderBy('id');
+    }
+
+    public function rekonsiliasi(): HasMany
+    {
+        return $this->hasMany(SuratRekonsiliasi::class, 'record_id')->orderBy('id');
     }
 
     public function tahapAktif(): BelongsTo

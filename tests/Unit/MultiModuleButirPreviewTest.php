@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Symfony\Component\Process\Process;
@@ -152,7 +151,7 @@ test('all seventeen module pages provide full reading without disturbing drafts 
             : Str::beforeLast(Str::before($reportModal, '</x-app-layout>'), '</div>');
         $html .= Blade::render('<div id="customReportModal"'.$reportModal, ['reportFields' => ['id_butir' => 'ID Butir', 'isi_butir' => 'Isi Butir']]);
         request()->setRouteResolver(fn () => Route::getRoutes()->getByName($module.'.perekaman'));
-        $layout = view('layouts.app', ['slot' => new HtmlString($html)])->render();
+        $layout = Blade::render('<x-app-layout>{!! $html !!}</x-app-layout>', compact('html'));
         $html = Str::beforeLast(Str::after(Str::after($layout, '<body'), '>'), '</body>');
         $fixtures[$module] = ['html' => $html, 'sections' => $sections, 'id' => $items[0][$idField]];
         $pagesChecked++;
