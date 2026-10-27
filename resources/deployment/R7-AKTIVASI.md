@@ -43,6 +43,8 @@ Alur revisi SNP/DJSN tetap nonaktif sampai pemeriksaan data dan penerimaan pada 
    php artisan down --retry=15
    ```
 
+   Jika Cron hosting hanya menjalankan `artisan schedule:run`, periksa definisi tugasnya sebelum mengubah Cron. Tiga tugas yang saat ini ada di `routes/console.php` tidak menggunakan `evenInMaintenanceMode`, sehingga Laravel tidak memulai tugas tersebut selama maintenance; Cron scheduler dapat dipertahankan. Maintenance tidak membatalkan pekerjaan yang sudah berjalan. Tunggu pekerjaan tersebut selesai sebelum mengambil cadangan, dan hentikan terpisah bila ada worker atau Cron lain yang langsung menulis data.
+
    Buat satu paket cadangan dengan label waktu dan commit yang sama:
 
    - Ekspor database utama dan seluruh database modul yang dipakai aplikasi. Database utama yang berisi akun disimpan sendiri oleh pengelola hosting, tidak perlu dibagikan dalam chat.
@@ -149,6 +151,8 @@ Alur revisi SNP/DJSN tetap nonaktif sampai pemeriksaan data dan penerimaan pada 
    ```
 
    Jalankan Deploy HEAD Commit. Skrip membersihkan cache, menjalankan migrasi, membangun cache, lalu memeriksa `workflow:check-revisi --if-enabled` sebelum menyinkronkan berkas publik. Pemeriksaan ini juga mencakup database utama. Jika gagal, aplikasi tetap maintenance dan alur tidak boleh dibuka untuk pengguna.
+
+   Jika kode yang sama sudah terpasang dan diperiksa, perubahan hanya pada flag `.env` dapat diaktifkan tanpa deploy/migrasi ulang: jalankan `config:cache`, bersihkan view melalui `view:clear`, periksa `config:show sidewas`, lalu jalankan kembali `workflow:check-revisi --with-main --json`. Pertahankan maintenance sampai kedua flag terbukti `true` dan laporan data tetap siap. `config/sidewas.php` saat ini hanya berisi dua flag sehingga aman dicatat pada log privat. Pastikan lokasi `.env` runtime sudah diketahui, bukan mengasumsikan salinan pada folder lain.
 
    Uji login sebagai role yang sebenarnya dipakai, sidebar TL, daftar, Detail, kompilasi/reviu, dan cetak satu contoh yang sesuai. Hindari membuat keputusan pada surat kerja asli hanya untuk mencoba. Buka akses pengguna setelah hasilnya sesuai.
 
