@@ -34,6 +34,7 @@ use App\Http\Controllers\Rawas\PerekamanRawasController;
 use App\Http\Controllers\Rawas\ReportRawasController;
 use App\Http\Controllers\Rawas\ReviuRawasController;
 use App\Http\Controllers\Rawas\TindakLanjutRawasController;
+use App\Http\Controllers\ReportDocumentController;
 use App\Http\Controllers\ReviuPutaranController;
 use App\Http\Controllers\Snp\KompilasiSnpController;
 use App\Http\Controllers\Snp\PerekamanSnpController;
@@ -276,6 +277,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/snp/report', [ReportSnpController::class, 'index'])
         ->name('snp.report.index');
+
+    Route::get('/snp/report/kompilasi/{kompilasi}/dokumen/{filename}', [ReportDocumentController::class, 'show'])
+        ->defaults('module', 'snp')->whereNumber('kompilasi')->name('snp.report.dokumen');
 
     Route::post('/snp/report/cetak', [ReportSnpController::class, 'cetak'])
         ->name('snp.report.cetak');
@@ -586,6 +590,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/djsn/report', [ReportDjsnController::class, 'index'])
         ->name('djsn.report.index');
+
+    Route::get('/djsn/report/kompilasi/{kompilasi}/dokumen/{filename}', [ReportDocumentController::class, 'show'])
+        ->defaults('module', 'djsn')->whereNumber('kompilasi')->name('djsn.report.dokumen');
 
     Route::post('/djsn/report/cetak', [ReportDjsnController::class, 'cetak'])
         ->name('djsn.report.cetak');

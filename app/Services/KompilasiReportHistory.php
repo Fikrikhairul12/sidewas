@@ -14,7 +14,7 @@ use Illuminate\Support\Collection;
 
 class KompilasiReportHistory
 {
-    public function __construct(private KompilasiBahanReader $reader) {}
+    public function __construct(private KompilasiBahanReader $reader, private ReportDocumentService $documents) {}
 
     /** @param array<string, mixed> $data
      * @return array<string, mixed>
@@ -76,7 +76,7 @@ class KompilasiReportHistory
             $materials = $snapshot['materials']->filter(fn ($entry): bool => $filter === [] || in_array((int) $entry['unit_id'], $filter, true))->values();
             $missing = $snapshot['units']->where('filled', false)->filter(fn ($unit): bool => $filter === [] || in_array($unit['id'], $filter, true))->values();
             $reviews = $butir->reviews->filter(fn ($review): bool => $this->reader->matchesReview($compilation, $review))->sortBy('id')->values();
-            $reviewEntries = $reviews->map(fn ($review): array => $this->reviewEntry($review));
+            $reviewEntries = $reviews->map(fn ($review): array => $this->reviewEntry($review, $compilation));
             $stage = $snapshot['stage'];
 
             return [
@@ -101,7 +101,7 @@ class KompilasiReportHistory
     }
 
     /** @return array<string, mixed> */
-    private function reviewEntry(SnpReview|DjsnReview $review): array
+    private function reviewEntry(SnpReview|DjsnReview $review, SnpKompilasi|DjsnKompilasi $compilation): array
     {
         $reviewed = $review->status !== ReviuStatus::BelumDitanggapi->value || filled($review->hasil_review);
         $actorId = $reviewed ? ($review->updated_by ?? $review->created_by) : $review->created_by;
@@ -112,8 +112,9 @@ class KompilasiReportHistory
             'author' => $actor?->name ?? ($actorId ? 'Pengisi #'.$actorId.' (nama tidak tersedia)' : 'Pengisi tidak tercatat'),
             'created_at' => $reviewed ? $review->updated_at : null, 'updated_at' => null,
             'content' => $review->hasil_review, 'deliverables' => $review->deliverables,
-            'documents' => collect(['dokumen' => 'Dokumen reviu', 'dokumen_memo' => 'Memo reviu'])->filter(fn ($label, $field): bool => filled($review->{$field}))
-                ->map(fn ($label, $field): array => ['label' => $label, 'url' => asset('storage/'.$review->{$field})])->values(),
+            'documents' => $this->documents->documents($compilation, collect(['dokumen' => 'Dokumen reviu', 'dokumen_memo' => 'Memo reviu'])
+                ->filter(fn ($label, $field): bool => filled($review->{$field}))
+                ->mapWithKeys(fn ($label, $field): array => [$label => ['disk' => 'public', 'path' => $review->{$field}]])->all()),
             'decision' => ReviuStatus::labelFor($review->status), 'late_at' => null, 'proposed_date' => null,
         ];
     }

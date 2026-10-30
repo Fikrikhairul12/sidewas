@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
 /** Shared, read-only source for the official review preview and PDF. */
 class KompilasiBahanReader
 {
-    public function __construct(private IsianUnitTahapService $inputs) {}
+    public function __construct(private IsianUnitTahapService $inputs, private ReportDocumentService $documents) {}
 
     public function verified(SnpKompilasi|DjsnKompilasi $compilation): bool
     {
@@ -118,11 +118,11 @@ class KompilasiBahanReader
         $kind = $compilation->tahap_kompilasi === 'tindak_lanjut' ? 'Tindak Lanjut' : 'Tanggapan';
         $label = $stage->tahap_proses->label().($kind === 'Tindak Lanjut' ? ' Putaran '.$stage->nomor_putaran : '');
         $materials = $compilation->bahan->sortBy(fn ($material): string => ($material->salinan['created_at'] ?? '').sprintf('%020d', $material->id))
-            ->map(function ($material) use ($kind): array {
+            ->map(function ($material) use ($kind, $compilation): array {
                 $copy = $material->salinan;
 
                 return $this->entry($material->id, $kind.' unit', $kind === 'Tanggapan' ? 'tanggapan' : 'tindak_lanjut', $copy['isi'], $copy['deliverables'],
-                    $copy['pengisi'] ?? [], $copy['created_at'] ?? null, $copy['updated_at'] ?? null, $this->documents(['Dokumen' => $copy['dokumen'] ?? null])) + [
+                    $copy['pengisi'] ?? [], $copy['created_at'] ?? null, $copy['updated_at'] ?? null, $this->documents->documents($compilation, ['Dokumen' => $copy['dokumen'] ?? null])) + [
                         'source_id' => $material->sumber_id, 'source_table' => $material->jenis_sumber,
                         'unit_id' => $material->unit_kerja_id, 'unit' => $copy['unit']['nama'] ?? 'Unit #'.$material->unit_kerja_id,
                         'unit_code' => $copy['unit']['kode'] ?? null, 'late_at_submission' => $this->date(data_get($copy, 'keterlambatan.ditandai_at')),
@@ -131,7 +131,7 @@ class KompilasiBahanReader
             })->values();
         $result = $this->entry($compilation->id, 'Kompilasi '.$label, 'hasil_kompilasi', $context['kompilasi']['isi'],
             $context['kompilasi']['deliverables'] ?? null, $context['penyusun'] ?? [], $context['dicatat_at'] ?? null, null,
-            $this->documents(['Dokumen kompilasi' => $context['kompilasi']['dokumen'] ?? null])) + [
+            $this->documents->documents($compilation, ['Dokumen kompilasi' => $context['kompilasi']['dokumen'] ?? null])) + [
                 'unit' => null, 'unit_code' => null, 'unit_id' => null,
             ];
         $result['stage'] = $compilation->tahap_kompilasi;
@@ -179,13 +179,6 @@ class KompilasiBahanReader
             'created_at' => $this->date($createdAt), 'updated_at' => $this->date($updatedAt), 'documents' => $documents,
             'decision' => null, 'late_at' => null, 'proposed_date' => null, 'date_status' => null, 'stage' => null,
         ];
-    }
-
-    /** @param array<string, array<string, mixed>|null> $copies */
-    private function documents(array $copies): Collection
-    {
-        return collect($copies)->filter(fn ($copy): bool => is_array($copy) && ($copy['disk'] ?? null) === 'public' && ! empty($copy['path']))
-            ->map(fn ($copy, $label): array => ['label' => $label, 'url' => asset('storage/'.$copy['path'])])->values();
     }
 
     private function date(?string $value): ?Carbon

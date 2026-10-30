@@ -12,6 +12,7 @@ use App\Models\LogActivity;
 use App\Models\UnitKerja;
 use App\Models\User;
 use App\Services\IsianUnitTahapService;
+use App\Services\ReportDocumentService;
 use App\Services\ReviuPutaranService;
 use App\Services\ReviuTahapService;
 use App\Services\SnpButirContent;
@@ -331,7 +332,7 @@ class ReviuDjsnController extends Controller
             if (IsianUnitTahapService::enabled()) {
                 abort_unless(app(ReviuTahapService::class)->hasVerifiedCompilation($review), 422, 'Salinan kompilasi perlu rekonsiliasi.');
 
-                return app(ReviuPutaranController::class)->download(data_get($review->kompilasiPutaran->salinan_konteks, 'kompilasi.dokumen.path'));
+                return app(ReportDocumentService::class)->response(data_get($review->kompilasiPutaran->salinan_konteks, 'kompilasi.dokumen'), download: true);
             }
 
             return app(ReviuPutaranController::class)->download($review->kompilasiPutaran?->dokumen);

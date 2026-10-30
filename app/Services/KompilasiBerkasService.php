@@ -17,7 +17,7 @@ class KompilasiBerkasService
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
         $extension = in_array($extension, ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg'], true) ? $extension : 'bin';
 
-        return $this->copy('public', $path, 'dokumen/salinan-kompilasi/'.Str::uuid().($extension ? '.'.$extension : ''), $copies);
+        return $this->copy('public', $path, 'dokumen/salinan-kompilasi/'.Str::uuid().($extension ? '.'.$extension : ''), $copies, 'local');
     }
 
     /** @param array<string, array<string, mixed>> $copies */
@@ -40,7 +40,7 @@ class KompilasiBerkasService
     }
 
     /** @param array<string, array<string, mixed>> $copies */
-    private function copy(string $disk, string $source, string $destination, array &$copies): array
+    private function copy(string $disk, string $source, string $destination, array &$copies, ?string $destinationDisk = null): array
     {
         $key = $disk.':'.$source;
         if (isset($copies[$key])) {
@@ -54,8 +54,9 @@ class KompilasiBerkasService
         if (! is_string($bytes)) {
             throw ValidationException::withMessages(['hasil_kompilasi' => 'Berkas bahan gagal dibaca. Kompilasi belum dikirim.']);
         }
-        $copies[$key] = ['disk' => $disk, 'path' => $destination, 'source_path' => $source, 'sha256' => hash('sha256', $bytes), 'size' => strlen($bytes)];
-        if (! Storage::disk($disk)->put($destination, $bytes)) {
+        $destinationDisk ??= $disk;
+        $copies[$key] = ['disk' => $destinationDisk, 'path' => $destination, 'source_path' => $source, 'sha256' => hash('sha256', $bytes), 'size' => strlen($bytes)];
+        if (! Storage::disk($destinationDisk)->put($destination, $bytes)) {
             throw ValidationException::withMessages(['hasil_kompilasi' => 'Salinan berkas bahan gagal disimpan. Kompilasi belum dikirim.']);
         }
 

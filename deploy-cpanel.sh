@@ -8,6 +8,7 @@ readonly PUBLIC_PATH="/home/sidewasi/public_html"
 readonly HOME_ENV_PATH="/home/sidewasi/.env"
 readonly LEGACY_APP_PATH="/home/sidewasi/sidewas-laravel"
 readonly PUBLIC_INDEX_TEMPLATE="$REPOSITORY_PATH/resources/deployment/public-index.php"
+readonly REPORT_DOCUMENT_ACCESS_TEMPLATE="$REPOSITORY_PATH/resources/deployment/report-documents.htaccess"
 readonly PUBLIC_STORAGE_BACKUP="/home/sidewasi/storage-backup-before-repository"
 readonly STORAGE_MIGRATION_MARKER="$APP_PATH/storage/app/.repository-migration-complete"
 
@@ -62,6 +63,13 @@ copy_public_tree() {
     shopt -u dotglob nullglob
 }
 
+protect_compilation_documents() {
+    local documents_path="$APP_PATH/storage/app/public/dokumen/salinan-kompilasi"
+
+    /bin/mkdir -p "$documents_path"
+    /bin/cp "$REPORT_DOCUMENT_ACCESS_TEMPLATE" "$documents_path/.htaccess"
+}
+
 PHP_BIN="$(find_executable \
     /usr/local/bin/ea-php82 \
     /opt/cpanel/ea-php82/root/usr/bin/php \
@@ -97,6 +105,11 @@ fi
 
 if [[ ! -f "$PUBLIC_INDEX_TEMPLATE" ]]; then
     log 'Template public_html/index.php tidak ditemukan.'
+    exit 1
+fi
+
+if [[ ! -f "$REPORT_DOCUMENT_ACCESS_TEMPLATE" ]]; then
+    log 'Template perlindungan dokumen laporan tidak ditemukan.'
     exit 1
 fi
 
@@ -246,6 +259,7 @@ fi
 
 log 'Menyinkronkan public Laravel ke document root.'
 copy_public_tree
+protect_compilation_documents
 
 /bin/cp "$PUBLIC_INDEX_TEMPLATE" "$PUBLIC_PATH/index.php"
 

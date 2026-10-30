@@ -187,9 +187,9 @@ test('R6 preview aktif dan salinan resmi menangani nol satu beberapa bahan tanpa
             expect($official['responses'][0]['author'])->toBe('Pengisi A');
             $copy = $review->kompilasiPutaran->bahan()->first()->salinan['dokumen'];
             if (! $custom) {
-                expect($html)->toContain($copy['path']);
+                expect($html)->toContain(route($module.'.report.dokumen', ['kompilasi' => $review->kompilasi_id, 'filename' => basename($copy['path'])]));
             }
-            expect(Storage::disk('public')->exists($copy['path']))->toBeTrue();
+            expect(Storage::disk($copy['disk'])->exists($copy['path']))->toBeTrue();
         }
     }
 })->with(['snp', 'djsn'])->with([0, 1, 3]);

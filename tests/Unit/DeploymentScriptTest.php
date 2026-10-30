@@ -69,3 +69,78 @@ test('R7 deployment trap retains maintenance only for a failed activation check'
         expect(trim(file_get_contents($log)))->toBe('up');
     }
 })->with([[true, 1, false], [false, 1, true], [false, 0, true]]);
+
+test('BUG-001 deployment melindungi salinan public lama tanpa mengubah isi berkas', function () {
+    $bash = getenv('SIDEWAS_TEST_BASH') ?: (PHP_OS_FAMILY === 'Windows' ? null : '/bin/bash');
+    if (! $bash || ! is_file($bash)) {
+        $this->markTestSkipped('Set SIDEWAS_TEST_BASH untuk uji shell deployment.');
+    }
+    $root = dirname(__DIR__, 2);
+    $directory = $root.'/tmp/bug-001/deployment-'.bin2hex(random_bytes(5));
+    $documents = $directory.'/storage/app/public/dokumen/salinan-kompilasi';
+    mkdir($documents, 0700, true);
+    file_put_contents($documents.'/bukti.pdf', 'SALINAN LAMA TETAP UTUH');
+    $script = file_get_contents($root.'/deploy-cpanel.sh');
+    $start = strpos($script, 'protect_compilation_documents() {');
+    $end = strpos($script, "\nPHP_BIN=", $start);
+    $function = substr($script, $start, $end - $start);
+    $process = new Process([$bash, '-c', 'set -Eeuo pipefail'."\n".$function."\nprotect_compilation_documents\nprotect_compilation_documents"], $root, [
+        'APP_PATH' => str_replace('\\', '/', $directory),
+        'REPORT_DOCUMENT_ACCESS_TEMPLATE' => str_replace('\\', '/', $root.'/resources/deployment/report-documents.htaccess'),
+    ]);
+    $process->setTimeout(15)->run();
+    expect($process->getExitCode())->toBe(0, $process->getOutput().$process->getErrorOutput())
+        ->and(file_get_contents($documents.'/bukti.pdf'))->toBe('SALINAN LAMA TETAP UTUH')
+        ->and(file_get_contents($documents.'/.htaccess'))->toBe(file_get_contents($root.'/resources/deployment/report-documents.htaccess'))
+        ->and(file_get_contents($documents.'/.htaccess'))->toContain('Require all denied', 'Deny from all');
+});
+
+test('BUG-001 Apache menolak URL salinan lama meskipun berkasnya tersedia', function () {
+    $httpd = getenv('SIDEWAS_TEST_HTTPD');
+    if (! $httpd || ! is_file($httpd)) {
+        $this->markTestSkipped('Set SIDEWAS_TEST_HTTPD untuk uji akses HTTP Apache.');
+    }
+    $directory = str_replace('\\', '/', dirname(__DIR__, 2)).'/tmp/bug-001/httpd-'.bin2hex(random_bytes(5));
+    $public = $directory.'/public';
+    $documents = $public.'/dokumen/salinan-kompilasi';
+    mkdir($documents, 0700, true);
+    file_put_contents($public.'/health.txt', 'HTTP READY');
+    file_put_contents($documents.'/bukti.pdf', 'DOKUMEN PRIVAT');
+    copy(dirname(__DIR__, 2).'/resources/deployment/report-documents.htaccess', $documents.'/.htaccess');
+    $socket = stream_socket_server('tcp://127.0.0.1:0');
+    $port = (int) substr(strrchr(stream_socket_get_name($socket, false), ':'), 1);
+    fclose($socket);
+    $apache = str_replace('\\', '/', dirname($httpd, 2));
+    $config = 'ServerRoot "'.$apache.'"'."\n"
+        .'ServerName localhost'."\n".'Listen 127.0.0.1:'.$port."\n"
+        .'LoadModule authz_core_module modules/mod_authz_core.so'."\n"
+        .'LoadModule authz_host_module modules/mod_authz_host.so'."\n"
+        .'ErrorLog "'.$directory.'/error.log"'."\n".'PidFile "'.$directory.'/httpd.pid"'."\n"
+        .'DocumentRoot "'.$public.'"'."\n".'<Directory "'.$public.'">'."\n"
+        .'AllowOverride AuthConfig'."\n".'Require all granted'."\n".'</Directory>'."\n";
+    file_put_contents($directory.'/httpd.conf', $config);
+    $server = new Process([$httpd, '-X', '-f', $directory.'/httpd.conf']);
+    $server->setTimeout(15)->start();
+    $client = curl_init();
+    curl_setopt_array($client, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT_MS => 200]);
+    try {
+        $ready = false;
+        for ($attempt = 0; $attempt < 50; $attempt++) {
+            curl_setopt($client, CURLOPT_URL, 'http://127.0.0.1:'.$port.'/health.txt');
+            if (curl_exec($client) === 'HTTP READY') {
+                $ready = true;
+                break;
+            }
+            usleep(100000);
+        }
+        expect($ready)->toBeTrue($server->getErrorOutput());
+        curl_setopt($client, CURLOPT_URL, 'http://127.0.0.1:'.$port.'/dokumen/salinan-kompilasi/bukti.pdf');
+        $response = curl_exec($client);
+        expect(curl_getinfo($client, CURLINFO_RESPONSE_CODE))->toBe(403)
+            ->and($response)->not->toContain('DOKUMEN PRIVAT')
+            ->and(file_get_contents($documents.'/bukti.pdf'))->toBe('DOKUMEN PRIVAT');
+    } finally {
+        curl_close($client);
+        $server->stop(1);
+    }
+});
